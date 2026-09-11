@@ -43,6 +43,8 @@ EvaluationCase (JSON)
 | `judge/pairwise.py` | PHASE 7 맞대결 판정, position bias 측정, 블라인딩 검증 |
 | `pairwise_cli.py` | collect(그래프) / judge(맞대결) 분리 실행 |
 | `performance_failure*.py` | PHASE 9 실-provider 지표 재집계 + 실패 주입 |
+| `human_calibration*.py` | PHASE 10 블라인드 사람 평가 양식 + 비공개 Judge 참조표 생성 |
+| `phase11_outputs*.py` | PHASE 11 최종 산출물 통합 + 필수 파일/해시 검증 |
 | `production_catalog.py` | 배포 카탈로그 번들 → pool record (D-2 재확인용) |
 | `fallback_reproduction*.py` | D-2 재현 확인. LLM 호출 0건 |
 | `evaluators/` | safety · constraint · structure · failure |
@@ -76,6 +78,15 @@ uv run python -m backend.tests.evaluation.fallback_reproduction_cli
 
 # PHASE 9 성능 재집계 + 실패 평가 (비용 0, 저장된 실-provider 결과 재사용)
 uv run python -m backend.tests.evaluation.performance_failure_cli
+
+# PHASE 10 블라인드 평가 양식 생성 (비용 0, 외부 호출 없음)
+uv run python -m backend.tests.evaluation.human_calibration_cli
+
+# 사람 평가 입력 후 Judge 보정 지표 산출
+uv run python -m backend.tests.evaluation.human_calibration_analysis_cli
+
+# PHASE 11 최종 산출물 생성 및 필수 파일 검증
+uv run python -m backend.tests.evaluation.phase11_outputs_cli
 ```
 
 `--offline` 실행에서 A·B·C가 **같은 계획**을 내는지 확인하는 것이 배관 점검이다.

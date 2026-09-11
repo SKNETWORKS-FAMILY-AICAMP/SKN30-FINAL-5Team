@@ -1,0 +1,4 @@
+﻿architecture_code,label,run_count,constraint_satisfaction_rate,safety_compliance_rate,conflict_resolution_rate,workflow_completion_rate,structured_output_success_rate,judge_mean,p50_latency_ms,p95_latency_ms,average_llm_calls_per_run,average_tokens_per_run,critical_failures,human_calibration_mean,human_minus_judge_calibration_bias
+SINGLE_LLM,A. Single LLM,28,0.8929,1.0,1.0,0.8929,1.0,3.6389,18218,30313,1.0,4360.5,0,4.0062,0.4021
+SINGLE_AGENT_RAG,B. Single Agent + RAG,28,1.0,1.0,1.0,1.0,1.0,4.0833,14031,20359,1.0,7474.5,0,4.0187,-0.0646
+MULTI_AGENT,C. Multi-Agent + RAG,28,0.8571,1.0,1.0,0.8571,0.8929,4.4028,25219,36141,3.8929,26645.5,0,4.0625,-0.3333

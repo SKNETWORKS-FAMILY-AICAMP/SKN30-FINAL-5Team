@@ -1,0 +1,431 @@
+{
+  "architecture_counts": {
+    "MULTI_AGENT": 8,
+    "SINGLE_AGENT_RAG": 8,
+    "SINGLE_LLM": 8
+  },
+  "blind": true,
+  "category_counts": {
+    "complex": 3,
+    "conflict": 5,
+    "failure_case": 4,
+    "moderate": 3,
+    "rag_retrieval": 4,
+    "safety_critical": 2,
+    "simple": 3
+  },
+  "instructions": "Do not share this file with human reviewers before scoring.",
+  "phase": "PHASE 10 Human Calibration",
+  "sample_count": 24,
+  "samples": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.8333,
+      "sample_id": "HC-001"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-COMPLEX-001",
+      "category": "complex",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.5,
+      "sample_id": "HC-002"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-CONFLICT-002",
+      "category": "conflict",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.0,
+      "sample_id": "HC-003"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.1667,
+      "sample_id": "HC-004"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-RAG-001",
+      "category": "rag_retrieval",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.1667,
+      "sample_id": "HC-005"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-CONFLICT-003",
+      "category": "conflict",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.0,
+      "sample_id": "HC-006"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.6667,
+      "sample_id": "HC-007"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-RAG-002",
+      "category": "rag_retrieval",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.1667,
+      "sample_id": "HC-008"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-SAFETY-001",
+      "category": "safety_critical",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.0,
+      "sample_id": "HC-009"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-CONFLICT-001",
+      "category": "conflict",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.1667,
+      "sample_id": "HC-010"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-RAG-001",
+      "category": "rag_retrieval",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.3333,
+      "sample_id": "HC-011"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-CONFLICT-002",
+      "category": "conflict",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 5.0,
+      "sample_id": "HC-012"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-SAFETY-001",
+      "category": "safety_critical",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.5,
+      "sample_id": "HC-013"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-RAG-002",
+      "category": "rag_retrieval",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.1667,
+      "sample_id": "HC-014"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.3333,
+      "sample_id": "HC-015"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-COMPLEX-002",
+      "category": "complex",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.5,
+      "sample_id": "HC-016"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-FAILURE-002",
+      "category": "failure_case",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.5,
+      "sample_id": "HC-017"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-CONFLICT-001",
+      "category": "conflict",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.3333,
+      "sample_id": "HC-018"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.6667,
+      "sample_id": "HC-019"
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.5,
+      "sample_id": "HC-020"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.1667,
+      "sample_id": "HC-021"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-COMPLEX-002",
+      "category": "complex",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 3.8333,
+      "sample_id": "HC-022"
+    },
+    {
+      "architecture_code": "SINGLE_LLM",
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.6667,
+      "sample_id": "HC-023"
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "judge_dimension_scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "judge_prompt_version": "service-quality-judge-prompt-v1",
+      "judge_rubric_version": "service-quality-judge-rubric-v1",
+      "judge_score": 4.5,
+      "sample_id": "HC-024"
+    }
+  ],
+  "selection_version": "phase10-human-calibration-selection-v1"
+}

@@ -35,8 +35,8 @@
 | 7 | Pairwise Judge | **유료** | **완료** (3 pair × 14 case × 2 순서) |
 | 8 | LangSmith | 없음 | **조사 완료.** 워크플로 trace만 사용 결정 |
 | 9 | Performance / Failure | 없음/유료 | 실패 경로 완료, latency 측정 완료 |
-| 10 | Human Calibration | 없음 | 양식만 |
-| 11 | 결과 산출 | 없음 | 부분 |
+| 10 | Human Calibration | 없음 | **완료** (PM·개발리드 합의 24건) |
+| 11 | 결과 산출 | 없음 | **완료** (필수 7종 + category + manifest) |
 
 ---
 
@@ -400,13 +400,17 @@ coordinator의 `ChatOpenAI` span 4개를 확인했다. 상세는
   safe termination 10/10, node error 0건, critical failure 0건.
 - 상세: `docs/test/PHASE9_PERFORMANCE_FAILURE.md`, `results/phase9/performance_failure.json`
 
-## PHASE 10. Human Calibration (계획)
+## PHASE 10. Human Calibration — 완료
 
 - 대표 case 20~30건 추출 양식
 - `case_id`, `human_score`, `judge_score`, `score_difference` 비교 구조
 - **Human Label이 없으면 임의로 생성하지 않는다.** 빈 양식만 만든다.
+- 24개 출력을 세 아키텍처 각 8건으로 구성하고 평가자 파일에서는 아키텍처와 Judge 점수를 숨겼다.
+- 평가 안내: `docs/test/PHASE10_HUMAN_CALIBRATION.md`
+- 결과: Human/Judge 평균 4.0292/4.0278, MAE 0.5306, ±0.5점 일치율 0.5417,
+  Pearson -0.0890. 전체 평균은 같지만 아키텍처별 반대 편향이 상쇄된 결과다.
 
-## PHASE 11. 결과 산출 (계획)
+## PHASE 11. 결과 산출 — 완료
 
 ```
 results/
@@ -426,6 +430,10 @@ docs/test/
 `TEST_RESULTS.md` 필수 14개 절 + Single vs Multi 비교표 + Category별 결과.
 
 미실행 Phase는 "미실행"으로 명시하고 추정치로 채우지 않는다.
+
+필수 7종을 루트 `results/`에 생성하고 `results/category_metrics.csv`를 추가했다.
+`results/phase11_manifest.json`에 각 파일의 SHA-256과 크기를 기록했다. 최종 판단은
+`docs/test/PHASE11_FINAL_RESULTS.md`에 정리했다.
 
 ---
 

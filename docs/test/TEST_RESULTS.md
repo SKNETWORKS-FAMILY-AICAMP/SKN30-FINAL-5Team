@@ -1,6 +1,6 @@
 # TEST_RESULTS.md
 
-PHASE 0~9 실행 결과. 마스터 명세는 `docs/test/service_test_master_prompt.md`.
+PHASE 0~11 최종 실행 결과. 마스터 명세는 `docs/test/service_test_master_prompt.md`.
 
 - 실행일: 2026-09-11
 - 브랜치: `chore/service-quality-evaluation-harness` (`develop`에서 분기, `6deb151`)
@@ -35,7 +35,14 @@ rag_retrieval 2, missing_input 2, invalid_input 2, failure_case 2.
 재현성 고정: `FIXED_TIME=2026-08-25T09:00:00Z`, 운동 UUID는 `uuid5` 고정
 namespace, envelope·pool은 canonical SHA-256 자기검증.
 
-## 3. 평가 방법
+## 3. 사용 모델
+
+- Planning 및 Judge: `OPENAI:gpt-5.6-terra`, temperature 0
+- Embedding: `text-embedding-3-small`, 256차원
+- Single LLM, Single-Agent RAG, Multi-Agent RAG 비교에는 같은 planning 모델을 사용했다.
+- 생성과 Judge가 같은 모델 계열이라는 self-preference 가능성은 13절 한계와 PHASE 10에서 보정했다.
+
+## 4. 평가 방법
 
 **Runner는 달라도 Evaluator는 동일하다.** provider만 교체하고 LangGraph,
 세 specialist 어댑터, coordinator, compiler, integrity validator, 결정적
@@ -44,7 +51,7 @@ fallback은 전부 실제 코드를 통과시킨다.
 - 무료 경로: 스크립트 provider(`ScriptCode` 12종)로 "모델이 틀려도 안전한가"를 시험
 - 유료 경로: 배포와 동일한 설정의 실제 `gpt-5.6-terra`
 
-## 4. PHASE 2 — Deterministic Evaluation (무료)
+## 5. Deterministic Test 결과 — PHASE 2 (무료)
 
 204 run (17 case × 12 스크립트), **critical 실패 0건**.
 
@@ -62,7 +69,7 @@ fallback은 전부 실제 코드를 통과시킨다.
 PHASE_MISSING, ROLE_VIOLATING, SCHEMA_INVALID, PARSE_ERROR, PROVIDER_TIMEOUT,
 PROVIDER_EXCEPTION, HANG, NOT_READY) 전부에서 안전 위반 0건.
 
-## 5. PHASE 3 — Retriever 성능 (실 임베딩)
+## 6. Retriever 성능 — PHASE 3 (실 임베딩)
 
 | 지표 | 값 |
 |---|---|
@@ -105,7 +112,7 @@ STRENGTH 목표 질의에서 STRENGTH 운동이 8위에 오는 것은 목표가 
 15개이므로, 순위가 낮아도 대부분 pool에 포함된다. 순위 품질이 최종 계획에
 미치는 영향을 분리 측정하지는 않았다(한계).
 
-## 6. PHASE 4 — Multi-Agent 품질 (실 LLM, 14 case)
+## 7. Multi-Agent 품질 — PHASE 4 (실 LLM, 14 case)
 
 | 지표 | 값 |
 |---|---|
@@ -132,7 +139,7 @@ Coordinator의 계획은 12/12 전부 Training 초안 범위 안에 있었다.
 | C | Training 60분 / 요청 20분 | 결정적 | **통과** — 허용 오차 내 |
 | D | 선호 운동 vs 통증 제한 | 결정적 | **통과** — 제외 운동 유출 0 |
 
-## 7. PHASE 5 — LLM Judge (12건 채점)
+## PHASE 5 — LLM Judge 상세 (12건 채점)
 
 | 항목 | 평균 | 최소 | 최대 |
 |---|---|---|---|
@@ -149,7 +156,7 @@ Coordinator의 계획은 12/12 전부 Training 초안 범위 안에 있었다.
 **한계**: judge 모델이 계획을 만든 모델과 동일해 self-preference 편향이 있다.
 `EVAL_JUDGE_MODEL_CODE`로 분리 가능하며 결과에 `model_label`이 기록된다.
 
-## 7.1 PHASE 6 — Single vs Multi 비교 (실 LLM, 203 호출)
+## 8. Single vs Multi 비교 — PHASE 6 (실 LLM, 203 호출)
 
 전체 보고서: `docs/test/PHASE6_COMPARISON.md` / 산출물: `results/comparison/`
 
@@ -164,6 +171,27 @@ case 14건 × 2회 × 3 아키텍처 = 84 run. Judge는 **blind**(아키텍처 �
 | Judge 평균 | 3.639 | 4.083 | **4.403** |
 | 1회 실행당 토큰 | **4,361** | 7,475 | 26,646 |
 | P50 지연 | 18.2s | **14.0s** | 25.2s |
+
+마스터 명세의 주 비교표에서 Single Agent는 공정한 baseline인 B(Single Agent + RAG)다.
+
+| Metric | Single Agent | Multi-Agent | Difference (Multi-Single) |
+|---|---:|---:|---:|
+| Constraint Satisfaction | 1.0000 | 0.8571 | -0.1429 |
+| Safety Compliance | 1.0000 | 1.0000 | 0.0000 |
+| Conflict Resolution | 1.0000 | 1.0000 | 0.0000 |
+| Judge Score | 4.0833 | 4.4028 | +0.3195 |
+| P95 Latency | 20,359 ms | 36,141 ms | +15,782 ms |
+| Avg Tokens | 7,474.5 | 26,645.5 | +19,171.0 |
+
+Category별 LLM Plan Rate:
+
+| Category | Single LLM | Single Agent + RAG | Multi-Agent + RAG |
+|---|---:|---:|---:|
+| Simple | 0.75 | 1.00 | 1.00 |
+| Moderate | 0.25 | 1.00 | 0.75 |
+| Complex | 0.75 | 1.00 | 0.75 |
+| Conflict | 0.67 | 1.00 | 1.00 |
+| Safety Critical | 1.00 | 1.00 | 0.00 |
 
 세 가지만 짚는다.
 
@@ -182,7 +210,14 @@ conflict에서 B와 C가 동률(1.00), complex에서는 B(1.00)가 C(0.75)보다
 때문에 비관적이다. `LLM Plan Rate`는 영향받지 않으며 세 아키텍처에 동일하게
 적용되므로 비교 자체는 유효하다.
 
-## 8. Latency / Token / Cost
+## 9. LLM Judge 결과
+
+PHASE 5는 Multi-Agent 계획 12건을 6개 항목으로 채점했고 평균은 4.08이었다. PHASE 6의
+블라인드 비교에서는 Single LLM 3.639, Single-Agent RAG 4.083, Multi-Agent 4.403이었다.
+PHASE 10 Human Calibration 결과 MAE 0.5306, Pearson -0.0890과 아키텍처별 편향이 확인되어
+Judge 점수는 보조 지표로만 해석한다.
+
+## 10. Latency / Token / Cost
 
 | 지표 | 값 |
 |---|---|
@@ -204,7 +239,7 @@ Feasibility 4.9초, Recovery 3.9초.
 실측 기반 = 1.327 × (input 단가/1M) + 0.271 × (output 단가/1M)
 ```
 
-## 9. LangSmith
+## LangSmith
 
 project `helkki`, experiment `multi-agent-v1`로 전 실행이 전송됐다.
 
@@ -222,7 +257,7 @@ ADR-0020의 `LLM_AGENTS_TRACING_ENABLED` 옵트인을 구현했고 기본값은 
 
 상세: `docs/test/LANGSMITH_TRACING.md`.
 
-## 9.1 PHASE 9 — Performance / Failure
+## PHASE 9 — Performance / Failure
 
 성능은 저장된 실-provider 14건을 재집계했고, 실패 평가는 실제 LangGraph에 scripted fault를
 주입해 10개 경로를 실행했다. 새 외부 provider 호출은 없었다.
@@ -242,7 +277,34 @@ Retriever 결과 없음, LLM timeout, parsing/schema 오류, agent exception, �
 누락·비정상 입력, bounded graph repair cycle을 모두 확인했다. parsing rate는 오류를 의도적으로
 넣은 표본의 비율이며 운영 발생률이 아니다. 상세는 `docs/test/PHASE9_PERFORMANCE_FAILURE.md`.
 
-## 10. 발견된 결함
+## PHASE 10 — Human Calibration
+
+PM·개발리드 합의 점수 24건을 블라인드로 받은 뒤 아키텍처와 Judge 점수를 결합했다.
+
+| 지표 | 결과 |
+|---|---:|
+| Human / Judge 평균 | 4.0292 / 4.0278 |
+| 평균 차이 (`human - judge`) | +0.0014 |
+| MAE / RMSE | 0.5306 / 0.6472 |
+| ±0.5점 이내 일치 | 13/24 = 0.5417 |
+| Pearson / Spearman | -0.0890 / -0.0011 |
+
+전체 평균은 거의 같지만 사례별 순위 상관은 없었다. Judge는 Multi-Agent를 평균 0.3333점 높게,
+Single LLM을 0.4021점 낮게 평가해 반대 편향이 상쇄됐다. 따라서 Phase 6 Judge 결과는 품질의
+보조 근거이며 아키텍처 선택의 단독 근거로 사용하지 않는다. 상세는
+`docs/test/PHASE10_HUMAN_CALIBRATION.md`.
+
+## 11. 실패 Case 종합
+
+- 실-provider Multi-Agent 실패: `SQ-CONFLICT-001`, `SQ-CONFLICT-002` 2건
+- 결과: 계획 없이 `FAILED`, fallback 시도, unsafe plan 노출 없음
+- Critical failure: 0건
+- PHASE 9 실패 주입: 10/10 안전 종료, 처리되지 않은 node error 0건
+
+두 실-provider 실패는 합성 평가 pool에서 안전한 fallback 계획을 만들지 못한 가용성 실패다.
+운영 카탈로그 재현에서는 발생하지 않았으며 상세 분류는 `results/failed_cases.json`에 기록했다.
+
+## 12. 발견된 결함
 
 ### D-1. 동일 입력에서 계획이 재현되지 않는다 (높음)
 
@@ -358,7 +420,7 @@ readiness는 전체 경로에 대한 하드 게이트다.** 내용은 비구속�
 
 상세: `docs/test/PHASE6_COMPARISON.md` 5.1절.
 
-## 11. 테스트 자체의 한계
+## 13. 테스트 자체의 한계
 
 1. **합성 카탈로그 18종**. 운영 카탈로그가 아니다. D-2는 이 한계 때문에
    발생한 오보고였고, 운영 카탈로그로 재측정해 정정했다(D-2 참조). 하네스의
@@ -369,17 +431,18 @@ readiness는 전체 경로에 대한 하드 게이트다.** 내용은 비구속�
    말할 수 있는 규모가 아니다.
 5. **HTTP·DB·인증 경로 미포함.** 기존 `tests/api`, `tests/integration` 담당.
 6. **한국어 rubric의 토큰 추정은 문자수 기반**이라 오차가 있다.
+7. **Human Calibration은 합의 점수만 보존**해 평가자 간 일치도를 계산할 수 없다.
 
-## 12. 미실행 항목
+## 미실행 항목
 
 | Phase | 상태 | 사유 |
 |---|---|---|
-| 6. Single vs Multi | 미착수 | 별도 작업으로 분리 권고(마스터 명세) |
+| 6. Single vs Multi | **완료** | `docs/test/PHASE6_COMPARISON.md`, `results/comparison/` |
 | 7. Pairwise Judge | **완료** | `docs/test/PHASE7_PAIRWISE.md`, `results/pairwise/` |
-| 10. Human Calibration | 양식만 | Human label 부재 — 임의 생성하지 않음 |
+| 10. Human Calibration | **완료** | PM·개발리드 합의 라벨 24건 |
 | 전체 dataset 50~100건 확장 | 미실행 | smoke 20건으로 harness 검증 완료 |
 
-## 13. 개선 방향
+## 14. 개선 방향
 
 1. **하네스 pool 구성 정합 (D-2 후속)**: `scenario.build_pool`이 운영의
    phase·role 예약을 적용하도록 맞춘다. 서비스 수정이 아니라 하네스 수정이며,
@@ -393,7 +456,7 @@ readiness는 전체 경로에 대한 하드 게이트다.** 내용은 비구속�
    안전 영향은 없고 순수 품질 개선 과제다.
 5. **표본 확대**: dataset을 50~100건으로 늘려 지표 신뢰도를 확보한다.
 
-## 14. 결론
+## 결론
 
 배포 전 안전성 관점에서 **차단 사유는 발견되지 않았다.** 적대적 스크립트와 실
 LLM 양쪽에서 안전 제외 운동 유출 0건, Safety BLOCKED 무시 0건, 요청 시간 초과
@@ -403,13 +466,18 @@ LLM 양쪽에서 안전 제외 운동 유출 0건, Safety BLOCKED 무시 0건, �
 운영 카탈로그(v2.0.8-final, 237종)를 운영과 동일한 pool 구성으로 돌리면 14개
 case × 12개 ranking slice가 전부 계획을 생성하며, 안전 제외를 8배로 넓혀도
 실패가 없다. 원인은 하네스의 합성 카탈로그와, 하네스가 운영의 phase 예약 단계를
-건너뛴 데 있었다. 상세는 10절 D-2.
+건너뛴 데 있었다. 상세는 12절 D-2.
 
 현재 열려 있는 항목은 **D-1(동일 입력 재현 불가, LLM 고유 특성)**,
 **D-3(advisory 무시 — PM 재검토)**, **D-5(advisory agent의 non-READY가 전체
 경로를 막음 — PM·개발팀장 재검토)** 이며, 셋 다 배포 차단 사유는 아니다.
 
-PHASE 6은 별도 질문에 답한다: **멀티에이전트 분해가 비용을 정당화하는가.**
-품질(judge 4.40 vs 4.08)은 얻었고 신뢰성(1.00 → 0.857)과 토큰(3.6배)을 지불했다.
-안전성은 어느 쪽도 아니었다 — 결정적 게이트가 담당한다. 이 교환을 받아들일지는
-제품 판단이며 `docs/test/PHASE6_COMPARISON.md`에 근거를 정리했다.
+PHASE 6~10은 별도 질문에 답한다: **멀티에이전트 분해가 비용을 정당화하는가.**
+Pointwise Judge는 Multi-Agent를 4.40 대 4.08로 높게 평가했지만 Human Calibration의
+품질 차이는 0.0438점뿐이었고, pairwise는 Single-Agent RAG 우세였으나 position bias가
+30.77%였다. 반면 신뢰성은 1.00에서 0.857로 낮아지고 토큰은 3.6배였다. 안전성은 두
+아키텍처 모두 1.0으로 결정적 게이트가 담당했다.
+
+따라서 현재 결과는 **Multi-Agent를 기본 구조로 선택할 비용 대비 우위를 입증하지 못했다.**
+구조를 유지하려면 D-5를 정리하고 더 큰 독립 Human Calibration에서 유의미한 품질 향상을
+확인해야 한다. 최종 판단은 `docs/test/PHASE11_FINAL_RESULTS.md`에 정리했다.
