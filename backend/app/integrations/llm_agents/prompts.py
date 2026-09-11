@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v9",
+            version="v3-training-prompt-v10",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -49,7 +49,13 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "and repetitions inside that exercise's min/max bounds. Consider the requested "
                 "duration, primary goal, and recovery ceiling: prefer values nearer the lower "
                 "bounds for short sessions or tighter recovery and move toward upper bounds only "
-                "when time and recovery permit. Never always select the maximum. If the FITT "
+                "when time and recovery permit. Never always select the maximum. The "
+                "fitt_context intensity_code is reference metadata, not an exercise eligibility "
+                "filter: it may differ from the recovery ceiling. Choose each prescription's "
+                "intensity_code from recovery_ceiling.allowed_intensity_codes when that list is "
+                "non-empty, and never reject an exercise solely because its FITT intensity "
+                "differs. A downshift is represented by the prescription intensity and volume, "
+                "not by filtering out otherwise eligible exercises. If the FITT "
                 "context is REVIEW_REQUIRED or has no volume, do not invent a range; remain inside "
                 "the supplied recovery ceiling and other deterministic constraints. "
                 "If MAIN repeats an exercise, all blocks for that exercise share one cumulative "
@@ -59,6 +65,11 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "than hitting it to the second. MAIN may repeat the same approved exercise to "
                 "fill a longer session only when equal exercises are not neighbouring blocks; "
                 "never repeat WARMUP or COOLDOWN exercises. "
+                "Return READY when the normalized input supplies usable WARMUP, MAIN and COOLDOWN "
+                "candidates and a constraint-compliant plan can be formed. Use NEEDS_INPUT only "
+                "for genuinely absent or inconsistent structured input, or when no phase and "
+                "volume combination can satisfy the deterministic constraints after applying the "
+                "plan-level intensity rule above; identify that condition with reason_codes. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),

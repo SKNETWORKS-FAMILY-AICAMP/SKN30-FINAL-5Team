@@ -1,0 +1,106 @@
+{
+  "architecture_code": "MULTI_AGENT",
+  "cases": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17261,
+      "llm_call_count": 4,
+      "output_tokens": 2954,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 22375
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-002",
+      "category": "simple",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17218,
+      "llm_call_count": 4,
+      "output_tokens": 3013,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 22016
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "findings": [
+        {
+          "check_code": "EXPECTED_PLAN_NOT_PRODUCED",
+          "defect_class": "UNDETERMINED",
+          "expected": "a compiled plan for this case",
+          "observed": "status=FAILED, failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_TRAINING_NOT_READY']",
+          "severity": "MAJOR"
+        },
+        {
+          "check_code": "DETERMINISTIC_FALLBACK_USED",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "the deterministic path answers when the provider does not",
+          "observed": "fallback produced no plan; failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_TRAINING_NOT_READY']",
+          "severity": "INFO"
+        }
+      ],
+      "has_plan": false,
+      "input_tokens": 4323,
+      "llm_call_count": 3,
+      "output_tokens": 446,
+      "passed": false,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "FAILED",
+      "used_fallback": true,
+      "wall_clock_ms": 5187
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17444,
+      "llm_call_count": 4,
+      "output_tokens": 3239,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 26187
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-COMPLEX-001",
+      "category": "complex",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17601,
+      "llm_call_count": 4,
+      "output_tokens": 3319,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 25234
+    }
+  ],
+  "critical_failures": 0,
+  "llm_calls_made": 19,
+  "model_label": "OPENAI:gpt-5.6-terra",
+  "passed_runs": 4,
+  "run_count": 5,
+  "tracing": "LangSmith tracing on: project=helkki-service-quality-round2 run=multi-agent-v2"
+}

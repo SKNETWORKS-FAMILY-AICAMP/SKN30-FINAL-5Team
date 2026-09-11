@@ -21,10 +21,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from backend.tests.evaluation.budget import planning_cases
+from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.evaluators import evaluate_case
 from backend.tests.evaluation.evaluators.agent_metrics import build_report as build_agent_report
 from backend.tests.evaluation.harness import GRAPH_CASES
@@ -56,16 +58,18 @@ class PaidRunOutcome:
     tracing_summary: str
 
 
-def _forecast_line(case_count: int, repeats: int) -> str:
+def _forecast_line(case_count: int, repeats: int, *, judge_enabled: bool = True) -> str:
     calls = case_count * 4 * repeats
+    judge_calls = case_count if judge_enabled else 0
     return (
         f"{case_count} cases x {repeats} repeat(s) = {calls} graph LLM calls, "
-        f"plus up to {case_count * repeats} judge calls"
+        f"plus up to {judge_calls} judge calls"
     )
 
 
 async def _execute(
     *,
+    cases: tuple[EvaluationCase, ...],
     repeats: int,
     max_calls: int,
     judge_enabled: bool,
@@ -79,8 +83,6 @@ async def _execute(
         provider=provider,
         node_timeout_seconds=provider.timeout_seconds,
     )
-    cases = planning_cases(GRAPH_CASES)
-
     runs: list[CaseRunResult] = []
     judgements: list[JudgeResult] = []
     calls = 0
@@ -124,6 +126,19 @@ async def _execute(
                         calls += 1
                     judgements.append(result)
         return PaidRunOutcome(runs, judgements, calls, tracing.summary)
+
+
+def _select_cases(
+    cases: Sequence[EvaluationCase], requested_ids: Sequence[str]
+) -> tuple[EvaluationCase, ...]:
+    if not requested_ids:
+        return tuple(cases)
+    requested = set(requested_ids)
+    selected = tuple(case for case in cases if case.case_id in requested)
+    unknown = sorted(requested - {case.case_id for case in selected})
+    if unknown:
+        raise ValueError(f"unknown --case-id value(s): {', '.join(unknown)}")
+    return selected
 
 
 def _write_results(outcome: PaidRunOutcome, output_dir: Path, model_label: str) -> None:
@@ -205,11 +220,20 @@ def main() -> int:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--max-calls", type=int, default=80)
     parser.add_argument("--no-judge", action="store_true")
+    parser.add_argument(
+        "--case-id",
+        action="append",
+        default=[],
+        help="run only this case; repeat the option to select multiple cases",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     arguments = parser.parse_args()
 
-    cases = planning_cases(GRAPH_CASES)
-    print(_forecast_line(len(cases), arguments.repeats))
+    try:
+        cases = _select_cases(planning_cases(GRAPH_CASES), arguments.case_id)
+    except ValueError as error:
+        parser.error(str(error))
+    print(_forecast_line(len(cases), arguments.repeats, judge_enabled=not arguments.no_judge))
     print(f"hard stop at --max-calls {arguments.max_calls}")
     print(
         "LangSmith: "
@@ -223,6 +247,7 @@ def main() -> int:
     try:
         outcome = asyncio.run(
             _execute(
+                cases=cases,
                 repeats=arguments.repeats,
                 max_calls=arguments.max_calls,
                 judge_enabled=not arguments.no_judge,

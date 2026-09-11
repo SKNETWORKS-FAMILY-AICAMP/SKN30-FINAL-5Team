@@ -206,7 +206,7 @@ class MultiAgentRunner:
             # The scripted stand-in implements the plain binding only.
             native_json_schema = False
         invoker = StructuredChatInvoker(
-            chat_model=cast(object, chat_model),  # type: ignore[arg-type]
+            chat_model=chat_model,  # type: ignore[arg-type]
             model_code=model_code,
             max_attempts=max_attempts,
             use_native_json_schema=native_json_schema,

@@ -367,6 +367,14 @@ def test_training_prompt_explains_that_repeated_blocks_share_the_sets_ceiling() 
     assert "Do not repeat an exercise" in instruction
 
 
+def test_training_prompt_distinguishes_fitt_reference_from_plan_intensity() -> None:
+    instruction = ROLE_PROMPTS[LlmAgentRoleCode.TRAINING].instruction
+
+    assert "not an exercise eligibility filter" in instruction
+    assert "prescription's intensity_code" in instruction
+    assert "never reject an exercise solely because its FITT intensity differs" in instruction
+
+
 def test_schema_invalid_output_is_retried_once_then_succeeds() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)

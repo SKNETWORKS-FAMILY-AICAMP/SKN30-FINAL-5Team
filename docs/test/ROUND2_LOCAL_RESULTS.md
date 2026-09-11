@@ -3,7 +3,7 @@
 - 기준일: 2026-09-11
 - 작업 브랜치: `fix/v3-round2-quality-improvement`
 - v1 기준선: `3b78731` / `evaluation-v1-baseline`
-- 상태: 로컬 구현·검증 완료, 실-provider smoke는 외부 전송 재승인 대기
+- 상태: 품질 보정 후 실-provider tuning smoke 5/5 통과, held-out 2차 평가 준비 가능
 
 ## 1. 구현 결과
 
@@ -13,7 +13,8 @@
   fallback 또는 계획 없는 종료로 간다.
 - Coordinator input schema는 `v3-coordinator-input-v2`로 올렸다.
 - Recovery/Feasibility/Coordinator prompt는 각각 v4/v4/v6으로 올렸다.
-- 실행 단위 prompt version은 `v3-prompts-v2`, Multi-Agent LangSmith experiment는
+- 실행 단위 prompt version은 최초 `v3-prompts-v2`, Training 보정 후 `v3-prompts-v3`이며
+  Multi-Agent LangSmith experiment는
   `multi-agent-v2`로 분리했다.
 - Recovery는 pool identity만, Feasibility는 실행 가능성에 필요한 catalog 필드만 받는다.
 - SafetyPolicyEngine, compiler, integrity validator, 공개 API, DB schema는 바꾸지 않았다.
@@ -49,18 +50,46 @@ payload byte는 tokenizer를 거치기 전 canonical JSON 크기이며 실제 to
 - Ruff format: 814 files formatted
 - Ruff check: passed
 - mypy: 219 source files passed
+- Training 후속 보정 범위(V3/LangChain/evaluation): 468 passed, 2 skipped,
+  local Qdrant warning 1개
 
 91개 skip은 `TEST_DATABASE_URL` 또는 명시적 PostgreSQL/Qdrant 환경이 필요한 기존 integration
 테스트와 plan 없는 Judge fixture 2건이다. 이번 변경에는 API/DB schema 영향이 없다.
 
-## 5. 실-provider smoke 대기 사유
+## 5. 실-provider smoke와 원인 분석
 
-실행 요청은 provider process 생성 전에 정책 검토에서 차단되어 OpenAI/LangSmith 호출은 0건이다.
-LangSmith span에는 직접 식별자나 원시 건강 정보는 없지만, `excluded_exercise_ids`, recovery ceiling,
-목표·장소·요청 시간 등으로 건강 상태를 간접 추론할 수 있다. 따라서 다음 두 외부 전송을 각각
-인지한 명시 승인이 필요하다.
+PM·개발리드 권한자의 외부 전송 승인 후 OpenAI와 LangSmith를 사용해 tuning case 5건을
+Judge 없이 최대 20회 호출로 실행했다. 최초 결과는 4/5 통과, safety 1.0, critical 0건이었다.
+`SQ-MODERATE-001`만 fallback 후 계획 없이 종료됐으며 실패 코드는
+`V3_TRAINING_NOT_READY`, `V3_FALLBACK_PLAN_UNAVAILABLE`이었다.
 
-1. 정규화된 평가 payload와 모델 응답을 OpenAI API로 전송
-2. 같은 payload·응답·간접 건강 추론 가능 값을 LangSmith SaaS로 전송하고 span으로 보존
+LangSmith trace의 역할별 구조화 출력에서 다음을 확인했다.
 
-승인 후 tuning case 5건, Judge 제외, 최대 20회 호출로 smoke를 재개한다.
+- Training: `NEEDS_INPUT`, reason `NO_INTENSITY_COMPATIBLE_EXERCISE`
+- Recovery: `READY`, `RECOVERY_CONSTRAINTS_PRESERVED`
+- Feasibility: `READY`, `FEASIBILITY_CONSTRAINTS_PRESERVED`
+
+해당 pool의 FITT reference intensity는 `MODERATE`, recovery ceiling은 `LOW`였다. 계약상 FITT
+intensity는 운동 적격성 필터가 아니고 최종 prescription intensity를 recovery ceiling 안에서
+별도로 선택해야 한다. Training이 두 값을 같은 적격성 축으로 해석한 것이 직접 원인이었다.
+
+## 6. Training 보정과 재검증
+
+- Training prompt를 `v3-training-prompt-v10`으로 올렸다.
+- FITT intensity는 reference metadata이며 운동 제외 조건이 아님을 명시했다.
+- downshift는 prescription intensity와 volume으로 표현하도록 명시했다.
+- `NEEDS_INPUT`은 실제 필수 입력 누락·불일치 또는 deterministic constraint를 만족할 조합이
+  정말 없는 경우로 제한했다.
+- 유료 CLI에 반복 가능한 `--case-id` 필터를 추가해 실패 케이스만 저비용으로 재검증할 수 있게 했다.
+
+실-provider 결과:
+
+| 실행 | 통과 | 호출 | fallback | critical | 결과 경로 |
+|---|---:|---:|---:|---:|---|
+| `SQ-MODERATE-001` 3회 반복 | 3/3 | 12 | 0 | 0 | `results/round2/paid_smoke_retry/` |
+| tuning smoke 5건 재실행 | 5/5 | 20 | 0 | 0 | `results/round2/paid_smoke_v3/` |
+
+5건 재실행의 workflow completion, structured output, safety compliance, role consistency,
+state consistency, conflict resolution accuracy는 모두 1.0이었다. P50은 23,250ms, P95는
+34,500ms이고 input/output token 합계는 각각 87,741/16,771이다. 이 smoke는 tuning set
+검증이므로 architecture 우월성의 근거로 사용하지 않으며, 다음 판정은 미사용 held-out set으로 한다.
