@@ -13,7 +13,10 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentTypeCode,
 )
 from backend.app.integrations.langgraph.state import V3GraphInput
-from backend.app.integrations.llm_agents.models import StructuredAgentResult
+from backend.app.integrations.llm_agents.models import (
+    LlmInvocationTelemetry,
+    StructuredAgentResult,
+)
 from backend.tests.unit.test_v3_agent_contracts import (
     envelope as make_envelope,
 )
@@ -42,6 +45,13 @@ class Specialist:
         self.timeout = timeout
         self.propose_calls = 0
         self.cancelled = False
+        self.telemetry = LlmInvocationTelemetry(
+            attempt_count=1,
+            latency_ms=1,
+            input_token_count=100,
+            output_token_count=10,
+            provider_usage_present=True,
+        )
 
     async def apropose(self, **_: object) -> StructuredAgentResult[SpecialistAgentProposal]:
         self.propose_calls += 1
@@ -59,7 +69,9 @@ class Specialist:
             await self.barrier.wait()
         if self.release is not None:
             await self.release.wait()
-        return StructuredAgentResult.success(self.output)
+        # Real adapters always report telemetry, so a fake that omits it hides
+        # accounting bugs -- a declined call once summed to zero tokens.
+        return StructuredAgentResult.success(self.output, telemetry=self.telemetry)
 
 
 class Coordinator:

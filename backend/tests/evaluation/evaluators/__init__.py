@@ -55,6 +55,7 @@ def evaluate_case(run: CaseRunResult) -> CaseEvaluation:
         findings=tuple(findings),
         failure_codes=run.failure_codes,
         violation_codes=run.violation_codes,
+        decline_reason_codes=run.decline_reason_codes,
     )
 
 

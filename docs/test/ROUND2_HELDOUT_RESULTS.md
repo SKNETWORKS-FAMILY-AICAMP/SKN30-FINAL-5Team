@@ -383,3 +383,116 @@ P95는 48.813초에서 43.093초로 내려갔지만 기준의 1.4배이고, 같�
    repair 프롬프트가 실제로 활용하는지 확인이 필요하다.
 3. **표본 크기** — category별 n이 3~9로 사전 등록 기준을 판정하기에 부족하다. held-out을
    50~100 case로 늘리는 것이 `ROUND2_IMPROVEMENT_PLAN` 4절의 권장값이었다.
+
+---
+
+# 9. Training READY 판정 조사 (2026-09-11)
+
+8.6절이 지목한 다음 조사 대상이다. **결론부터: Training 프롬프트도, payload도 원인이 아니다.
+가용성 격차의 상당 부분은 두 아키텍처의 출력 계약이 비대칭이라는 데서 나온다.**
+
+## 9.1 payload 가설은 기각됐다
+
+R2-2가 Recovery/Feasibility의 payload를 최소화했으므로 Training도 줄었으리라 의심했으나,
+`payload.specialist_payload`는 **TRAINING에만 `project_exercise_pool`(전체 투영)을 준다.**
+Recovery는 pool identity만, Feasibility는 실행 가능성 필드만 받는다. ADR-0021 6항 그대로이고
+Training은 최소화 대상이 아니었다.
+
+SQ-HELD-003(두 실행 모두 실패)과 SQ-HELD-001(두 실행 모두 성공)의 Training payload를 직접
+비교하면 envelope 차이는 `allowed_location_codes`(GYM 대 HOME)와 hash뿐이고, payload 크기는
+15,541 대 15,681 바이트로 사실상 같다.
+
+## 9.2 "계획을 만들 수 없다"는 객관적으로 거짓이다
+
+Training 프롬프트의 NEEDS_INPUT 조건은 두 가지다. (1) 구조적 입력이 없거나 불일치,
+(2) **어떤 phase·volume 조합으로도 결정적 제약을 만족할 수 없음.**
+
+(2)는 검증 가능한 주장이므로 29개 planning case의 실제 pool로 확인했다.
+
+| 속성 | 실패 케이스 평균 | 성공 케이스 평균 |
+|---|---:|---:|
+| MAIN 후보 | 7.55 | 9.00 |
+| CORE MAIN 후보 | 4.73 | 5.28 |
+| 승인 volume 보유 MAIN | 2.82 | 3.33 |
+| FITT 최소값이 recovery ceiling 초과 | 0.64 | 0.50 |
+
+- **WARMUP/MAIN/COOLDOWN 후보가 0인 case는 없다** (최소 8/7/8).
+- **CORE MAIN 후보가 0인 case는 없다.**
+- **승인 volume을 가진 MAIN이 0인 case는 없다.**
+- FITT-ceiling 충돌이 있는 7개 case 중 성공이 4개, 실패가 3개다.
+
+즉 **실패 케이스에서도 제약을 만족하는 조합은 존재한다.** 프롬프트가 명시한 NEEDS_INPUT
+조건이 성립하지 않는데 Training이 NEEDS_INPUT을 반환했다.
+
+## 9.3 구조적 예측 인자가 없다 — 거절은 확률적이다
+
+SQ-HELD-009 / 010 / 011 / 012는 location, MAIN 수, 승인 volume 수, 장비 구성, 제외 운동 수가
+**모두 동일**하다. 그중 009만 실패했다. SQ-HELD-013은 1회차에 실패하고 2회차에 성공했다.
+SQ-HELD-003만 두 번 실패했다.
+
+location도 갈리지 않는다(실패 GYM 1 / HOME 10, 성공 GYM 5 / HOME 13).
+
+**입력이 거절을 설명하지 못한다.** 프롬프트가 모델에게 위임한 "계획을 만들 수 있는가"라는
+판단 자체가 `reasoning_effort=low`에서 불안정한 것이며, 이는 D-1(동일 입력 재현 불가)이 가장
+아픈 지점에서 나타난 형태다.
+
+## 9.4 핵심: 두 아키텍처의 출력 계약이 비대칭이다
+
+Single-Agent baseline의 출력 스키마 `SingleAgentPlanDraft`에는
+
+- `proposal_status_code` 같은 **상태 필드가 없다**
+- `exercise_prescriptions: Field(min_length=1)` — **최소 1개 처방이 필수다**
+
+반면 `SpecialistAgentProposal`에는 `proposal_status_code`(READY / NEEDS_INPUT / FAILED)가 있고,
+Training 프롬프트는 NEEDS_INPUT을 **언제 쓰라고 명시적으로 지시한다.**
+
+Single-Agent instruction은 Training instruction을 **그대로 포함**하므로(`_DROPPED_CLAUSES`가
+제거한 것은 역할 분담 문장뿐) NEEDS_INPUT 지시 문장도 들어 있다. 그러나 **출력 스키마에
+그것을 표현할 자리가 없다.** 계획을 내거나 스키마 검증에 실패하거나 둘 중 하나다.
+
+**따라서 `LLM Plan Rate`는 "계획을 세울 수 있는가"만 재는 지표가 아니다. "거절할 수단이
+있는가"를 함께 재고 있다.** 58 run에서 Training은 11회 거절했고(19%), Single-Agent는 0회
+거절했다 — 거절할 수 없기 때문이다. Single-Agent의 실패 7건은 전부 하류 게이트 탈락
+(`V3_COMPILATION_FAILED`, `PLAN_EXERCISE_FAMILY_REPEATED`)이지 거절이 아니다.
+
+**이것이 격차 전체를 설명하지는 않는다.** Training에게 거절 수단이 없었다면 그 11건에서
+유효한 계획을 냈을지, 아니면 게이트에서 탈락했을지는 알 수 없다. 확실한 것은 **지표가
+교란되어 있다는 것**이며, 사전 등록 기준의 plan rate 비교는 이 주석과 함께 읽어야 한다.
+
+이는 PHASE 6이 기록한 "PlanSpec 비중립성"의 실질적 귀결이기도 하다. 출력 계약이
+architecture-neutral하지 않으면 비교 지표도 중립적이지 않다.
+
+## 9.5 D-7 (신규, SERVICE): 거절·실패한 호출의 telemetry가 버려진다
+
+`nodes._run_specialist`는 실패 분기에서 `telemetry`를 `AgentOutcome`에 넘기지 않았다.
+`collect_proposals`는 `outcome.telemetry`가 없으면 토큰을 0, 시도 횟수를 0으로 기록하므로
+**과금된 호출이 감사 기록에서 0 토큰으로 집계된다.**
+
+실측으로 확인된다. Training이 거절한 7개 run은 3회 호출에 평균 6,569 토큰이고, 정상 run은
+4회 호출에 22,312 토큰이다. 호출 수에 비례한다면 3회는 약 16,734여야 한다.
+
+**결과: Multi-Agent의 1회 실행당 토큰이 과소 보고됐다.** 이번 실행 기준 누락분은 대략
+run당 2,400 토큰(약 12%)이며, 보정하면 비용 비교는 C에게 **더 불리해진다.** v1 Multi 측정에도
+같은 버그가 있었으므로 사전 등록 token 기준의 양변이 함께 영향을 받는다. **이 문서의 수치는
+재계산하지 않는다.**
+
+## 9.6 적용한 수정
+
+관측성만 고쳤고 판정 로직은 건드리지 않았다.
+
+- 실패·거절 분기 전부에서 `telemetry`를 보존한다(D-7).
+- `AgentOutcome.decline_reason_codes`와 `InvocationAudit.decline_reason_codes`를 추가해
+  **거절 사유를 보존한다.** 프롬프트가 "identify that condition with reason_codes"라고
+  요구해 놓고 그 답을 버리고 있었다.
+- 평가 하네스의 `CaseEvaluation.decline_reason_codes`로 산출물에 남긴다.
+- unit 테스트의 specialist fake가 telemetry를 보고하도록 고쳤다. 보고하지 않는 fake가
+  회계 버그를 숨기고 있었다(8절의 가짜 validator와 같은 종류의 구멍이다).
+
+## 9.7 다음 단계 (소유자 판단 필요)
+
+1. **거절 사유 확인** — 다음 유료 실행에서 `decline_reason_codes`가 기록된다. Training이
+   어떤 조건을 들어 거절하는지 확인한 뒤에야 프롬프트 수정을 논할 수 있다.
+2. **지표 교란 해소** — 세 안이 있다. (a) Training의 NEEDS_INPUT 조건을 좁힌다,
+   (b) baseline에도 거절 경로를 준다, (c) plan rate를 "거절"과 "게이트 탈락"으로 분해해
+   보고한다. (c)는 사전 등록 기준을 바꾸지 않고 해석만 정확히 하므로 가장 안전하다.
+3. **token 기준 재측정** — D-7 수정 후 양 아키텍처를 다시 재면 비용 비교가 정확해진다.

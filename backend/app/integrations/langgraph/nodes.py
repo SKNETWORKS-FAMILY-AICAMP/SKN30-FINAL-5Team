@@ -184,7 +184,11 @@ async def _run_specialist(
                 agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
             )
         elif result.output is None:
-            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NO_PROPOSAL")
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_NO_PROPOSAL",
+                telemetry=result.telemetry,
+            )
         elif not _proposal_is_valid(state, agent_type, result.output):
             # Distinct from NOT_READY below, which is the agent's own verdict on
             # its inputs. This one is a contract breach -- a hash that does not
@@ -192,15 +196,28 @@ async def _run_specialist(
             # two call for different responses. One code for both left a paid
             # evaluation unable to say which had happened (ADR-0022).
             outcome = AgentOutcome(
-                agent_type, failure_code=f"V3_{agent_type.value}_PROPOSAL_INVALID"
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_PROPOSAL_INVALID",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
             )
         elif result.output.proposal_status_code is V3ProposalStatusCode.FAILED:
-            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_FAILED")
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_FAILED",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
+            )
         elif (
             agent_type is SpecialistAgentTypeCode.TRAINING
             and result.output.proposal_status_code is not V3ProposalStatusCode.READY
         ):
-            outcome = AgentOutcome(agent_type, failure_code="V3_TRAINING_NOT_READY")
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code="V3_TRAINING_NOT_READY",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
+            )
         else:
             outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
     return {"agent_outcomes": (outcome,)}
@@ -262,6 +279,7 @@ def collect_proposals(state: V3GraphState) -> dict[str, object]:
                 outcome.telemetry.provider_usage_present if outcome.telemetry else False
             ),
             failure_code=outcome.failure_code,
+            decline_reason_codes=outcome.decline_reason_codes,
         )
         for outcome in (by_role[role] for role in SPECIALIST_AGENT_ORDER if role in by_role)
     )

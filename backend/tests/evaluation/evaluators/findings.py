@@ -79,6 +79,7 @@ class CaseEvaluation:
     # without tracing would have left no explanation at all.
     failure_codes: tuple[str, ...] = ()
     violation_codes: tuple[str, ...] = ()
+    decline_reason_codes: tuple[str, ...] = ()
 
     @property
     def failures(self) -> tuple[Finding, ...]:

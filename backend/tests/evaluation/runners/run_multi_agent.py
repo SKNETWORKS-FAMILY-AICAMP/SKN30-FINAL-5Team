@@ -97,6 +97,22 @@ class CaseRunResult:
         return self.graph_result.failure_codes
 
     @property
+    def decline_reason_codes(self) -> tuple[str, ...]:
+        """Why an agent declined, tagged by role.
+
+        Training declined on 11 of 58 paid runs while the pools objectively
+        supported a plan, and the reason it was asked to give was discarded with
+        the rejected proposal. Recorded per role because a decline means
+        something different for the plan owner than for an advisor.
+        """
+
+        return tuple(
+            f"{audit.role_code}:{code}"
+            for audit in self.graph_result.invocation_audits
+            for code in audit.decline_reason_codes
+        )
+
+    @property
     def used_fallback(self) -> bool:
         return self.graph_result.used_fallback
 
