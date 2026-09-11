@@ -1,0 +1,136 @@
+{
+  "authored_plan_means": {
+    "A. Single LLM": {
+      "count_a": 3,
+      "count_b": 29,
+      "difference": 1.0786,
+      "label_a": "A. Single LLM",
+      "label_b": "all runs",
+      "mean_a": 4.0556,
+      "mean_b": 2.977
+    },
+    "B. Single Agent + RAG": {
+      "count_a": 25,
+      "count_b": 29,
+      "difference": 0.0945,
+      "label_a": "B. Single Agent + RAG",
+      "label_b": "all runs",
+      "mean_a": 3.7267,
+      "mean_b": 3.6322
+    },
+    "C. Multi-Agent": {
+      "count_a": 21,
+      "count_b": 29,
+      "difference": 0.205,
+      "label_a": "C. Multi-Agent",
+      "label_b": "all runs",
+      "mean_a": 3.7222,
+      "mean_b": 3.5172
+    }
+  },
+  "discrimination": {
+    "by_architecture": {
+      "A. Single LLM": {
+        "count_a": 3,
+        "count_b": 26,
+        "difference": 1.203,
+        "label_a": "model plan",
+        "label_b": "deterministic fallback",
+        "mean_a": 4.0556,
+        "mean_b": 2.8526
+      },
+      "B. Single Agent + RAG": {
+        "count_a": 25,
+        "count_b": 4,
+        "difference": 0.685,
+        "label_a": "model plan",
+        "label_b": "deterministic fallback",
+        "mean_a": 3.7267,
+        "mean_b": 3.0417
+      },
+      "C. Multi-Agent": {
+        "count_a": 21,
+        "count_b": 8,
+        "difference": 0.7431,
+        "label_a": "model plan",
+        "label_b": "deterministic fallback",
+        "mean_a": 3.7222,
+        "mean_b": 2.9791
+      }
+    },
+    "count_a": 49,
+    "count_b": 38,
+    "difference": 0.8458,
+    "label_a": "model plan",
+    "label_b": "deterministic fallback",
+    "mean_a": 3.7449,
+    "mean_b": 2.8991
+  },
+  "groundedness": {
+    "note": "Authored plans only. FEASIBILITY should fall as the plan drifts from the requested duration, which the compiler measures exactly.",
+    "pearson_duration_error_vs_feasibility": -0.0297,
+    "sample_count": 49
+  },
+  "paired_preference": [
+    {
+      "architecture_a": "C. Multi-Agent",
+      "architecture_b": "B. Single Agent + RAG",
+      "authored_plans_only": false,
+      "decided": 27,
+      "mean_difference": -0.115,
+      "note": "Two-sided exact binomial sign test over cases judged under both architectures; ties dropped, None below 8 decided pairs.",
+      "p_value": 0.7011,
+      "ties": 2,
+      "wins_a": 12,
+      "wins_b": 15
+    },
+    {
+      "architecture_a": "C. Multi-Agent",
+      "architecture_b": "B. Single Agent + RAG",
+      "authored_plans_only": true,
+      "decided": 18,
+      "mean_difference": -0.0263,
+      "note": "Two-sided exact binomial sign test over cases judged under both architectures; ties dropped, None below 8 decided pairs.",
+      "p_value": 1.0,
+      "ties": 1,
+      "wins_a": 9,
+      "wins_b": 9
+    },
+    {
+      "architecture_a": "B. Single Agent + RAG",
+      "architecture_b": "A. Single LLM",
+      "authored_plans_only": false,
+      "decided": 28,
+      "mean_difference": 0.6552,
+      "note": "Two-sided exact binomial sign test over cases judged under both architectures; ties dropped, None below 8 decided pairs.",
+      "p_value": 0.0009,
+      "ties": 1,
+      "wins_a": 23,
+      "wins_b": 5
+    },
+    {
+      "architecture_a": "C. Multi-Agent",
+      "architecture_b": "A. Single LLM",
+      "authored_plans_only": false,
+      "decided": 27,
+      "mean_difference": 0.5402,
+      "note": "Two-sided exact binomial sign test over cases judged under both architectures; ties dropped, None below 8 decided pairs.",
+      "p_value": 0.0003,
+      "ties": 2,
+      "wins_a": 23,
+      "wins_b": 4
+    }
+  ],
+  "round1_human_calibration": {
+    "applicability": "Measured on the tuning set with unblinded payloads. The held-out scores are blind and drawn from the deployed catalog, so this bias is reported, not subtracted.",
+    "judge_minus_human_by_architecture": {
+      "MULTI_AGENT": 0.3333,
+      "SINGLE_AGENT_RAG": 0.0646,
+      "SINGLE_LLM": -0.4021
+    },
+    "pearson_correlation": -0.089,
+    "sample_count": 24,
+    "within_0_5_rate": 0.5417
+  },
+  "run_dir": "results\\round2\\heldout_adr22"
+}
