@@ -140,12 +140,27 @@ fallback으로 갔다.
 - PHASE 6이 기록한 "repair 비대칭이 C에 유리하다"는 주석은 **사실과 반대**였다. 이번 실행에서
   repair는 존재하지 않았다.
 
-**수정하지 않았다.** `backend/app/domain/agents/**`는 AI/데이터 리드 소유이고 안전 인접
-변경은 PM·도메인 리뷰가 필요하다(AGENTS.md 3절). 또한 마스터 명세는 테스트를 통과시키려
-서비스 로직을 고치는 것을 금지하며 원인과 필요성을 먼저 기록하도록 요구한다. 여기까지가
-기록이고, 다음은 소유자 판단이다. 결정할 것은 두 가지다: 승인된 대체 운동을 누가 산출하는가
-(Qdrant snapshot loader인가 안전 규칙인가), 그리고 대체 운동 없이도 회복 가능한 위반
-(예: family 중복은 pool 안에서 교체 가능)을 따로 분류할 것인가.
+이 문서가 처음 기록된 시점에는 수정하지 않았다. `backend/app/domain/agents/**`는 AI/데이터
+리드 소유이고 안전 인접 변경은 PM·도메인 리뷰가 필요하며(AGENTS.md 3절), 마스터 명세는
+원인과 필요성을 먼저 기록하도록 요구하기 때문이다.
+
+**이후 오너 승인으로 ADR-0022를 적용했다(2026-09-11).** repairable 판정을 두 부류로 나눠,
+Safety 제외 운동의 교체는 기존대로 승인된 대체 운동을 요구하고, shape·dosage 위반은 pool을
+근거로 복구 가능하게 했다. 위반 판정 규칙 자체는 바꾸지 않았다.
+
+**이 문서의 수치는 수정 전 실행이므로 재계산하지 않았다.** 수정 후 재측정은 별도 유료 실행이
+필요하며, 그 전에는 "고치면 나아진다"고 주장하지 않는다.
+
+이 결함이 오래 살아남은 이유도 기록해 둔다. graph 수준 repair 테스트
+(`test_v3_langgraph_repair.py`)는 `Validation(False, True, ...)`를 그대로 돌려주는 **가짜
+validator**를 쓴다. 즉 "validator가 repairable이라고 말하면 graph가 repair를 돈다"는 배선은
+검증됐고, "실제 validator가 repairable이라고 말하는가"는 따로 검증됐지만, **둘을 잇는 이음매를
+함께 검증한 테스트가 없었다.** ADR-0022는 빈 context로 실제 validator와 실제 routing을 함께
+통과시키는 테스트를 추가했다.
+
+여전히 미결인 것: 승인된 대체 운동(`approved_safe_alternative_ids`)을 누가 산출하는가.
+정해지기 전까지 `SAFETY_EXCLUDED_EXERCISE_INCLUDED`는 복구 불가로 남으며 결정적 fallback으로
+간다(안전한 동작).
 
 ### 관측성 결함: `V3_TRAINING_NOT_READY`가 두 원인을 구분하지 못한다
 
@@ -156,7 +171,12 @@ fallback으로 갔다.
 
 앞은 모델이 계약을 어긴 것이고, 뒤는 모델이 "입력이 부족하다"고 스스로 판단한 것이다.
 대응이 완전히 다른데 구분할 수 없다. 따라서 이번 Training 실패 4건이 둘 중 무엇인지
-**현재 데이터로는 단정할 수 없다.** 다음 실행 전에 코드를 분리하면 무료로 확인된다.
+**현재 데이터로는 단정할 수 없다.**
+
+**ADR-0022로 분리했다(2026-09-11)**: `V3_{ROLE}_PROPOSAL_INVALID`(계약 위반),
+`V3_{ROLE}_NO_PROPOSAL`(proposal 부재), `V3_TRAINING_NOT_READY`(Training 자체 판단).
+`failure_code`는 `String(128)`이고 enum 제약이 없어 마이그레이션은 필요 없다. **이미 끝난
+실행에 소급되지는 않으므로 위 4건의 원인은 여전히 미상이며, 다음 유료 실행에서 확인된다.**
 
 ## 4. Judge 결과 해석의 한계
 
