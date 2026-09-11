@@ -18,7 +18,11 @@ from typing import Final, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from backend.tests.evaluation import catalog
+from backend.tests.evaluation.catalog_source import (
+    SYNTHETIC_SOURCE,
+    CatalogSource,
+    source_for,
+)
 
 DATASET_SCHEMA_VERSION: Final = "service-quality-case-v1"
 DATASETS_DIR: Final = Path(__file__).parent / "datasets"
@@ -133,14 +137,6 @@ class ExpectedConstraints(_Frozen):
     allowed_load_codes: tuple[str, ...] = ("BODYWEIGHT",)
     minimum_rest_seconds_between_sets: int | None = Field(default=30, ge=0)
 
-    @field_validator("excluded_exercise_codes", "mandatory_exercise_codes")
-    @classmethod
-    def validate_known_codes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        unknown = tuple(code for code in values if code not in catalog.CATALOG)
-        if unknown:
-            raise ValueError(f"case references exercises outside the evaluation catalog: {unknown}")
-        return values
-
 
 class ExpectedSafetyResult(_Frozen):
     status_code: SafetyStatusExpectation
@@ -178,14 +174,6 @@ class ProhibitedActions(_Frozen):
     exceed_requested_duration: bool = True
     return_plan_when_safety_blocks: bool = True
 
-    @field_validator("exercise_codes")
-    @classmethod
-    def validate_known_codes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        unknown = tuple(code for code in values if code not in catalog.CATALOG)
-        if unknown:
-            raise ValueError(f"case prohibits exercises outside the catalog: {unknown}")
-        return values
-
 
 class PoolSpec(_Frozen):
     """Which catalog rows reach the agents for this case."""
@@ -194,14 +182,6 @@ class PoolSpec(_Frozen):
     vector_ranked_exercise_codes: tuple[str, ...] = ()
     retrieval_failed: bool = False
     """Simulates a Qdrant miss: the pool falls back to deterministic ordering."""
-
-    @field_validator("exercise_codes", "vector_ranked_exercise_codes")
-    @classmethod
-    def validate_known_codes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        unknown = tuple(code for code in values if code not in catalog.CATALOG)
-        if unknown:
-            raise ValueError(f"pool references exercises outside the catalog: {unknown}")
-        return values
 
     @model_validator(mode="after")
     def validate_ranked_subset(self) -> Self:
@@ -213,6 +193,15 @@ class PoolSpec(_Frozen):
 class EvaluationCase(_Frozen):
     schema_version: str = DATASET_SCHEMA_VERSION
     case_id: str = Field(pattern=r"^SQ-[A-Z]+-\d{3}$")
+    catalog_source: str = SYNTHETIC_SOURCE
+    """Which catalog this case's exercise codes name (`catalog_source.py`).
+
+    The tuning dataset uses the synthetic catalog; the round 2 held-out set uses
+    the deployed one. Declared per case rather than assumed, because a code that
+    silently resolved against the wrong catalog would produce a plausible pool
+    for a case that meant something else.
+    """
+
     category: CaseCategory
     description: str = Field(min_length=1)
     user_input: UserInput
@@ -244,6 +233,36 @@ class EvaluationCase(_Frozen):
         if value != DATASET_SCHEMA_VERSION:
             raise ValueError(f"unsupported case schema version: {value}")
         return value
+
+    @property
+    def catalog(self) -> CatalogSource:
+        return source_for(self.catalog_source)
+
+    @model_validator(mode="after")
+    def validate_referenced_exercises(self) -> Self:
+        """Every code a case names must exist in the catalog it declares.
+
+        Checked here rather than on the nested models because only the case
+        knows which catalog it means. A code that resolved against the wrong
+        one would still build a pool, just not the one the case describes.
+        """
+
+        source = self.catalog
+        referenced = {
+            "excluded_exercise_codes": self.expected_constraints.excluded_exercise_codes,
+            "mandatory_exercise_codes": self.expected_constraints.mandatory_exercise_codes,
+            "prohibited_actions.exercise_codes": self.prohibited_actions.exercise_codes,
+            "pool.exercise_codes": self.pool.exercise_codes,
+            "pool.vector_ranked_exercise_codes": self.pool.vector_ranked_exercise_codes,
+            "expected_relevant_exercise_codes": self.expected_relevant_exercise_codes,
+        }
+        for field_name, codes in referenced.items():
+            unknown = tuple(code for code in codes if code not in source)
+            if unknown:
+                raise ValueError(
+                    f"{field_name} references exercises outside {source.name}: {unknown}"
+                )
+        return self
 
     @model_validator(mode="after")
     def validate_case(self) -> Self:
@@ -293,7 +312,16 @@ class EvaluationDataset(_Frozen):
         duplicates = sorted({value for value in ids if ids.count(value) > 1})
         if duplicates:
             raise ValueError(f"duplicate case_id values: {duplicates}")
+        sources = {case.catalog_source for case in self.cases}
+        if len(sources) > 1:
+            # Metrics are averaged across a dataset. Mixing catalogs would
+            # average results taken against different exercise data.
+            raise ValueError(f"a dataset must use one catalog source, found: {sorted(sources)}")
         return self
+
+    @property
+    def catalog_source(self) -> str:
+        return self.cases[0].catalog_source
 
     def by_category(self, category: CaseCategory) -> tuple[EvaluationCase, ...]:
         return tuple(case for case in self.cases if case.category is category)

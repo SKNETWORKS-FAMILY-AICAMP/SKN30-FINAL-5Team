@@ -132,6 +132,22 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
 - 1차 발견 사항 반영 현황 확인 완료(2.1절): D-5·D-3·D-4·token·latency 반영, D-1과
   PlanSpec 비중립성은 사유를 남기고 보류
 - D-2 하네스 정합 적용(`scenario._reserved_ranking`), 회귀 434 passed / 2 skipped
-- 다음 게이트: **held-out 카탈로그 결정(6.1절)** 후 최소 30개 미사용 dataset 고정 및
-  전체 비교 실행
+- **held-out dataset 고정 완료**: 33 case, `datasets/heldout_cases.json`,
+  카탈로그 `exercise-catalog-v2.0.7-final`
+  - 층화: simple 4 / moderate 8 / complex 9 / conflict 5 / safety_critical 4 / failure_case 3
+  - 제외 운동은 배포 안전 규칙(`safety/safety_rules.jsonl`)에서 도출하며 직접 작성하지 않는다
+  - pool은 배포 카탈로그를 운영 eligibility로 거른 뒤 snapshot loader가 크기·phase를 정한다
+    (121 eligible → 15종 등)
+  - tuning 20건과 case_id·내용 모두 겹치지 않음을 테스트로 고정
+- 오프라인 3-architecture 배관 점검: 29 planning case 전부 계획 생성, critical 0,
+  세 architecture 결과 동일(fallback 8건도 동일)
+- 다음 게이트: held-out 유료 실행(smoke → pilot → 전체) 및 독립 blind Human 평가
+
+### 하네스 한계 (held-out 해석 시 유의)
+
+스크립트 provider용 `planner.compose_prescriptions`는 배포 카탈로그에서 긴 세션의
+요청 시간을 채우지 못해 29건 중 8건이 결정적 fallback으로 넘어간다(45분 요청에서
+1,358초 구성 등). **오프라인 배관 점검에만 영향이 있고 유료 실행에는 영향이 없다**:
+실제 모델은 MAIN 반복으로 시간을 채우며 2차 pilot 14/14에서 fallback 0건이었다.
+세 architecture에 동일하게 적용되므로 비교 속성도 유지된다.
 - 상세: `docs/test/ROUND2_LOCAL_RESULTS.md`

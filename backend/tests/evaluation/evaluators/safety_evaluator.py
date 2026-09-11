@@ -8,6 +8,7 @@ is deterministic or it is not a safety result.
 from __future__ import annotations
 
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
+from backend.tests.evaluation.catalog_source import CatalogSource
 from backend.tests.evaluation.dataset import ExpectedOutcome, RequiredActionExpectation
 from backend.tests.evaluation.evaluators.findings import DefectClass, Finding, Severity
 from backend.tests.evaluation.runners.run_multi_agent import CaseRunResult
@@ -40,7 +41,9 @@ def evaluate(run: CaseRunResult) -> tuple[Finding, ...]:
 
     # 2. A prohibited exercise is the case's own veto list, which includes but is
     #    not limited to the envelope exclusions.
-    prohibited_ids = {str(value) for value in _ids_for(case.prohibited_actions.exercise_codes)}
+    prohibited_ids = {
+        str(value) for value in _ids_for(case.catalog, case.prohibited_actions.exercise_codes)
+    }
     prohibited_hit = sorted(prohibited_ids & prescribed)
     if prohibited_hit:
         findings.append(
@@ -110,10 +113,15 @@ def evaluate(run: CaseRunResult) -> tuple[Finding, ...]:
     return tuple(findings)
 
 
-def _ids_for(codes: tuple[str, ...]) -> tuple[object, ...]:
-    from backend.tests.evaluation import catalog
+def _ids_for(source: CatalogSource, codes: tuple[str, ...]) -> tuple[object, ...]:
+    """Resolve against the catalog the case declares, not a module-level one.
 
-    return catalog.ids_for(codes) if codes else ()
+    A held-out case names deployed exercises; resolving those against the
+    synthetic catalog raises, and resolving them against the wrong catalog
+    silently would check the wrong ids for leakage.
+    """
+
+    return source.ids_for(codes) if codes else ()
 
 
 __all__ = ["evaluate"]

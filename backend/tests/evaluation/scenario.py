@@ -33,7 +33,7 @@ from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryC
 from backend.app.domain.agents.v3_duration import pool_size_for_duration
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 from backend.app.integrations.qdrant.snapshot_loader import QdrantExercisePoolSnapshotLoader
-from backend.tests.evaluation import catalog
+from backend.tests.evaluation.catalog_source import CatalogSource
 from backend.tests.evaluation.dataset import (
     FIXED_TIME,
     EvaluationCase,
@@ -81,6 +81,7 @@ def build_envelope(case: EvaluationCase) -> ConstraintEnvelope:
     `missing_input` and `invalid_input` categories.
     """
 
+    source: CatalogSource = case.catalog
     expected = case.expected_constraints
     duration = expected.requested_duration_minutes
     if duration is None:
@@ -97,8 +98,8 @@ def build_envelope(case: EvaluationCase) -> ConstraintEnvelope:
             primary_goal_code=expected.primary_goal_code,
             allowed_location_codes=tuple(sorted(set(expected.allowed_location_codes))),
             allowed_equipment_codes=tuple(sorted(set(expected.allowed_equipment_codes))),
-            excluded_exercise_ids=catalog.ids_for(expected.excluded_exercise_codes),
-            mandatory_exercise_ids=catalog.ids_for(expected.mandatory_exercise_codes),
+            excluded_exercise_ids=source.ids_for(expected.excluded_exercise_codes),
+            mandatory_exercise_ids=source.ids_for(expected.mandatory_exercise_codes),
             recovery_ceiling=RecoveryCeiling(
                 policy_version=RECOVERY_POLICY_VERSION,
                 allowed_intensity_codes=tuple(sorted(set(expected.allowed_intensity_codes))),
@@ -111,7 +112,7 @@ def build_envelope(case: EvaluationCase) -> ConstraintEnvelope:
             plan_generation_allowed=expected.plan_generation_allowed,
             safety_required_action_code=action_code,
             policy_version=POLICY_VERSION,
-            catalog_version=catalog.CATALOG_VERSION,
+            catalog_version=source.catalog_version,
             safety_rule_version=SAFETY_RULE_VERSION,
         )
     except (ValidationError, ValueError) as error:
@@ -153,7 +154,7 @@ def _reserved_ranking(
     records: tuple[ExercisePoolExerciseRecord, ...],
     ranked: tuple[UUID, ...],
 ) -> tuple[UUID, ...]:
-    """Reorder a case's ranking the way the shipped snapshot loader reorders it.
+    """Select and order a case's pool the way the shipped snapshot loader does.
 
     Ranking alone can hand the agents a pool with no cooldown candidate in it,
     so production reserves a few candidates per phase and role before spending
@@ -163,15 +164,16 @@ def _reserved_ranking(
     never produces: D-2 was reported as a service defect on that basis and had
     to be retracted (`docs/test/TEST_RESULTS.md` 12절).
 
-    The selection is production's own function rather than a copy of it. Only
-    the ordering changes here: `pool.exercises` is stored in canonical UUID
-    order either way, so the projection the agents are shown is byte-identical
-    and token counts are unaffected. What changes is the order the deterministic
-    fallback reads.
+    The selection is production's own function rather than a copy of it, and it
+    decides pool membership as well as order. On the synthetic catalog the two
+    are nearly the same set -- a case declares about fifteen exercises and the
+    loader would size the pool at fifteen -- so this mostly reorders. On the
+    deployed catalog it does real work: 157 eligible beginner exercises become
+    the roughly fifteen a live request would carry.
     """
 
     request = ExerciseRetrievalRequest(
-        catalog_version=catalog.CATALOG_VERSION,
+        catalog_version=envelope.catalog_version,
         constraint_envelope_hash=envelope.envelope_hash,
         eligible_exercise_ids=tuple(sorted((item.exercise_id for item in records), key=str)),
         mandatory_exercise_ids=envelope.mandatory_exercise_ids,
@@ -182,18 +184,25 @@ def _reserved_ranking(
             exercises=records,
         ),
     )
+    # With no declared ranking this is the deterministic retrieval state, which
+    # still goes through the same selection; only the stored ranking differs.
+    succeeded = bool(ranked)
     result = ExerciseRetrievalResult(
         ranked_exercise_ids=ranked,
         # Scores carry no information here; the selection reads order only.
         similarity_scores=tuple(
             round(1.0 - index / (len(ranked) + 1), 6) for index in range(len(ranked))
         ),
-        collection_name="eval-exercise-catalog-v1",
-        vector_index_version="eval-vector-index-v1",
-        embedding_model_version="eval-embedding-v1",
+        collection_name="eval-exercise-catalog-v1" if succeeded else None,
+        vector_index_version="eval-vector-index-v1" if succeeded else None,
+        embedding_model_version="eval-embedding-v1" if succeeded else None,
         query_hash=QUERY_HASH,
-        retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
-        fallback_used=False,
+        retrieval_status_code=(
+            RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED
+            if succeeded
+            else RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE
+        ),
+        fallback_used=not succeeded,
     )
     carried = {item.exercise_id for item in records}
     selected = QdrantExercisePoolSnapshotLoader._selected_ids(request, result, records)
@@ -210,22 +219,33 @@ def build_pool(case: EvaluationCase, envelope: ConstraintEnvelope) -> ExercisePo
     `_reserved_ranking` applies.
     """
 
-    records = catalog.records_for(case.pool.exercise_codes)
+    source = case.catalog
+    eligible = source.records_for(case.pool.exercise_codes)
     retrieval_failed = case.pool.retrieval_failed
-    declared = catalog.ids_for(case.pool.vector_ranked_exercise_codes)
-    ranked: tuple[UUID, ...] = ()
+    declared = source.ids_for(case.pool.vector_ranked_exercise_codes)
+
+    # Production stores the *selection*, not the whole eligible set: the loader
+    # sizes a pool from the requested duration and reserves phase and role
+    # coverage before spending the rest on rank, then revalidates only those ids
+    # into the snapshot. A case declares eligibility, which is PostgreSQL's job;
+    # the selection is the loader's, and the deployed catalog makes the
+    # difference concrete -- 157 eligible beginner exercises against a pool the
+    # service would size at roughly fifteen.
+    selected = _reserved_ranking(envelope=envelope, records=eligible, ranked=declared)
+    by_id = {item.exercise_id: item for item in eligible}
+    records = tuple(sorted((by_id[item] for item in selected), key=lambda r: str(r.exercise_id)))
+
     # A case that declares no ranking is not a successful vector retrieval: the
     # contract refuses that combination, and production reaches the same state
     # through `deterministic_retrieval_fallback`, which stores no ranking on the
-    # snapshot either. Only a declared ranking is reordered.
-    if not retrieval_failed and declared:
-        ranked = _reserved_ranking(envelope=envelope, records=records, ranked=declared)
+    # snapshot either.
+    ranked: tuple[UUID, ...] = () if retrieval_failed or not declared else selected
     try:
         return ExercisePoolSnapshot.create(
-            catalog_version=catalog.CATALOG_VERSION,
+            catalog_version=source.catalog_version,
             constraint_envelope_hash=envelope.envelope_hash,
             exercises=records,
-            mandatory_exercise_ids=catalog.ids_for(
+            mandatory_exercise_ids=source.ids_for(
                 case.expected_constraints.mandatory_exercise_codes
             ),
             vector_ranked_exercise_ids=ranked,

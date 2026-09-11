@@ -62,14 +62,65 @@ def _eligible(
         if record.exercise_id not in excluded
         and phase_code in record.phase_codes
         and set(record.location_codes) & allowed_locations
-        and record.default_seconds_per_rep is not None
+        and _has_selectable_volume(record, envelope)
+        # A record needs a timing basis of some kind. The deployed catalog
+        # measures 63 of its exercises in seconds rather than repetitions, and
+        # requiring `default_seconds_per_rep` alone emptied whole phases: every
+        # held-out case fell through to the deterministic fallback, which looked
+        # like a service result and was this composer's REPS-only assumption.
+        and (record.default_seconds_per_rep is not None or record.default_work_seconds is not None)
     )
+
+
+def _has_selectable_volume(
+    record: ExercisePoolExerciseRecord, envelope: ConstraintEnvelope
+) -> bool:
+    """Whether any volume satisfies both the reviewed FITT range and the ceiling.
+
+    A reviewed minimum of twelve repetitions under a ceiling of eight leaves
+    nothing to prescribe for that exercise. Production treats it as a candidate
+    that does not fit and moves on (`fallback.py` returns None for the block);
+    raising here instead failed the whole plan over one unusable exercise, which
+    on the deployed catalog meant every tight-recovery case fell to the
+    deterministic fallback.
+    """
+
+    try:
+        _volume_bounds(record, envelope)
+    except PlanCompositionError:
+        return False
+    return True
+
+
+def _is_duration_mode(record: ExercisePoolExerciseRecord) -> bool:
+    """Whether this exercise is prescribed in seconds rather than repetitions."""
+
+    return record.timing_mode_code == "DURATION"
+
+
+def _work_seconds(record: ExercisePoolExerciseRecord, envelope: ConstraintEnvelope) -> int | None:
+    """One reviewed work block, capped by the Recovery ceiling.
+
+    Mirrors `fallback.py`: a duration prescription is one block and is not
+    handed the recovery maximum merely because that maximum exists.
+    """
+
+    work = record.default_work_seconds
+    if work is None:
+        return None
+    maximum = envelope.recovery_ceiling.maximum_work_seconds_per_set
+    return min(work, maximum) if maximum is not None else work
 
 
 def _volume_bounds(
     record: ExercisePoolExerciseRecord, envelope: ConstraintEnvelope
 ) -> tuple[int, int, int, int]:
     """Return (min_sets, max_sets, min_reps, max_reps) honouring FITT and Recovery."""
+
+    if _is_duration_mode(record):
+        # One work block, no repetitions. The contract rejects a duration
+        # prescription that claims reps.
+        return 1, 1, 0, 0
 
     ceiling = envelope.recovery_ceiling
     volume = record.approved_fitt_volume()
@@ -223,8 +274,10 @@ def _prescription(
         sequence=sequence,
         phase_code=block.phase_code,  # type: ignore[arg-type]
         sets=block.sets,
-        repetitions_per_set=block.repetitions,
-        work_seconds_per_set=None,
+        repetitions_per_set=None if _is_duration_mode(block.record) else block.repetitions,
+        work_seconds_per_set=_work_seconds(block.record, envelope)
+        if _is_duration_mode(block.record)
+        else None,
         rest_seconds_between_sets=_rest_seconds(block.record, envelope),
         transition_seconds=block.record.default_transition_seconds,
         intensity_code=_intensity_code(envelope),
