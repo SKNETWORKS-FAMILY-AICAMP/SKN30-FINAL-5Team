@@ -1,9 +1,13 @@
 """Pin what a LangSmith trace of the shipped graph does and does not contain.
 
-The gap these tests describe is not a bug to be fixed here: `provider.py`
-disables provider tracing on purpose, to stop prompt content reaching a SaaS.
-Pinning it means the report can state the limit precisely, and that a future
-change to it becomes visible rather than silent.
+`provider.py` suppresses provider tracing by default, to stop prompt content
+reaching a SaaS on an ambient setting alone. ADR-0020 added an explicit opt-in,
+so there are now two behaviours to pin rather than one, and both matter:
+
+* with the default, no provider span exists -- the property the privacy boundary
+  rests on, and the one a careless refactor would quietly remove
+* with the opt-in, provider spans do exist -- otherwise the approval bought
+  nothing and nobody would find out until they went looking for a prompt
 """
 
 from __future__ import annotations
@@ -44,12 +48,12 @@ def test_the_three_specialists_each_appear_as_their_own_span() -> None:
         assert node in names
 
 
-def test_the_provider_calls_are_not_traced() -> None:
+def test_the_provider_calls_are_not_traced_by_default() -> None:
     """The documented limit, measured.
 
     Four LLM calls are made and none of them produces an LLM span, because
-    `provider.py` wraps each invocation in `tracing_context(enabled=False)`.
-    Prompts and raw model output therefore never reach LangSmith.
+    `provider.py` suppresses tracing unless a deployment opted in. Prompts and
+    raw model output therefore never reach LangSmith on the default path.
     """
 
     with record_runs() as recorder:
@@ -57,8 +61,9 @@ def test_the_provider_calls_are_not_traced() -> None:
 
     assert run.llm_call_count == 4, "this case should invoke all four roles"
     assert recorder.llm_run_count == 0, (
-        "a provider span appeared; provider.py's tracing_context(enabled=False) "
-        "may have been removed, which is a privacy policy change"
+        "a provider span appeared without the ADR-0020 opt-in; the default "
+        "suppression in provider.py may have been removed, which is a privacy "
+        "policy change"
     )
 
 

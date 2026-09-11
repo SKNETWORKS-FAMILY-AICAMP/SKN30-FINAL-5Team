@@ -166,6 +166,13 @@ class MultiAgentRunner:
     # which is the property that makes the offline results meaningful.
     provider: ProviderContext | None = None
 
+    # ADR-0020 opt-in: export the provider calls themselves to LangSmith. Off by
+    # default here for the same reason it is off in the service -- an evaluation
+    # run should not start exporting prompts because a key happened to be set.
+    # A traced run also pays LangSmith's export on every call, so its latency is
+    # not comparable with an untraced one.
+    tracing_enabled: bool = False
+
     @property
     def model_label(self) -> str:
         return self.provider.label if self.provider is not None else EVAL_MODEL_CODE
@@ -203,6 +210,8 @@ class MultiAgentRunner:
             model_code=model_code,
             max_attempts=max_attempts,
             use_native_json_schema=native_json_schema,
+            tracing_enabled=self.tracing_enabled
+            or (self.provider.tracing_enabled if self.provider is not None else False),
         )
         context = _ExecutionContext()
         graph_input = V3GraphInput(

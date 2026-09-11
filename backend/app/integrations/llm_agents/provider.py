@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, TypeVar, cast
 
@@ -133,10 +134,36 @@ class StructuredChatInvoker:
     model_code: str
     max_attempts: int = 2
     use_native_json_schema: bool = False
+    # Whether the provider call may be exported to LangSmith. Default False, so
+    # an invoker built without an explicit decision still suppresses tracing --
+    # the behaviour every caller had before ADR-0020. Callers pass
+    # `settings.llm_agents_tracing_enabled`.
+    tracing_enabled: bool = False
 
     def __post_init__(self) -> None:
         if self.max_attempts not in {1, 2}:
             raise ValueError("max_attempts must be one or two")
+
+    @contextmanager
+    def _tracing_scope(self) -> Iterator[None]:
+        """Suppress ambient tracing unless this invoker was approved to export.
+
+        The suppression is the default rather than the exception: an ambient
+        LANGSMITH_TRACING in the environment must not be able to start exporting
+        prompts because a key happened to be set somewhere.
+        """
+
+        # Set both states explicitly. Merely inheriting the enabled state is
+        # insufficient when an enclosing context disabled tracing: LangSmith
+        # gives that context value precedence over environment variables.
+        with tracing_context(enabled=self.tracing_enabled):
+            yield
+
+    @property
+    def _invocation_config(self) -> dict[str, Any] | None:
+        """An empty callback list detaches the tracer; None lets it attach."""
+
+        return None if self.tracing_enabled else {"callbacks": []}
 
     def invoke(
         self,
@@ -183,12 +210,14 @@ class StructuredChatInvoker:
         started_ns = time.monotonic_ns()
         for attempt_count in range(1, self.max_attempts + 1):
             try:
-                # LangSmith is a transitive dependency of langchain-core. Disable it
-                # explicitly so ambient tracing settings cannot export prompt content.
-                with tracing_context(enabled=False):
+                # LangSmith is a transitive dependency of langchain-core, so
+                # ambient settings could export prompt content on their own.
+                # Suppressed unless this invoker was built with the approved
+                # opt-in (ADR-0020).
+                with self._tracing_scope():
                     raw_output = structured_model.invoke(
                         list(messages),
-                        config={"callbacks": []},
+                        config=self._invocation_config,
                     )
                 parsed_payload, raw_message = _structured_payload(raw_output)
                 parsed_output = cast(
@@ -297,10 +326,10 @@ class StructuredChatInvoker:
         started_ns = time.monotonic_ns()
         for attempt_count in range(1, self.max_attempts + 1):
             try:
-                with tracing_context(enabled=False):
+                with self._tracing_scope():
                     raw_output = await structured_model.ainvoke(
                         list(messages),
-                        config={"callbacks": []},
+                        config=self._invocation_config,
                     )
                 parsed_payload, raw_message = _structured_payload(raw_output)
                 parsed_output = cast(
@@ -399,6 +428,7 @@ def build_structured_chat_invoker(
         chat_model=chat_model if configured else None,
         model_code=settings.llm_agents_model_code,
         max_attempts=settings.llm_agents_max_attempts,
+        tracing_enabled=settings.llm_agents_tracing_enabled,
     )
 
 

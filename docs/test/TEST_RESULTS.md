@@ -212,9 +212,13 @@ project `helkki`, experiment `multi-agent-v1`로 전 실행이 전송됐다.
 span(병렬), `collect_proposals`, `coordinator_agent`, `compile`, `validate`,
 `finalize`, 모든 라우팅 결정, 실패·fallback 경로, 노드별 latency, state.
 
-**보이지 않는 것**: prompt 원문, 모델 원문 응답, provider 토큰.
-`provider.py:188`의 `tracing_context(enabled=False)`가 prompt 유출을 막기 위해
-의도적으로 차단한다. Token Usage는 `InvocationAudit`에서 이미 얻고 있다.
+**기본값에서 보이지 않는 것**: prompt 원문, 모델 원문 응답, provider 토큰.
+ADR-0020의 `LLM_AGENTS_TRACING_ENABLED` 옵트인을 구현했고 기본값은 `false`다.
+개발팀장·PM의 외부 전송 승인은 2026-09-11 확보했다. Token Usage는 `InvocationAudit`에서 이미 얻고 있다.
+
+승인 후 최소 실측에서 `SQ-SIMPLE-001`은 `SUCCEEDED`, provider 4회, 27,472 tokens,
+27.328초, repair 0, fallback 없음이었다. LangSmith에서 세 specialist와 coordinator의
+`ChatOpenAI` child span 4개를 확인했다. 상세는 `docs/test/PHASE8_LANGSMITH_LLM_SPAN.md`.
 
 상세: `docs/test/LANGSMITH_TRACING.md`.
 
@@ -351,7 +355,7 @@ readiness는 전체 경로에 대한 하드 게이트다.** 내용은 비구속�
 | Phase | 상태 | 사유 |
 |---|---|---|
 | 6. Single vs Multi | 미착수 | 별도 작업으로 분리 권고(마스터 명세) |
-| 7. Pairwise Judge | 미착수 | 선행 조건 충족 (blind payload 완성) |
+| 7. Pairwise Judge | **완료** | `docs/test/PHASE7_PAIRWISE.md`, `results/pairwise/` |
 | 10. Human Calibration | 양식만 | Human label 부재 — 임의 생성하지 않음 |
 | 전체 dataset 50~100건 확장 | 미실행 | smoke 20건으로 harness 검증 완료 |
 

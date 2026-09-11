@@ -60,6 +60,7 @@ class ProviderContext:
     max_output_tokens: int
     timeout_seconds: float
     max_attempts: int
+    tracing_enabled: bool
 
     @property
     def label(self) -> str:
@@ -116,6 +117,7 @@ def build_provider(*, model_code: str | None = None) -> ProviderContext:
         max_output_tokens=settings.llm_agents_max_output_tokens,
         timeout_seconds=settings.llm_agents_timeout_seconds,
         max_attempts=min(settings.llm_agents_max_attempts, 2),
+        tracing_enabled=settings.llm_agents_tracing_enabled,
     )
 
 

@@ -358,25 +358,33 @@ category별·rubric 항목별 분리.
 agreement 0.0으로 잡아내는지 검증한다. 이 테스트가 없으면 bias rate 0.0이
 "편향 없음"인지 "탐지기가 안 켜짐"인지 구분할 수 없다.
 
-## PHASE 8. LangSmith — 조사 완료
+## PHASE 8. LangSmith — 완료
 
-**결론: 워크플로 trace는 사용하고, LLM span은 열지 않는다** (2026-09-11 결정).
+**결론: 워크플로 trace는 계속 사용하고, LLM span은 기본 OFF인 명시적 옵트인으로만 연다.**
+결정 기록은 `docs/adr/0020-opt-in-langsmith-provider-tracing.md`다.
 
 실측 결과 (`docs/test/LANGSMITH_TRACING.md`, `test_tracing.py`):
 
 - **추적됨**: 노드 15개 전체. 세 specialist 각각 독립 span, coordinator,
   compile/validate, 라우팅 결정, 실패·fallback·repair 경로, 노드별 latency,
   state(envelope·pool·proposal·PlanSpec)
-- **추적 안 됨**: prompt, 모델 원문 응답, provider 토큰.
-  `provider.py:188`의 `tracing_context(enabled=False)`가 의도적으로 차단
+- **기본값에서 추적 안 됨**: prompt, 모델 원문 응답, provider 토큰.
+- **옵트인에서 추가됨**: provider prompt·모델 응답 span. 로컬 tracer probe로 연결을 검증
 
 Token Usage는 trace가 아니라 `InvocationAudit`에서 이미 얻고 있으므로
 마스터 명세 PHASE 8 요구 항목 중 실질적으로 빠지는 것은 prompt 원문뿐이다.
 
-LLM span까지 열려면 `provider.py` 수정 + 개발팀장·PM 승인 2건이 필요하며
-**이번 작업에서 수행하지 않기로 결정했다.**
+`LLM_AGENTS_TRACING_ENABLED=false`가 기본값이며 production compose에는 ON 값을 넣지 않는다.
+개발팀장·PM 승인은 2026-09-11 확보했다. LangSmith project의 보존·접근 정책을 확인하고
+평가·staging에서만 켠다.
 
-실행: `LANGSMITH_API_KEY`만 설정하면 서비스 코드 변경 없이 바로 사용 가능.
+최소 실측은 `SQ-SIMPLE-001` 한 건을 Judge 없이 4회 호출 상한으로 수행했다. 실행은
+`SUCCEEDED`, 27,472 tokens, 27.328초, repair 0, fallback 없음이었고 LangSmith에서 세 specialist와
+coordinator의 `ChatOpenAI` span 4개를 확인했다. 상세는
+`docs/test/PHASE8_LANGSMITH_LLM_SPAN.md`에 기록했다.
+
+워크플로 trace 실행은 `LANGSMITH_API_KEY`로 가능하다. LLM span에는 추가로
+`LLM_AGENTS_TRACING_ENABLED=true`가 필요하다.
 
 ## PHASE 9. Performance / Failure (계획)
 

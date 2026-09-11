@@ -386,6 +386,7 @@ class SingleAgentRunner:
                 # baseline has to bind it the same way or the two architectures
                 # are not using the same structured-output path.
                 use_native_json_schema=True,
+                tracing_enabled=self.provider.tracing_enabled,
             )
         return StructuredChatInvoker(
             chat_model=cast(Any, self.chat_model),

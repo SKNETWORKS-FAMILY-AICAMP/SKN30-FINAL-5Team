@@ -3,8 +3,8 @@
 멀티에이전트 루틴 생성 실행을 LangSmith에서 확인하기 위한 조사 결과와 한계.
 측정 기준 커밋: `chore/service-quality-evaluation-harness`.
 
-**요약**: 워크플로 전체(노드 15개)는 추적된다. **LLM 호출 자체는 추적되지 않으며,
-이는 버그가 아니라 의도적으로 차단된 것이다.**
+**요약**: 워크플로 전체(노드 15개)는 추적된다. LLM 호출은 기본적으로 차단되며,
+ADR-0020의 명시적 옵트인에서만 provider span을 허용한다.
 
 ---
 
@@ -45,38 +45,38 @@ LangGraph
 | Retry | **가능** (repair 노드 진입 여부) | `InvocationAudit.attempt_count` |
 | Latency | 노드 단위 **가능** | `InvocationAudit.latency_ms` |
 | **Token Usage** | **불가** | `InvocationAudit.input/output_token_count` |
-| **Prompt / 모델 원문 응답** | **불가** | 없음 (의도적) |
+| **Prompt / 모델 원문 응답** | 기본 OFF, 승인된 옵트인에서 가능 | — |
 
-### 1.2 추적되지 않는 것과 그 이유
+### 1.2 기본값에서 추적되지 않는 것과 그 이유
 
 `backend/app/integrations/llm_agents/provider.py:188`
 
 ```python
-# LangSmith is a transitive dependency of langchain-core. Disable it
-# explicitly so ambient tracing settings cannot export prompt content.
-with tracing_context(enabled=False):
+with tracing_context(enabled=self.tracing_enabled):
     raw_output = await structured_model.ainvoke(...)
 ```
 
-즉 **provider 호출은 명시적으로 tracing에서 제외된다.** 4회 LLM 호출이 발생한
-실행에서 LLM span은 0개임을 테스트로 고정했다
-(`test_the_provider_calls_are_not_traced`).
+기본값은 `False`이므로 **provider 호출은 계속 명시적으로 tracing에서 제외된다.**
+4회 LLM 호출이 발생한 실행에서 LLM span이 0개임을 테스트로 고정했고, 별도 실제
+LangChain fake model probe에서 옵트인 시 LangSmith tracer가 붙는 것도 검증했다.
 
 근거 문서:
 
 - `docs/TECHNICAL_PLAN.md:65` — "checkpointer, 장기 memory, LangSmith SaaS 전송은
   별도 승인 없이는 포함하지 않는다."
-- `docs/TECHNICAL_PLAN.md:346` — LangSmith tracing과 callbacks 명시적 비활성화
+- `docs/TECHNICAL_PLAN.md` — 기본 비활성화, ADR-0020 승인 후 평가·staging 옵트인
 - `backend/app/integrations/README.md:21` — 동일 취지
+- `docs/adr/0020-opt-in-langsmith-provider-tracing.md` — 옵트인 경계와 승인 조건
 
 ## 2. 지금 할 수 있는 것
 
-`LANGSMITH_API_KEY`만 설정하면 **서비스 코드 변경 없이** 1.1의 워크플로 trace를
-얻을 수 있다.
+`LANGSMITH_API_KEY`만 설정하면 1.1의 워크플로 trace를 얻을 수 있다. 승인된 실행에서
+LLM span도 필요하면 `LLM_AGENTS_TRACING_ENABLED=true`를 추가한다.
 
 ```bash
 export LANGSMITH_API_KEY=...          # 별도 발급 필요 (Secrets Manager에 없음)
 export LANGSMITH_PROJECT=helkki-service-quality
+export LLM_AGENTS_TRACING_ENABLED=false # 승인된 LLM span 실행에서만 true
 export OPENAI_API_KEY=...             # docs/test/PAID_EVALUATION.md 참고
 uv run python -m backend.tests.evaluation.paid_run_cli --confirm-spend
 ```
@@ -87,28 +87,28 @@ Experiment 이름은 `backend/tests/evaluation/tracing.py`에 고정되어 있�
 키가 없으면 tracing만 꺼진 채 평가는 그대로 수행된다. 마스터 명세의
 "LangSmith 연결이 없어도 로컬 Evaluation은 수행 가능" 요구를 만족한다.
 
-## 3. 결정이 필요한 사항
+## 3. 승인 상태
 
-### 3.1 LLM span까지 보려면 서비스 코드 변경이 필요하다
+### 3.1 구현 및 외부 전송 승인 완료
 
-`provider.py`의 `tracing_context(enabled=False)`를 설정값으로 게이트해야 한다.
-이는 **두 가지 승인이 동시에 필요한 변경**이다.
+`provider.py`의 tracing context와 model callback을 `LLM_AGENTS_TRACING_ENABLED`로
+함께 게이트했다. 이 기능의 실제 활성화에 필요한 **두 가지 승인을 모두 확보했다.**
 
 1. **소유권**: `backend/app/integrations/**`는 개발팀장 승인 영역이며
    공유 계약에 해당한다 (`AGENTS.md` 3절).
 2. **개인정보 정책**: `docs/TECHNICAL_PLAN.md`가 명시적으로 금지한 SaaS 전송을
    여는 변경이므로 PM 검토가 필요하다 (`AGENTS.md` 3절, 8절).
 
-제안 형태(적용하지 않음, 검토용):
+적용 형태:
 
 ```python
 # provider.py
-with tracing_context(enabled=settings.llm_agents_tracing_enabled):
+with tracing_context(enabled=self.tracing_enabled):
     ...
 ```
 
-기본값 `False`를 유지하고 staging에서만 켜는 방식이면 production 동작은
-바뀌지 않는다. **이 변경은 이번 작업에서 수행하지 않았다.**
+기본값 `False`를 유지하고 production compose에도 ON 값을 추가하지 않았다. 따라서 production
+동작은 바뀌지 않는다. 개발팀장·PM 승인은 2026-09-11 확보했으며 ADR-0020은 `ACCEPTED`다.
 
 ### 3.2 전송되는 데이터의 성격
 
@@ -118,7 +118,7 @@ with tracing_context(enabled=settings.llm_agents_tracing_enabled):
 
 - 생년월일, 만 나이, 이름, 이메일, 사용자 ID, 기기 ID
 - 원시 웨어러블 샘플, GPS, 캘린더 텍스트
-- prompt 원문, 모델 원문 응답
+- 기본값에서는 prompt 원문, 모델 원문 응답
 
 포함되는 것:
 
@@ -126,6 +126,7 @@ with tracing_context(enabled=settings.llm_agents_tracing_enabled):
 - `recovery_ceiling` — **피로/컨디션 수준을 간접적으로 드러낸다**
 - `safety_required_action_code` — REST/STOP 여부
 - 요청 시간, 목표, 장소, 승인된 운동 후보 목록
+- 옵트인 시 prompt 원문과 모델 원문 응답
 
 직접 식별자는 없으나 **건강 관련 추론이 가능한 값이 포함된다.** 단독으로
 개인을 특정할 수는 없지만, `AGENTS.md` 8절이 다루는 범주에 인접한다.
@@ -138,7 +139,16 @@ with tracing_context(enabled=settings.llm_agents_tracing_enabled):
 | 멀티에이전트 실행 흐름 확인 | **지금 가능.** LangSmith 키만 설정 |
 | 노드별 latency·경로·실패 원인 | **지금 가능** |
 | Token / Cost 집계 | LangSmith 불필요. `InvocationAudit` 사용 |
-| prompt·모델 응답 확인 | 서비스 코드 변경 + 2건 승인 필요 |
+| prompt·모델 응답 확인 | 구현·승인 완료. 승인된 평가 실행에서만 옵트인 |
 
-3.1을 진행하지 않아도 마스터 명세 PHASE 8의 요구 항목 대부분이 충족된다.
-Token Usage는 trace가 아니라 `InvocationAudit`에서 이미 얻고 있다.
+옵트인을 켜지 않아도 마스터 명세 PHASE 8의 요구 항목 대부분이 충족된다. Token Usage는
+trace가 아니라 `InvocationAudit`에서 이미 얻고 있다.
+
+## 5. 승인 후 실측 결과
+
+2026-09-11 `helkki` project의 `multi-agent-v1` experiment로 `SQ-SIMPLE-001` 한 건을 실행했다.
+로컬 결과는 `SUCCEEDED`, provider 4회, input/output 24,140/3,332 tokens, 27.328초였고 repair와
+fallback은 없었다. LangSmith UI에서 Feasibility, Recovery, Training, Coordinator 각각의
+`ChatOpenAI gpt-5.6-terra` child span과 27.47K token root 집계를 확인했다.
+
+상세: `docs/test/PHASE8_LANGSMITH_LLM_SPAN.md`.

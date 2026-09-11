@@ -503,6 +503,7 @@ def build_v3_shadow_runtime(
         model_code=settings.llm_agents_model_code,
         max_attempts=settings.llm_agents_max_attempts,
         use_native_json_schema=chat_model is None and model is not None,
+        tracing_enabled=settings.llm_agents_tracing_enabled,
     )
     return V3ShadowRuntime(
         settings=settings,

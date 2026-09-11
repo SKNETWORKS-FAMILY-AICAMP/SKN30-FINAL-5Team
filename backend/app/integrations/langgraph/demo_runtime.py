@@ -391,6 +391,7 @@ def build_v3_demo_runtime(
             model_code=settings.llm_agents_model_code,
             max_attempts=min(settings.llm_agents_max_attempts, 2),
             use_native_json_schema=chat_model is None,
+            tracing_enabled=settings.llm_agents_tracing_enabled,
         ),
         identity_provider=identity_provider or BoundV3DemoIdentityProvider(),
         fallback_provider=fallback_provider
