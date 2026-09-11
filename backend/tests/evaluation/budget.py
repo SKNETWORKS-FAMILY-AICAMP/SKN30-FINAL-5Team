@@ -64,18 +64,22 @@ MAX_OUTPUT_TOKENS_PER_CALL: Final = 4000
 CHARS_PER_TOKEN: Final = 4
 
 # What each role actually returns, as opposed to what it is allowed to.
-# Training and Coordinator are the reviewed measurements recorded in
-# `config.py` (2,375-2,893 and 2,047-2,913); the two advisory roles are from
-# this harness's own first paid run, which observed 358 and 324 output tokens.
-# The ceiling above bounds the worst case; these describe the likely bill, and
-# reporting only the ceiling would overstate it roughly threefold.
+# Measured against gpt-5.6-terra in the 2026-09-11 pilot (54 graph calls,
+# 48,056 output tokens): Training 1,464, Coordinator 1,503, Recovery 327,
+# Feasibility 314. These are roughly half the range `config.py` records, so an
+# estimate taken from that comment alone overstates the bill about twofold and
+# the 4,000-token ceiling overstates it about fourfold.
 TYPICAL_OUTPUT_TOKENS: Final[dict[str, int]] = {
-    "TRAINING": 2900,
-    "RECOVERY": 400,
-    "FEASIBILITY": 400,
-    "COORDINATOR": 2900,
+    "TRAINING": 1500,
+    "RECOVERY": 350,
+    "FEASIBILITY": 350,
+    "COORDINATOR": 1550,
     "JUDGE": 500,
 }
+
+# Measured per-call input in the same pilot, for sanity-checking the
+# character-based prompt estimate above: 317,291 input tokens over 54 calls.
+MEASURED_MEAN_INPUT_TOKENS_PER_CALL: Final = 5876
 
 
 @dataclass(frozen=True, slots=True)
