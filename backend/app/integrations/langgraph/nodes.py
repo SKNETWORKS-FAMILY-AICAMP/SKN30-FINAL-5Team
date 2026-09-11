@@ -183,12 +183,15 @@ async def _run_specialist(
             outcome = AgentOutcome(
                 agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
             )
-        elif (
-            result.output is None
-            or result.output.proposal_status_code is not V3ProposalStatusCode.READY
-            or not _proposal_is_valid(state, agent_type, result.output)
-        ):
+        elif result.output is None or not _proposal_is_valid(state, agent_type, result.output):
             outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NOT_READY")
+        elif result.output.proposal_status_code is V3ProposalStatusCode.FAILED:
+            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_FAILED")
+        elif (
+            agent_type is SpecialistAgentTypeCode.TRAINING
+            and result.output.proposal_status_code is not V3ProposalStatusCode.READY
+        ):
+            outcome = AgentOutcome(agent_type, failure_code="V3_TRAINING_NOT_READY")
         else:
             outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
     return {"agent_outcomes": (outcome,)}

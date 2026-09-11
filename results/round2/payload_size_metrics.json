@@ -1,0 +1,93 @@
+{
+  "case_count": 14,
+  "cases": [
+    {
+      "case_id": "SQ-SIMPLE-001",
+      "reduction_rate": 0.499196,
+      "v1_specialist_payload_bytes": 48522,
+      "v2_specialist_payload_bytes": 24300
+    },
+    {
+      "case_id": "SQ-SIMPLE-002",
+      "reduction_rate": 0.499196,
+      "v1_specialist_payload_bytes": 48522,
+      "v2_specialist_payload_bytes": 24300
+    },
+    {
+      "case_id": "SQ-MODERATE-001",
+      "reduction_rate": 0.499536,
+      "v1_specialist_payload_bytes": 48489,
+      "v2_specialist_payload_bytes": 24267
+    },
+    {
+      "case_id": "SQ-MODERATE-002",
+      "reduction_rate": 0.496862,
+      "v1_specialist_payload_bytes": 48750,
+      "v2_specialist_payload_bytes": 24528
+    },
+    {
+      "case_id": "SQ-COMPLEX-001",
+      "reduction_rate": 0.495641,
+      "v1_specialist_payload_bytes": 48870,
+      "v2_specialist_payload_bytes": 24648
+    },
+    {
+      "case_id": "SQ-COMPLEX-002",
+      "reduction_rate": 0.494458,
+      "v1_specialist_payload_bytes": 48987,
+      "v2_specialist_payload_bytes": 24765
+    },
+    {
+      "case_id": "SQ-CONFLICT-001",
+      "reduction_rate": 0.499752,
+      "v1_specialist_payload_bytes": 48468,
+      "v2_specialist_payload_bytes": 24246
+    },
+    {
+      "case_id": "SQ-CONFLICT-002",
+      "reduction_rate": 0.495976,
+      "v1_specialist_payload_bytes": 48837,
+      "v2_specialist_payload_bytes": 24615
+    },
+    {
+      "case_id": "SQ-CONFLICT-003",
+      "reduction_rate": 0.504245,
+      "v1_specialist_payload_bytes": 54414,
+      "v2_specialist_payload_bytes": 26976
+    },
+    {
+      "case_id": "SQ-SAFETY-001",
+      "reduction_rate": 0.495976,
+      "v1_specialist_payload_bytes": 48837,
+      "v2_specialist_payload_bytes": 24615
+    },
+    {
+      "case_id": "SQ-RAG-001",
+      "reduction_rate": 0.499196,
+      "v1_specialist_payload_bytes": 48522,
+      "v2_specialist_payload_bytes": 24300
+    },
+    {
+      "case_id": "SQ-RAG-002",
+      "reduction_rate": 0.499196,
+      "v1_specialist_payload_bytes": 48522,
+      "v2_specialist_payload_bytes": 24300
+    },
+    {
+      "case_id": "SQ-FAILURE-001",
+      "reduction_rate": 0.499196,
+      "v1_specialist_payload_bytes": 48522,
+      "v2_specialist_payload_bytes": 24300
+    },
+    {
+      "case_id": "SQ-FAILURE-002",
+      "reduction_rate": 0.495641,
+      "v1_specialist_payload_bytes": 48870,
+      "v2_specialist_payload_bytes": 24648
+    }
+  ],
+  "measurement": "canonical specialist input payload bytes; excludes output and tokenizer",
+  "reduction_rate": 0.498192,
+  "v1_specialist_payload_bytes": 687132,
+  "v2_specialist_payload_bytes": 344808
+}

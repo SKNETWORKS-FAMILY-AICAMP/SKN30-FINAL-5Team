@@ -140,6 +140,18 @@ _POOL_EXERCISE_FIELDS: Final = (
     "location_codes",
     "prescription_reference_codes",
 )
+_FEASIBILITY_POOL_EXERCISE_FIELDS: Final = (
+    "exercise_id",
+    "timing_mode_code",
+    "default_seconds_per_rep",
+    "default_work_seconds",
+    "default_rest_seconds",
+    "default_transition_seconds",
+    "phase_codes",
+    "role_eligibility_code",
+    "equipment_codes",
+    "location_codes",
+)
 
 
 def _validate_private_machine_payload(
@@ -260,7 +272,36 @@ def project_exercise_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
     return projected
 
 
+def _project_pool_identity(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    projected: dict[str, object] = {
+        "schema_version": pool.schema_version,
+        "catalog_version": pool.catalog_version,
+        "constraint_envelope_hash": pool.constraint_envelope_hash,
+        "pool_hash": pool.pool_hash,
+        "exercise_id_allowlist": [str(exercise.exercise_id) for exercise in pool.exercises],
+        "mandatory_exercise_ids": [str(value) for value in pool.mandatory_exercise_ids],
+    }
+    assert_private_machine_payload(projected)
+    return projected
+
+
+def _project_feasibility_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    projected = _project_pool_identity(pool)
+    projected["exercises"] = [
+        project_contract(exercise, field_allowlist=_FEASIBILITY_POOL_EXERCISE_FIELDS)
+        for exercise in pool.exercises
+    ]
+    assert_private_machine_payload(projected)
+    return projected
+
+
 def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
+    if agent_input.agent_type_code.value == "TRAINING":
+        pool_payload = project_exercise_pool(agent_input.exercise_pool)
+    elif agent_input.agent_type_code.value == "RECOVERY":
+        pool_payload = _project_pool_identity(agent_input.exercise_pool)
+    else:
+        pool_payload = _project_feasibility_pool(agent_input.exercise_pool)
     projected: dict[str, object] = {
         "schema_version": agent_input.schema_version,
         "agent_type_code": agent_input.agent_type_code.value,
@@ -270,7 +311,7 @@ def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
             agent_input.constraint_envelope,
             field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS,
         ),
-        "exercise_pool": project_exercise_pool(agent_input.exercise_pool),
+        "exercise_pool": pool_payload,
     }
     if agent_input.regeneration_context is not None:
         projected["regeneration_context"] = project_contract(

@@ -43,10 +43,10 @@ LANGSMITH_ENDPOINT_ENV: Final = "LANGSMITH_ENDPOINT"
 DEFAULT_PROJECT: Final = "helkki-service-quality"
 
 # Experiment names the master specification asks for, so runs stay comparable.
-EXPERIMENT_MULTI_AGENT: Final = "multi-agent-v1"
+EXPERIMENT_MULTI_AGENT: Final = "multi-agent-v2"
 EXPERIMENT_SINGLE_AGENT: Final = "baseline-single-agent-v1"
 EXPERIMENT_SINGLE_LLM: Final = "baseline-single-llm-v1"
-EXPERIMENT_SCRIPTED: Final = "multi-agent-scripted-offline-v1"
+EXPERIMENT_SCRIPTED: Final = "multi-agent-scripted-offline-v2"
 
 # PHASE 6 traces each architecture under its own experiment name so one run can
 # be told from another in the project without reading the metadata.

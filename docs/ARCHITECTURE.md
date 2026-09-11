@@ -183,6 +183,11 @@ flowchart TD
 - application loader가 PostgreSQL에서 승인된 eligible/mandatory 운동 ID를 결정적으로 먼저 계산한다.
   ADR-0014에 따라 별도 Qdrant derived index는 eligible 범위 안의 순위·다양성만 정하고, 결과를 같은
   catalog version의 PostgreSQL에서 다시 조회·검증한 뒤 canonical `ExercisePoolSnapshot`을 고정한다.
+- ADR-0021에 따라 Training은 유효한 `READY` proposal이 필수다. Recovery와 Feasibility는 유효한
+  `READY` 또는 `NEEDS_INPUT`을 Coordinator에 전달할 수 있으며, `NEEDS_INPUT`은 advisory 부재이지
+  Safety veto가 아니다. 누락·명시적 `FAILED`·provider/timeout/schema/domain 실패·proposal identity
+  불일치는 기존대로 결정적 fallback 또는 계획 없는 종료로 간다. 역할별 LLM payload는 최소화하되
+  envelope/hash/승인 allowlist 경계는 유지한다.
 - 필수 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존한다. Qdrant 장애·stale/version
   mismatch는 결정적 pool fallback으로 처리하며 Safety 결과를 바꾸지 않는다.
 - Agent와 Coordinator는 DB·repository·ORM·raw SQL·Qdrant Tool을 갖지 않는다.

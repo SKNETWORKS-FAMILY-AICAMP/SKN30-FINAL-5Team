@@ -64,38 +64,53 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.RECOVERY: RolePrompt(
             role_code=LlmAgentRoleCode.RECOVERY,
-            version="v3-recovery-prompt-v3",
+            version="v3-recovery-prompt-v4",
             instruction=(
                 "Act as the Recovery specialist. Return recovery-oriented adjustment_codes for "
                 "the Coordinator to consider inside the already approved constraint envelope. "
                 "These codes are advisory and do not replace the deterministic recovery ceiling "
                 "or final integrity validation. You do not own an exercise plan: always leave "
                 "exercise_prescriptions empty and never prescribe exercises, sets, repetitions, "
-                "work, rest, transitions, intensity, or load. "
+                "work, rest, transitions, intensity, or load. Return READY with at least one "
+                "adjustment code whenever the supplied normalized envelope is sufficient; use "
+                "RECOVERY_CONSTRAINTS_PRESERVED when no further adjustment is needed. Use "
+                "NEEDS_INPUT only when a required structured field is absent or inconsistent, "
+                "and identify that condition with reason_codes. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
         LlmAgentRoleCode.FEASIBILITY: RolePrompt(
             role_code=LlmAgentRoleCode.FEASIBILITY,
-            version="v3-feasibility-prompt-v3",
+            version="v3-feasibility-prompt-v4",
             instruction=(
                 "Act as the Feasibility specialist. Return adjustment_codes about duration, "
                 "equipment, and location feasibility for the Coordinator to consider inside the "
                 "already approved constraint envelope. These codes are advisory and do not "
                 "replace final integrity validation. You do not own an exercise plan: always "
                 "leave exercise_prescriptions empty and never prescribe exercises, sets, "
-                "repetitions, work, rest, transitions, intensity, or load. "
+                "repetitions, work, rest, transitions, intensity, or load. An empty equipment "
+                "allowlist is not missing input and equipment is not a selection condition. "
+                "Return READY with at least one adjustment code when the normalized duration, "
+                "location, and pool summary are sufficient; use FEASIBILITY_CONSTRAINTS_PRESERVED "
+                "when no further adjustment is needed. Use NEEDS_INPUT only when a required "
+                "structured field is absent or inconsistent, and identify it with reason_codes. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v5",
+            version="v3-coordinator-prompt-v6",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
                 "Recovery and Feasibility adjustment_codes as advisory perspectives without a "
-                "fixed precedence between specialist responses. Keep each prescription's "
+                "fixed precedence between specialist responses. A valid advisory NEEDS_INPUT "
+                "status means that perspective is unavailable; do not invent its advice and do "
+                "not discard a valid READY Training draft because of it. Add "
+                "RECOVERY_ADVISORY_UNAVAILABLE or FEASIBILITY_ADVISORY_UNAVAILABLE to "
+                "decision_codes for each unavailable advisory role. For READY advisory proposals, "
+                "copy each considered adjustment code into decision_codes so its use is auditable. "
+                "Keep each prescription's "
                 "phase_code, ordered WARMUP first, then MAIN, then COOLDOWN; the PlanSpec must "
                 "carry all three phases, so never drop a phase while adjusting, and keep it to "
                 "at most 10 distinct exercises with at most 2 in WARMUP and 2 in COOLDOWN. "

@@ -75,7 +75,7 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
     )
     assert isinstance(human_message.content, str)
     prompt_payload = json.loads(human_message.content)
-    assert prompt_payload["input"]["schema_version"] == "v3-coordinator-input-v1"
+    assert prompt_payload["input"]["schema_version"] == "v3-coordinator-input-v2"
     assert prompt_payload["input"]["mode_code"] == "INITIAL"
     assert [
         item["agent_type_code"] for item in prompt_payload["input"]["specialist_proposals"]
@@ -87,6 +87,8 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
     assert "sole draft plan" in system_message.content
     assert "advisory perspectives" in system_message.content
     assert "without a fixed precedence" in system_message.content
+    assert "valid advisory NEEDS_INPUT" in system_message.content
+    assert "ADVISORY_UNAVAILABLE" in system_message.content
 
 
 def test_coordinator_cannot_relax_envelope_constraints() -> None:

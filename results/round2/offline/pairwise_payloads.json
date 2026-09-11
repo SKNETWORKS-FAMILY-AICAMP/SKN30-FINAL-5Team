@@ -1,0 +1,4564 @@
+{
+  "blind": true,
+  "cases": {
+    "SQ-COMPLEX-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "complex"
+    },
+    "SQ-COMPLEX-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 4,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 4,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 4,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "complex"
+    },
+    "SQ-CONFLICT-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1020,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "STRENGTH",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 90
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1020,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "STRENGTH",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 90
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1020,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 90,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "STRENGTH",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 90
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "conflict"
+    },
+    "SQ-CONFLICT-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "conflict"
+    },
+    "SQ-CONFLICT-003": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "ROW_DUMBBELL"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "ROW_DUMBBELL"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "ROW_DUMBBELL"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "conflict"
+    },
+    "SQ-FAILURE-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "failure_case"
+    },
+    "SQ-FAILURE-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "failure_case"
+    },
+    "SQ-MODERATE-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 1004,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "WALL_SIT"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 12,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "moderate"
+    },
+    "SQ-MODERATE-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "moderate"
+    },
+    "SQ-RAG-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "rag_retrieval"
+    },
+    "SQ-RAG-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "rag_retrieval"
+    },
+    "SQ-SAFETY-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 900,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 900,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 900,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "GLUTE_BRIDGE"
+              },
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "PUSHUP_KNEE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 7,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 3,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "safety_critical"
+    },
+    "SQ-SIMPLE-001": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 934,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "WARMUP_HIP_OPENER"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              },
+              {
+                "body_focus_code": "LOWER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CALF_STRETCH"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "simple"
+    },
+    "SQ-SIMPLE-002": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_COORDINATION"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 832,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 2,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 4,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 15
+          }
+        },
+        "SINGLE_AGENT_RAG": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 832,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 2,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 4,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 15
+          }
+        },
+        "SINGLE_LLM": {
+          "decision_codes": [
+            "EVAL_SCRIPTED_SINGLE_AGENT"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 832,
+            "exercises": [
+              {
+                "body_focus_code": "UPPER_BODY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "WARMUP_ARM_CIRCLE"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 2,
+                "sets": 3,
+                "stable_code": "PLANK_FOREARM"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 3,
+                "stable_code": "DEAD_BUG"
+              },
+              {
+                "body_focus_code": "TRUNK",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 4,
+                "sets": 1,
+                "stable_code": "COOLDOWN_CHILD_POSE"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 0,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": 15,
+              "maximum_sets_per_exercise": 3,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 15
+          }
+        }
+      },
+      "category": "simple"
+    }
+  },
+  "model_label": "eval-scripted-model-v1"
+}

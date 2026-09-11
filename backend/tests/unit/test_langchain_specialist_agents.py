@@ -147,6 +147,61 @@ def test_advisory_specialist_prompt_forbids_exercise_plans(adapter_type: type) -
     assert "adjustment_codes" in system_message.content
     assert "always leave exercise_prescriptions empty" in system_message.content
     assert "advisory" in system_message.content
+    assert "Use NEEDS_INPUT only" in system_message.content
+
+
+def test_advisory_specialists_receive_role_minimized_pool_payloads() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    recovery_model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(
+                SpecialistAgentProposal,
+                proposal(SpecialistAgentTypeCode.RECOVERY, current_envelope, current_pool),
+                1,
+            )
+        ]
+    )
+    feasibility_model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(
+                SpecialistAgentProposal,
+                proposal(SpecialistAgentTypeCode.FEASIBILITY, current_envelope, current_pool),
+                1,
+            )
+        ]
+    )
+
+    _adapter(RecoveryAgentAdapter, recovery_model).propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+    _adapter(FeasibilityAgentAdapter, feasibility_model).propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    recovery_message = next(
+        message for message in recovery_model.seen_messages[0] if isinstance(message, HumanMessage)
+    )
+    feasibility_message = next(
+        message
+        for message in feasibility_model.seen_messages[0]
+        if isinstance(message, HumanMessage)
+    )
+    assert isinstance(recovery_message.content, str)
+    assert isinstance(feasibility_message.content, str)
+    recovery_pool = json.loads(recovery_message.content)["input"]["exercise_pool"]
+    feasibility_pool = json.loads(feasibility_message.content)["input"]["exercise_pool"]
+
+    assert "exercises" not in recovery_pool
+    assert recovery_pool["exercise_id_allowlist"]
+    assert feasibility_pool["exercises"]
+    feasibility_fields = set(feasibility_pool["exercises"][0])
+    assert "location_codes" in feasibility_fields
+    assert "default_rest_seconds" in feasibility_fields
+    assert "fitt_context" not in feasibility_fields
+    assert "body_focus_code" not in feasibility_fields
 
 
 def test_training_receives_structured_fitt_ranges_and_non_maximum_guidance() -> None:
