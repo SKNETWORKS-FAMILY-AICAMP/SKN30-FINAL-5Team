@@ -99,12 +99,64 @@ category별 LLM plan rate:
   26건(0.897) 계획을 냈고, Multi-Agent는 3.83회 호출로 22건(0.759)을 냈다. 전문화를 위해
   더 쓴 호출이 가용성을 **낮췄다**.
 
-### repair 라운드는 한 번도 동작하지 않았다
+### D-6 (신규, SERVICE): repair 노드는 배포 구성에서 도달 불가능하다
 
-29건 전체에서 `repair_attempts = 0`이다. SQ-HELD-023의 위반
-`PLAN_EXERCISE_FAMILY_REPEATED`는 validator가 `NON_REPAIRABLE`로 분류하므로 repair 노드가
-호출되지 않는다. 즉 held-out 전체에서 repair 라운드의 기여는 0이며, PHASE 6이 기록한
-"C에 유리한 비대칭"(baseline에는 repair가 없음)은 이번 실행에서 실제 효과가 없었다.
+29건 전체에서 `repair_attempts = 0`이다. 처음에는 "필요 없었다"로 읽었으나, 원인을
+추적한 결과 **"불가능했다"** 였다.
+
+`v3_validation.py:399`에서 위반의 repairable 판정은 세 조건의 논리곱이다.
+
+```python
+repairable=(
+    repair_attempt == 0
+    and has_approved_alternative          # <- 여기
+    and code in _CONDITIONALLY_REPAIRABLE
+)
+```
+
+`has_approved_alternative`는 `IntegrityValidationContext.approved_safe_alternative_ids`가
+비어 있지 않아야 참이다. 그런데 **이 필드를 채우는 프로덕션 코드 경로가 없다.**
+
+- 기본값은 `()` (`v3_validation.py:102`)
+- 프로덕션의 유일한 생성부인 `shadow_runtime.py:177`은 `fallback_plan_validation`만 넘긴다
+- `demo_runtime`은 같은 `_IntegrityValidator`를 재사용한다(`demo_runtime.py:287`)
+- 이 필드를 설정하는 곳은 unit test 5개 파일뿐이다
+
+따라서 실제 실행에서 `IntegrityValidationStatusCode.REPAIRABLE`은 **발생할 수 없고**, 모든
+위반은 `NON_REPAIRABLE`로 떨어지며, repair 노드로 가는 분기는 도달하지 않는다.
+
+SQ-HELD-023이 정확히 이 손실이다. 위반 코드 `PLAN_EXERCISE_FAMILY_REPEATED`는
+`_CONDITIONALLY_REPAIRABLE` 집합에 **포함되어 있다**(`v3_validation.py:86`). 설계상 한 번의
+repair로 회복시키려 한 위반인데, 승인된 대체 운동 목록이 비어 있어 회복 시도 없이 결정적
+fallback으로 갔다.
+
+의미:
+
+- multi-agent가 가진 회복 수단 2개(구조화 출력 재시도 `max_attempts=2`, repair 라운드) 중
+  **1개가 죽어 있다.** 즉 이번 plan rate 0.759는 설계가 의도한 상한이 아니다.
+- **비교 자체는 여전히 공정하다.** Single-Agent baseline에는 repair 라운드가 애초에 없으므로
+  (PHASE 6 주석의 "C에 유리한 비대칭") 이 결함은 C에게만 불리하게 작용했다. 즉 C의 수치는
+  낙관이 아니라 비관 쪽으로 치우쳐 있다.
+- PHASE 6이 기록한 "repair 비대칭이 C에 유리하다"는 주석은 **사실과 반대**였다. 이번 실행에서
+  repair는 존재하지 않았다.
+
+**수정하지 않았다.** `backend/app/domain/agents/**`는 AI/데이터 리드 소유이고 안전 인접
+변경은 PM·도메인 리뷰가 필요하다(AGENTS.md 3절). 또한 마스터 명세는 테스트를 통과시키려
+서비스 로직을 고치는 것을 금지하며 원인과 필요성을 먼저 기록하도록 요구한다. 여기까지가
+기록이고, 다음은 소유자 판단이다. 결정할 것은 두 가지다: 승인된 대체 운동을 누가 산출하는가
+(Qdrant snapshot loader인가 안전 규칙인가), 그리고 대체 운동 없이도 회복 가능한 위반
+(예: family 중복은 pool 안에서 교체 가능)을 따로 분류할 것인가.
+
+### 관측성 결함: `V3_TRAINING_NOT_READY`가 두 원인을 구분하지 못한다
+
+`nodes.py`는 서로 다른 두 경로에 같은 실패 코드를 쓴다.
+
+- 187행: proposal이 `validate_proposal`을 통과하지 못함 (예: pool 밖 운동 참조, hash 불일치)
+- 194행: proposal은 유효하나 `proposal_status_code`가 READY가 아님
+
+앞은 모델이 계약을 어긴 것이고, 뒤는 모델이 "입력이 부족하다"고 스스로 판단한 것이다.
+대응이 완전히 다른데 구분할 수 없다. 따라서 이번 Training 실패 4건이 둘 중 무엇인지
+**현재 데이터로는 단정할 수 없다.** 다음 실행 전에 코드를 분리하면 무료로 확인된다.
 
 ## 4. Judge 결과 해석의 한계
 
@@ -157,5 +209,13 @@ LLM span export는 이 실행에서 꺼져 있었으므로 tracing overhead는 �
   호출을 별도 ADR로 검토한다. 이번 데이터가 가리키는 지점은 Training의 READY 실패율
   (29건 중 5건, 17.2%)이며, 여기에는 Single-Agent 경로가 같은 입력에서 성공했다는 대조가
   있다.
+- **이 평가가 측정하지 않은 축이 하나 있다.** AGENTS.md 6절은 "Agent proposals and final
+  decisions must be stored separately"를 요구한다. Multi-Agent는 실제로 분리된 proposal
+  3건을 남기고, Single-Agent baseline은 `SINGLE_AGENT_NO_SPECIALIST_ADVICE` 래퍼를 만들
+  뿐이다. 감사 추적성은 이번 지표에 없으며, Multi-Agent를 유지할 근거가 될 수 있으나
+  **이번 실행은 그것을 측정하지 않았으므로 근거로 제시하지 않는다.**
+- 신규 발견 D-6(repair 노드 도달 불가)은 C에게만 불리하게 작용했다. 따라서 C의 이번 수치는
+  설계가 의도한 상한이 아니며, D-6 수정 후 재측정이 필요하다. 다만 **수정 전에는
+  "고치면 나아질 것"이라고 주장하지 않는다.**
 - 남은 게이트: 독립 blind Human 평가(6), Judge calibration(7). **둘 다 사람이 필요하며
   이 실행으로 대체되지 않는다.**
