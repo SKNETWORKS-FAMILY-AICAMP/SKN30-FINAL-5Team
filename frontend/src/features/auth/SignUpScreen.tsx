@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path } from 'react-native-svg';
 
 import { useAsyncAction } from '../../api/useAsync';
 import { AuthFailure, type AuthAdapter } from '../../auth/firebase';
@@ -256,13 +257,22 @@ function SignUpScreenContent({
           accessibilityLabel="로그인으로 돌아가기"
           onPress={onBack}
           style={styles.backButton}
+          testID="signup-back-button"
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <Svg aria-hidden height={20} viewBox="0 0 20 20" width={20}>
+            <Path
+              d="M12.5 4.5 7 10l5.5 5.5"
+              fill="none"
+              stroke={colors.text}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.2}
+            />
+          </Svg>
         </Pressable>
         <Text accessibilityRole="header" style={styles.headerTitle}>
           회원가입
         </Text>
-        <Text style={styles.stepLabel}>1 / 2 · 계정</Text>
       </View>
 
       <ScrollView
@@ -518,20 +528,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: colors.surface,
   },
-  backIcon: {
-    color: colors.text,
-    fontSize: 30,
-    lineHeight: 32,
-  },
   headerTitle: {
     flex: 1,
     color: colors.text,
     fontSize: 17,
-    fontWeight: '700',
-  },
-  stepLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
     fontWeight: '700',
   },
   content: {

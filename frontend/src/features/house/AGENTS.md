@@ -9,14 +9,14 @@
 
 ## 1. 파일 구성
 
-| 파일                     | 역할                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `houseModel.ts`          | 순수 규칙. 바나나 적립·지출, 친밀도, 일일 퀘스트, 배경 선택, 소품 좌표, 방문 연속, `HouseView` 생성           |
-| `houseStorage.ts`        | 로컬 영속 어댑터(`HouseStore`). web은 `localStorage`, 그 외는 프로세스 메모리                                 |
-| `houseArtSlots.ts`       | 방·포즈·가구 자산 슬롯 선언                                                                                   |
-| `HouseArt.tsx`           | 슬롯 렌더러(자산 없으면 라벨 플레이스홀더) + 바나나·하트·불꽃·클립보드·전구·＋·＞·ⓘ 글리프                    |
-| `MascotHouseContent.tsx` | 프레젠테이션 전용. 값은 `HouseView`로 받고 입력은 그대로 위로 넘긴다. 탭바도 `footer`로 받아 배경 안에 그린다 |
-| `MascotHouseScreen.tsx`  | API + 로컬 상태 컨테이너                                                                                      |
+| 파일                     | 역할                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `houseModel.ts`          | 순수 규칙. 바나나 적립·지출, 친밀도, 일일 퀘스트, 배경 선택, 소품 좌표, 방문 연속, `HouseView` 생성                               |
+| `houseStorage.ts`        | 로컬 영속 어댑터(`HouseStore`). web은 `localStorage`, 그 외는 프로세스 메모리                                                     |
+| `houseArtSlots.ts`       | 방·포즈·가구 자산 슬롯 선언                                                                                                       |
+| `HouseArt.tsx`           | 슬롯 렌더러(자산 없으면 라벨 플레이스홀더) + 바나나·하트·불꽃·클립보드·전구·＋·＞ 글리프. ⓘ는 `components/InfoGlyph.tsx`를 재수출 |
+| `MascotHouseContent.tsx` | 프레젠테이션 전용. 값은 `HouseView`로 받고 입력은 그대로 위로 넘긴다. 탭바도 `footer`로 받아 배경 안에 그린다                     |
+| `MascotHouseScreen.tsx`  | API + 로컬 상태 컨테이너                                                                                                          |
 
 테스트는 `tests/houseModel.test.ts`(규칙)와 `tests/MascotHouseScreen.test.tsx`(화면)에 있다.
 

@@ -23,8 +23,12 @@ import {
 } from 'react-native';
 
 import { imageAssets } from '../../assets';
+import { InfoGlyph } from '../../components/InfoGlyph';
 import { colors, radii } from '../../components/theme';
 import type { HouseArtSlot } from './houseArtSlots';
+
+/** The circled `i` now lives in shared components; the house still draws it. */
+export { InfoGlyph };
 
 export function HouseArtView({
   slot,
@@ -312,44 +316,6 @@ export function ChevronGlyph({
           borderRightWidth: Math.max(1.5, size * 0.13),
           borderColor: color,
           transform: [{ rotate: '45deg' }],
-        }}
-      />
-    </View>
-  );
-}
-
-/** A circled `i`, marking copy that explains a rule. */
-export function InfoGlyph({ size = 14 }: { size?: number }) {
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-      style={[
-        styles.centered,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: Math.max(1, size * 0.09),
-          borderColor: colors.textMuted,
-          gap: size * 0.09,
-        },
-      ]}
-    >
-      <View
-        style={{
-          width: Math.max(1.5, size * 0.12),
-          height: Math.max(1.5, size * 0.12),
-          borderRadius: size * 0.06,
-          backgroundColor: colors.textMuted,
-        }}
-      />
-      <View
-        style={{
-          width: Math.max(1.5, size * 0.12),
-          height: size * 0.32,
-          borderRadius: size * 0.06,
-          backgroundColor: colors.textMuted,
         }}
       />
     </View>

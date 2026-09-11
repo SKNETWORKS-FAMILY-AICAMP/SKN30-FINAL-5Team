@@ -1879,7 +1879,7 @@ function ArcBlockCard({
         <View style={styles.cardActionRow} testID={`workout-actions-${index}`}>
           {hasDetails ? (
             <Pressable
-              accessibilityLabel={expanded ? '설명 접기' : '자세 설명 보기'}
+              accessibilityLabel={expanded ? '설명 접기' : '자세 보기'}
               accessibilityRole="button"
               accessibilityState={{ expanded }}
               onPress={onToggleExpanded}
@@ -1890,7 +1890,7 @@ function ArcBlockCard({
               testID={`workout-info-action-${index}`}
             >
               <Text style={styles.infoButtonText}>
-                {expanded ? '설명 보는 중' : '자세 설명 보기'}
+                {expanded ? '자세 보는 중' : '자세 보기'}
               </Text>
             </Pressable>
           ) : null}

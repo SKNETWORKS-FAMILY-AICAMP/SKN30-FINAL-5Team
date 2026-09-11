@@ -956,7 +956,9 @@ export function HomeContainer({
       planRevision={planRevision}
       restToday={restToday}
       safetyGuidance={safetyGuidance}
-      persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
+      persistentPains={
+        checkinDefaults?.pains ?? profile?.persistent_pains ?? undefined
+      }
       locationCodes={locationCodes}
       busy={busy ?? (decisionGenerationPending ? 'decision-generation' : null)}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}

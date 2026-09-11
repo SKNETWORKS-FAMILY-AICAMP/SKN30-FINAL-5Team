@@ -205,8 +205,6 @@ export function createHomeStyles(
       alignItems: 'center',
       gap: s(12),
       marginBottom: s(16),
-      borderWidth: s(1),
-      borderColor: '#F1D39A',
       borderRadius: s(18),
       backgroundColor: '#FFFFFF',
       paddingVertical: s(10),

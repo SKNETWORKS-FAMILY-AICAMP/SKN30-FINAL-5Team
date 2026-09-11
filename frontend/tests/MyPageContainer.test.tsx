@@ -26,6 +26,8 @@ function me(): MeResponse {
     profile: {
       nickname: '민지',
       age: 29,
+      date_of_birth: '1997-04-02',
+      weight_kg: 62,
       primary_goal_code: 'GENERAL_FITNESS',
       experience_level_code: 'BEGINNER',
       timezone: 'Asia/Seoul',
@@ -287,7 +289,21 @@ describe('MyPageContainer', () => {
         '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.',
       ),
     ).toBeNull();
-    expect(screen.getByText('변경하지 않은 사항은 유지돼요')).toBeOnTheScreen();
+    // 모든 칸이 저장된 값으로 채워지므로 이 안내는 설명할 대상이 없다.
+    expect(screen.queryByText('변경하지 않은 사항은 유지돼요')).toBeNull();
+    // 저장한 값이 그대로 보여야 한다.
+    expect(screen.getByLabelText('닉네임 입력').props.value).toBe('민지');
+    expect(screen.getByLabelText('체중 입력').props.value).toBe('62');
+    expect(
+      screen.getByRole('button', { name: '연도 1997년' }).props
+        .accessibilityState,
+    ).toEqual({ selected: true });
+    expect(
+      screen.getByRole('button', { name: '월 4월' }).props.accessibilityState,
+    ).toEqual({ selected: true });
+    expect(
+      screen.getByRole('button', { name: '일 2일' }).props.accessibilityState,
+    ).toEqual({ selected: true });
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
     expect(screen.queryByText(/변경할 때만/)).toBeNull();
@@ -317,6 +333,94 @@ describe('MyPageContainer', () => {
           date_of_birth: '1997-04-03',
           weight_kg: 58.2,
         },
+        7,
+      ),
+    );
+  });
+
+  it('sends only the fields whose value actually changed', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+
+    // 채워진 값을 그대로 다시 입력하는 것은 변경이 아니다. 이걸 전송하면
+    // profile_version이 의미 없이 올라가고 기존 루틴이 폐기될 수 있다.
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '62.0');
+    fireEvent.press(screen.getByRole('button', { name: '일 2일' }));
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    // 바꿨다가 원래 값으로 되돌리면 다시 '변경 없음'이어야 한다. 비교 대상은
+    // 직전 입력이 아니라 저장된 값이다.
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '70');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '62');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    // 생년월일도 마찬가지다.
+    fireEvent.press(screen.getByRole('button', { name: '일 5일' }));
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.press(screen.getByRole('button', { name: '일 2일' }));
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '61');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith({ weight_kg: 61 }, 7),
+    );
+  });
+
+  it('falls back to an empty form when the server returns no stored values', async () => {
+    // 생년월일 복호화가 불가능한 배포에서는 두 값이 null로 온다. 이때는
+    // 프리필 이전과 같이 비워 두고, 명시적으로 고치기 전까지 전송하지 않는다.
+    const current = me();
+    current.profile!.date_of_birth = null;
+    current.profile!.weight_kg = null;
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings })}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+
+    expect(screen.getByLabelText('체중 입력').props.value).toBe('');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        { nickname: '새 닉네임' },
         7,
       ),
     );
@@ -950,6 +1054,8 @@ describe('MyPageContainer', () => {
   });
 
   it('migrates a legacy attention area to persistent pains when clearing it', async () => {
+    const legacyProfile = me();
+    legacyProfile.profile!.persistent_pains = null;
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -960,7 +1066,7 @@ describe('MyPageContainer', () => {
     await render(
       <MyPageContainer
         api={accountApi({ updateProfileSettings })}
-        me={me()}
+        me={legacyProfile}
         now={new Date('2026-08-19T03:00:00Z')}
         onNavigateTab={jest.fn()}
         onRefreshMe={jest.fn(async () => undefined)}
@@ -973,7 +1079,11 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '통증 부위 수정' }),
     ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
-    expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
+    expect(screen.getByText('통증 부위')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '통증 정도 기준 안내' }),
+    );
+    expect(screen.getByText('출처: 국제통증연구학회 (IASP)')).toBeOnTheScreen();
     expect(
       screen.getByRole('adjustable', { name: '무릎 통증 정도' }),
     ).toHaveAccessibilityValue({ min: 1, max: 10, now: 1 });
@@ -986,7 +1096,7 @@ describe('MyPageContainer', () => {
         7,
       ),
     );
-    expect(screen.queryByText('불편한 부위')).toBeNull();
+    expect(screen.queryByText('통증 부위')).toBeNull();
   });
 
   it('edits persisted pain scores when the additive profile contract is available', async () => {
@@ -1013,6 +1123,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
+    expect(screen.getByText('무릎 · 어깨')).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
       screen

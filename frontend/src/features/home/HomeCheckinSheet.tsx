@@ -18,6 +18,7 @@ import {
   locationLabel,
 } from '../../api/labels';
 import { PainIntensitySlider } from '../../components/profile/PainIntensitySlider';
+import { PainScaleInfoHeading } from '../../components/profile/PainScaleInfo';
 import { useScale } from '../../components/scale';
 import {
   CHECKIN_AVAILABILITY_INPUT_ENABLED,
@@ -361,7 +362,7 @@ export function CheckinSheet({
               : '집 또는 헬스장을 선택해주세요.'}
           </Text>
         ) : null}
-        <ChoiceBlock label="통증이 있는 부위가 있나요?">
+        <ChoiceBlock painScaleInfo label="통증이 있는 부위가 있나요?">
           <ChoiceButton
             accessibilityLabel="통증 없어요"
             label="없어요"
@@ -893,23 +894,34 @@ function ChoiceBlock({
   children,
   invalid = false,
   label,
+  painScaleInfo = false,
   twoColumn = false,
 }: {
   children: React.ReactNode;
   invalid?: boolean;
   label: string;
+  /** Adds the circled `i` explaining what the pain numbers mean. */
+  painScaleInfo?: boolean;
   twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinSection}>
-      <Text
-        accessibilityRole={invalid ? 'alert' : undefined}
-        accessibilityLiveRegion={invalid ? 'assertive' : undefined}
-        style={[styles.checkinSectionTitle, invalid && styles.redFlagTitle]}
-      >
-        {label}
-      </Text>
+      {painScaleInfo ? (
+        <PainScaleInfoHeading
+          testIDPrefix="checkin"
+          title={label}
+          titleStyle={styles.checkinSectionTitle}
+        />
+      ) : (
+        <Text
+          accessibilityRole={invalid ? 'alert' : undefined}
+          accessibilityLiveRegion={invalid ? 'assertive' : undefined}
+          style={[styles.checkinSectionTitle, invalid && styles.redFlagTitle]}
+        >
+          {label}
+        </Text>
+      )}
       <View style={[styles.choiceRow, twoColumn && styles.choiceRowTwoColumn]}>
         {children}
       </View>

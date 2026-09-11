@@ -33,6 +33,7 @@ import {
   PAIN_INTENSITY_MIN,
   PainIntensitySlider,
 } from '../../components/profile/PainIntensitySlider';
+import { PainScaleInfoHeading } from '../../components/profile/PainScaleInfo';
 import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
@@ -76,8 +77,8 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'eligibility',
-    title: '운동 지원 범위를 확인해주세요',
-    intro: '안전한 운동 계획을 위해 현재 서비스가 지원하는 범위인지 확인해요.',
+    title: '안전한 운동을 위해 확인해주세요',
+    intro: '',
     required: true,
   },
   {
@@ -316,8 +317,8 @@ function OnboardingScreenContent({
           <View style={styles.consentGroups}>
             <ChoiceCard>
               <Text style={styles.hint}>
-                현재 질환·임신 등으로 개별적인 운동 관리가 필요하거나 의료진에게
-                운동 제한·주의 안내를 받은 상태인가요?
+                현재 질환·임신 등으로 의료진에게 운동 제한·주의 안내를 받은
+                상태인가요?
               </Text>
               <Chip
                 grow
@@ -437,7 +438,11 @@ function OnboardingScreenContent({
             {hasAttentionAreas === true ? (
               <View style={styles.painDetails}>
                 <View style={styles.painSection}>
-                  <Text style={styles.painSectionTitle}>불편한 부위</Text>
+                  <PainScaleInfoHeading
+                    testIDPrefix="onboarding"
+                    title="통증 부위"
+                    titleStyle={styles.painSectionTitle}
+                  />
                   <Text style={styles.hint}>
                     해당하는 부위를 모두 선택해주세요.
                   </Text>

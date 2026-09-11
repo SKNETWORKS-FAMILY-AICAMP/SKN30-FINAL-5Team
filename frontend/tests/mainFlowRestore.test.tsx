@@ -462,7 +462,7 @@ describe('MainFlow restart recovery', () => {
       await waitFor(() =>
         expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
       );
-      fireEvent.press(screen.getByRole('button', { name: '자세 설명 보기' }));
+      fireEvent.press(screen.getByRole('button', { name: '자세 보기' }));
       const expected =
         locationCode === 'HOME'
           ? 'household-equipment-guides'

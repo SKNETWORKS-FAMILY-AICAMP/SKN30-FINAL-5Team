@@ -96,6 +96,15 @@ describe('auth visual prototypes', () => {
     );
 
     expect(screen.getByText('비밀번호가 서로 달라요.')).toBeOnTheScreen();
+    expect(screen.queryByText('1 / 2 · 계정')).toBeNull();
+    expect(
+      StyleSheet.flatten(screen.getByTestId('signup-back-button').props.style),
+    ).toMatchObject({
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 34,
+      height: 34,
+    });
     expect(
       screen.getByRole('button', { name: '필수 항목을 채워주세요' }),
     ).toBeDisabled();
