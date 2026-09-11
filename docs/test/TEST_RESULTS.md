@@ -1,10 +1,10 @@
 # TEST_RESULTS.md
 
-PHASE 0~5 실행 결과. 마스터 명세는 `docs/test/service_test_master_prompt.md`.
+PHASE 0~9 실행 결과. 마스터 명세는 `docs/test/service_test_master_prompt.md`.
 
 - 실행일: 2026-09-11
 - 브랜치: `chore/service-quality-evaluation-harness` (`develop`에서 분기, `6deb151`)
-- **서비스 코드 변경 0줄**
+- PHASE 0~7은 서비스 코드 변경 없음. PHASE 8은 승인된 provider tracing 옵트인만 추가
 
 ---
 
@@ -221,6 +221,26 @@ ADR-0020의 `LLM_AGENTS_TRACING_ENABLED` 옵트인을 구현했고 기본값은 
 `ChatOpenAI` child span 4개를 확인했다. 상세는 `docs/test/PHASE8_LANGSMITH_LLM_SPAN.md`.
 
 상세: `docs/test/LANGSMITH_TRACING.md`.
+
+## 9.1 PHASE 9 — Performance / Failure
+
+성능은 저장된 실-provider 14건을 재집계했고, 실패 평가는 실제 LangGraph에 scripted fault를
+주입해 10개 경로를 실행했다. 새 외부 provider 호출은 없었다.
+
+| 지표 | 결과 |
+|---|---:|
+| P50 / P95 | 28,047 / 31,281 ms |
+| 평균 token usage | 26,096.2 / run |
+| 그래프 LLM 호출 | 54회, 평균 3.8571회/run |
+| Workflow Completion Rate | 0.8571 |
+| Safe Termination Rate | **1.0000 (10/10)** |
+| Parsing Error Rate | 0.1053 (controlled fault matrix) |
+| Node Error Rate | **0.0000** |
+| Critical failure | **0** |
+
+Retriever 결과 없음, LLM timeout, parsing/schema 오류, agent exception, 외부 LLM API 실패,
+누락·비정상 입력, bounded graph repair cycle을 모두 확인했다. parsing rate는 오류를 의도적으로
+넣은 표본의 비율이며 운영 발생률이 아니다. 상세는 `docs/test/PHASE9_PERFORMANCE_FAILURE.md`.
 
 ## 10. 발견된 결함
 

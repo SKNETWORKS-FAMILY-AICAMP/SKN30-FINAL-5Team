@@ -61,7 +61,9 @@ def _rate(numerator: int, denominator: int) -> float | None:
     return float((Decimal(numerator) / Decimal(denominator)).quantize(_RATE_QUANTUM))
 
 
-def _percentile(values: Sequence[int], fraction: float) -> int | None:
+def nearest_rank_percentile(values: Sequence[int], fraction: float) -> int | None:
+    """Return the repository-standard nearest-rank percentile."""
+
     if not values:
         return None
     ordered = sorted(values)
@@ -193,11 +195,11 @@ class ArchitectureResult:
 
     @property
     def p50_latency_ms(self) -> int | None:
-        return _percentile([run.wall_clock_ms for run in self.runs], 0.50)
+        return nearest_rank_percentile([run.wall_clock_ms for run in self.runs], 0.50)
 
     @property
     def p95_latency_ms(self) -> int | None:
-        return _percentile([run.wall_clock_ms for run in self.runs], 0.95)
+        return nearest_rank_percentile([run.wall_clock_ms for run in self.runs], 0.95)
 
     @property
     def llm_call_count(self) -> int:

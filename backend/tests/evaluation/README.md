@@ -42,6 +42,7 @@ EvaluationCase (JSON)
 | `comparison_cli.py` | A/B/C 실행 + 비교표 산출 (PHASE 7 payload도 함께 저장) |
 | `judge/pairwise.py` | PHASE 7 맞대결 판정, position bias 측정, 블라인딩 검증 |
 | `pairwise_cli.py` | collect(그래프) / judge(맞대결) 분리 실행 |
+| `performance_failure*.py` | PHASE 9 실-provider 지표 재집계 + 실패 주입 |
 | `production_catalog.py` | 배포 카탈로그 번들 → pool record (D-2 재확인용) |
 | `fallback_reproduction*.py` | D-2 재현 확인. LLM 호출 0건 |
 | `evaluators/` | safety · constraint · structure · failure |
@@ -72,6 +73,9 @@ uv run python -m backend.tests.evaluation.pairwise_cli --confirm-spend
 
 # D-2 재현 확인 (비용 0, LLM 호출 없음)
 uv run python -m backend.tests.evaluation.fallback_reproduction_cli
+
+# PHASE 9 성능 재집계 + 실패 평가 (비용 0, 저장된 실-provider 결과 재사용)
+uv run python -m backend.tests.evaluation.performance_failure_cli
 ```
 
 `--offline` 실행에서 A·B·C가 **같은 계획**을 내는지 확인하는 것이 배관 점검이다.
@@ -116,9 +120,8 @@ bias rate 0.0이 "편향 없음"인지 "탐지기가 안 켜짐"인지 구분되
 ## 이 harness가 하지 않는 것
 
 - LLM 실호출 (PHASE 5~7, API Key·예산 승인 필요)
-- latency 측정 — 스크립트 provider는 즉시 응답하므로 여기서 낸 percentile은
-  harness를 재는 것이지 서비스를 재는 것이 아니다. PHASE 9에서 실제 provider로
-  측정한다.
+- 새 latency 실호출. PHASE 9는 저장된 실-provider 14건을 재집계하고 scripted provider는
+  실패 안전성에만 사용한다.
 - 검색 품질 (PHASE 3). pool은 case가 직접 지정한다.
 - HTTP·DB 경로. 기존 `backend/tests/api/**`, `backend/tests/integration/**` 담당.
 

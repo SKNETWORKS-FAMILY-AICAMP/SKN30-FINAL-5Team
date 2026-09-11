@@ -386,7 +386,7 @@ coordinator의 `ChatOpenAI` span 4개를 확인했다. 상세는
 워크플로 trace 실행은 `LANGSMITH_API_KEY`로 가능하다. LLM span에는 추가로
 `LLM_AGENTS_TRACING_ENABLED=true`가 필요하다.
 
-## PHASE 9. Performance / Failure (계획)
+## PHASE 9. Performance / Failure — 완료
 
 - 지표: P50/P95 Latency, 평균 Token Usage, LLM Call Count,
   Workflow Completion Rate, Parsing Error Rate, Node Error Rate
@@ -395,7 +395,10 @@ coordinator의 `ChatOpenAI` span 4개를 확인했다. 상세는
 - Failure case: Retriever 결과 없음, LLM Timeout, Parsing Error,
   Agent Exception, Empty/Invalid Input, Graph Loop, 외부 API 실패
 - **평가 기준은 "좋은 답변을 내는가"가 아니라 "안전하게 종료/fallback 하는가"**
-- 일부는 PHASE 2 fake chat model 스크립트로 지금 측정 가능
+- 실-provider 14건을 재집계하고 PHASE 2 scripted model로 10개 실패 경로를 실행했다.
+- 결과: P50 28,047ms, P95 31,281ms, workflow completion 0.8571,
+  safe termination 10/10, node error 0건, critical failure 0건.
+- 상세: `docs/test/PHASE9_PERFORMANCE_FAILURE.md`, `results/phase9/performance_failure.json`
 
 ## PHASE 10. Human Calibration (계획)
 
