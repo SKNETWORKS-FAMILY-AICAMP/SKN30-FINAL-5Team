@@ -32,7 +32,7 @@
 | 4 | Multi-Agent 지표 | 없음(scripted) / 유료(실 LLM) | **완료** (14 case, critical 0) |
 | 5 | LLM-as-a-Judge | **유료** | **완료** (12건 채점) |
 | 6 | Single vs Multi | **유료** | **완료** (A/B/C × 14 case × 2회) |
-| 7 | Pairwise Judge | **유료** | 미착수 (PHASE 6 산출물로 실행 가능) |
+| 7 | Pairwise Judge | **유료** | **완료** (3 pair × 14 case × 2 순서) |
 | 8 | LangSmith | 없음 | **조사 완료.** 워크플로 trace만 사용 결정 |
 | 9 | Performance / Failure | 없음/유료 | 실패 경로 완료, latency 측정 완료 |
 | 10 | Human Calibration | 없음 | 양식만 |
@@ -321,15 +321,42 @@ B(1.00) > C(0.75), 안전성은 셋 다 1.00, structured output은 B(1.00) > C(0
 
 **가설에 맞지 않는 결과가 나와도 수정하거나 제외하지 않는다.** 수정하지 않았다.
 
-## PHASE 7. Pairwise Judge (계획, 유료)
+## PHASE 7. Pairwise Judge — 완료
 
-선행 조건은 PHASE 6 완료로 충족되었다. blind judge payload
-(`build_judge_payload(..., blind=True)`)를 이미 사용하고 있으므로 pairwise는
-같은 payload 2개를 한 번에 제시하는 형태로 확장하면 된다.
+결과: `docs/test/PHASE7_PAIRWISE.md` / 산출물: `results/pairwise/`
+구현: `backend/tests/evaluation/judge/pairwise.py`, `pairwise_cli.py`
+테스트: `backend/tests/evaluation/test_pairwise.py`
 
-- Judge에게 Single/Multi를 알리지 않는다
-- A/B 위치 randomize, 동일 case를 순서 바꿔 재평가 → Position Bias 측정
-- 집계: Single Win / Tie / Multi Win
+PHASE 6의 pointwise 점수 차(C 4.40 vs B 4.08)는 5점 척도에서 작아, rubric에
+어떻게 맞아떨어졌는지의 artifact일 수 있다. 두 계획을 나란히 놓고 고르게 하면
+그 캘리브레이션 문제가 사라진다. 대신 **position bias**가 생긴다.
+
+설계:
+
+- Judge에게 Single/Multi를 알리지 않는다. payload에서 아키텍처를 구조적으로
+  식별시키는 `advisory_codes`를 제거하고, 모델이 직접 쓴 `decision_codes` 중
+  파이프라인 이름이 들어간 것은 **redact하고 그 건수를 보고**한다. 블라인딩을
+  가정하지 않고 측정한다.
+- 제시 위치는 case별로 **재현 가능하게 randomize**한다(case_id 해시).
+- **모든 pair를 순서를 바꿔 두 번 평가**한다. 두 판정이
+  - 같은 *계획*을 지목 → 실제 선호
+  - 같은 *슬롯*을 지목 → 내용이 아니라 위치를 따라간 것 = position bias
+  - 한쪽이 TIE → 무승부로 그대로 기록하며 승자 쪽으로 반올림하지 않는다
+- **승리로 집계하는 것은 첫 번째 경우뿐이다.** 두 번째는 bias rate로 보고하며,
+  이 수치가 첫 번째를 얼마나 믿을 수 있는지를 말해준다.
+- 계획이 없는 아키텍처가 낀 pair는 **판정 제외**이며 무승부가 아니다.
+
+집계: Single Win / Tie / Multi Win + DISAGREED(두 순서 불일치) + position bias rate,
+category별·rubric 항목별 분리.
+
+비용 구조: collect(그래프 실행 → blind payload 저장)와 judge를 분리했다.
+`--judge-only`로 재채점하면 judge 호출만 든다. PHASE 6 실행도
+`pairwise_payloads.json`을 남기므로 다시 그래프를 돌릴 필요가 없다.
+
+**bias 탐지기가 실제로 작동하는지 먼저 증명한다.** `AlwaysFirstPairwiseJudge`는
+항상 첫 번째를 고르는 모의 심사자이며, 테스트가 이것을 bias rate 1.0 /
+agreement 0.0으로 잡아내는지 검증한다. 이 테스트가 없으면 bias rate 0.0이
+"편향 없음"인지 "탐지기가 안 켜짐"인지 구분할 수 없다.
 
 ## PHASE 8. LangSmith — 조사 완료
 

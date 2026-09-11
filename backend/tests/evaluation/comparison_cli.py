@@ -42,7 +42,7 @@ from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.evaluators import evaluate_case
 from backend.tests.evaluation.evaluators.agent_metrics import build_report as build_agent_report
 from backend.tests.evaluation.harness import GRAPH_CASES
-from backend.tests.evaluation.judge.judge import JudgeModel, judge_run
+from backend.tests.evaluation.judge.judge import JudgeModel, build_judge_payload, judge_run
 from backend.tests.evaluation.runners.fake_chat import (
     Script,
     ScriptedChatModel,
@@ -278,6 +278,51 @@ def _write(report: ComparisonReport, output_dir: Path) -> None:
             ),
             encoding="utf-8",
         )
+
+    # The blind payloads are what PHASE 7 compares. Writing them here means a
+    # pairwise run does not have to pay for the graph a second time: the first
+    # version of this did, and re-running 84 provider calls to obtain plans that
+    # already existed is not a cost worth repeating.
+    _write_pairwise_payloads(report, output_dir)
+
+
+def _write_pairwise_payloads(report: ComparisonReport, output_dir: Path) -> None:
+    """Store one blind judge payload per case per architecture, for PHASE 7.
+
+    Only the first repeat is kept. A pairwise comparison needs one plan per
+    architecture per case, and picking among repeats after the fact would be a
+    choice the report could not justify.
+    """
+
+    cases: dict[str, dict[str, object]] = {}
+    for result in report.results:
+        seen: set[str] = set()
+        for run in result.runs:
+            case_id = run.case.case_id
+            if case_id in seen:
+                continue
+            seen.add(case_id)
+            entry = cases.setdefault(
+                case_id, {"category": run.case.category.value, "architectures": {}}
+            )
+            architectures = entry["architectures"]
+            assert isinstance(architectures, dict)
+            architectures[result.architecture_code] = (
+                build_judge_payload(run, blind=True) if run.compiled_plan is not None else None
+            )
+    (output_dir / "pairwise_payloads.json").write_text(
+        json.dumps(
+            {
+                "model_label": report.results[0].model_label if report.results else "unknown",
+                "blind": True,
+                "cases": cases,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _forecast(architectures: Sequence[str], case_count: int, repeats: int) -> str:

@@ -1,6 +1,6 @@
 # Service quality evaluation harness
 
-배포 전 서비스 품질 평가(`docs/test/service_test_master_prompt.md`)의 PHASE 0~6
+배포 전 서비스 품질 평가(`docs/test/service_test_master_prompt.md`)의 PHASE 0~7
 구현이다. 계획은 `docs/test/TEST_PLAN.md`, 구조 분석은
 `docs/test/TEST_SYSTEM_ANALYSIS.md`를 따른다.
 
@@ -39,7 +39,11 @@ EvaluationCase (JSON)
 | `runners/single_agent.py` | PHASE 6 baseline (아키텍처 A·B). 1회 호출 + 동일 gate |
 | `architectures.py` | 비교 대상 3종과, baseline에 물을 수 없는 지표 목록 |
 | `comparison.py` | PHASE 6 집계. runner가 아니라 공통 산출물에서만 계산 |
-| `comparison_cli.py` | A/B/C 실행 + 비교표 산출 |
+| `comparison_cli.py` | A/B/C 실행 + 비교표 산출 (PHASE 7 payload도 함께 저장) |
+| `judge/pairwise.py` | PHASE 7 맞대결 판정, position bias 측정, 블라인딩 검증 |
+| `pairwise_cli.py` | collect(그래프) / judge(맞대결) 분리 실행 |
+| `production_catalog.py` | 배포 카탈로그 번들 → pool record (D-2 재확인용) |
+| `fallback_reproduction*.py` | D-2 재현 확인. LLM 호출 0건 |
 | `evaluators/` | safety · constraint · structure · failure |
 | `harness.py` | 테스트 공용 동기 진입점 |
 | `report_cli.py` | `results/` 산출물 재생성 |
@@ -61,6 +65,13 @@ uv run python -m backend.tests.evaluation.comparison_cli --offline
 
 # PHASE 6 실행 (유료). 절차는 docs/test/PAID_EVALUATION.md
 uv run python -m backend.tests.evaluation.comparison_cli --confirm-spend --repeats 2
+
+# PHASE 7 맞대결 (유료). 재채점은 --judge-only로 judge 호출만
+uv run python -m backend.tests.evaluation.pairwise_cli --offline
+uv run python -m backend.tests.evaluation.pairwise_cli --confirm-spend
+
+# D-2 재현 확인 (비용 0, LLM 호출 없음)
+uv run python -m backend.tests.evaluation.fallback_reproduction_cli
 ```
 
 `--offline` 실행에서 A·B·C가 **같은 계획**을 내는지 확인하는 것이 배관 점검이다.
@@ -90,6 +101,17 @@ baseline을 약하게 만들면 실험이 무의미해진다. `test_comparison.p
 - 세 아키텍처 모두 동일한 compiler·integrity validator·fallback을 통과한다.
 - baseline에 물을 수 없는 지표(`agent_role_consistency`, `state_consistency`)는
   1.0이 아니라 **n/a**로 보고한다. 없는 질문에 만점을 주면 무승부가 조작된다.
+
+## PHASE 7 편향 탐지
+
+맞대결 승률은 **탐지기가 작동한다는 증명이 먼저 있어야** 의미가 있다.
+`AlwaysFirstPairwiseJudge`(항상 첫 번째를 고르는 모의 심사자)를 넣었을 때
+position bias 1.0 / agreement 0.0으로 잡히는지 테스트가 검증한다. 이것이 없으면
+bias rate 0.0이 "편향 없음"인지 "탐지기가 안 켜짐"인지 구분되지 않는다.
+
+같은 이유로: 승리는 **두 순서가 같은 계획을 지목했을 때만** 집계하고, 같은
+슬롯을 지목한 경우는 bias로만 센다. 계획이 없는 아키텍처가 낀 pair는 판정
+제외이며 무승부가 아니다.
 
 ## 이 harness가 하지 않는 것
 
