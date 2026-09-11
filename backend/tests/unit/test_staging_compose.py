@@ -199,6 +199,7 @@ def test_public_v3_overlay_requires_authoritative_agents_and_vector_retrieval() 
         "LLM_AGENTS_APPROVED_MODEL_CODES": '["gpt-5.6-terra"]',
         "LLM_AGENTS_TIMEOUT_SECONDS": "60",
         "LLM_AGENTS_MAX_OUTPUT_TOKENS": "4000",
+        "LLM_AGENTS_REASONING_EFFORT": "low",
         "LLM_MODEL_CODE": "gpt-5.6-terra",
     }
 

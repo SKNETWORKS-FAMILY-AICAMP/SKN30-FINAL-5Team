@@ -16,6 +16,7 @@ from backend.app.core.config import Settings
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
+    CoordinatorInput,
     RecoveryCeiling,
     SpecialistAgentInput,
     SpecialistAgentProposal,
@@ -24,6 +25,7 @@ from backend.app.domain.agents.v3_contracts import (
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
 from backend.app.integrations.llm_agents.payload import (
     assert_private_machine_payload,
+    coordinator_payload,
     project_exercise_pool,
     specialist_payload,
 )
@@ -144,6 +146,42 @@ def test_pool_projection_carries_id_allowlist_but_not_qdrant_ranking() -> None:
     assert "beginner_suitable" not in serialized
     assert "similarity" not in serialized
     assert "retrieval_metadata" not in serialized
+
+
+def test_coordinator_pool_omits_training_selection_metadata() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_proposals = tuple(
+        proposal(agent_type, current_envelope, current_pool)
+        for agent_type in SpecialistAgentTypeCode
+    )
+
+    payload = coordinator_payload(
+        CoordinatorInput(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+            proposals=current_proposals,
+            repair_attempt=0,
+        )
+    )
+
+    projected_pool = payload["exercise_pool"]
+    assert isinstance(projected_pool, dict)
+    first = projected_pool["exercises"][0]
+    allowed_fields = {
+        "exercise_id",
+        "timing_mode_code",
+        "default_seconds_per_rep",
+        "default_work_seconds",
+        "default_rest_seconds",
+        "default_transition_seconds",
+        "fitt_context",
+        "phase_codes",
+    }
+    assert set(first) <= allowed_fields
+    assert {"exercise_id", "default_seconds_per_rep", "fitt_context", "phase_codes"} <= set(first)
+    assert "goal_codes" not in first
+    assert "body_focus_code" not in first
 
 
 def test_fake_model_path_never_opens_a_network_socket(

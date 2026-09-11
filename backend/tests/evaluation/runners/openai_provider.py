@@ -40,6 +40,7 @@ EVAL_MODEL_CODE_ENV: Final = "EVAL_LLM_AGENTS_MODEL_CODE"
 DEFAULT_MODEL_CODE: Final = "gpt-5.6-terra"
 DEFAULT_TIMEOUT_SECONDS: Final = 60.0
 DEFAULT_MAX_OUTPUT_TOKENS: Final = 4000
+DEFAULT_REASONING_EFFORT: Final = "low"
 
 # The deployed profile is PRODUCTION, promoted; DEMO is the staging-only
 # overlay. Mirroring PRODUCTION is what makes this "the same as deployed".
@@ -61,10 +62,11 @@ class ProviderContext:
     timeout_seconds: float
     max_attempts: int
     tracing_enabled: bool
+    reasoning_effort: str
 
     @property
     def label(self) -> str:
-        return f"{self.provider_code}:{self.model_code}"
+        return f"{self.provider_code}:{self.model_code}:reasoning-{self.reasoning_effort}"
 
 
 def api_key_present() -> bool:
@@ -92,6 +94,7 @@ def build_settings(*, model_code: str | None = None) -> Settings:
         llm_agents_approved_model_codes=(resolved_model,),
         llm_agents_timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
         llm_agents_max_output_tokens=DEFAULT_MAX_OUTPUT_TOKENS,
+        llm_agents_reasoning_effort=DEFAULT_REASONING_EFFORT,
         v3_langgraph_enabled=True,
         v3_execution_profile=EXECUTION_PROFILE,
         v3_production_promotion_approved=True,
@@ -118,6 +121,7 @@ def build_provider(*, model_code: str | None = None) -> ProviderContext:
         timeout_seconds=settings.llm_agents_timeout_seconds,
         max_attempts=min(settings.llm_agents_max_attempts, 2),
         tracing_enabled=settings.llm_agents_tracing_enabled,
+        reasoning_effort=settings.llm_agents_reasoning_effort,
     )
 
 

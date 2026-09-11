@@ -27,9 +27,13 @@ pool projection을 받아 불필요한 입력 토큰을 사용했다.
    `NEEDS_INPUT`을 임의의 권고로 보완하지 않고 Training 초안과 결정적 envelope를 사용한다.
 5. SafetyPolicyEngine, ConstraintEnvelope, compiler, 하류 integrity validator는 변경하지 않는다.
    advisory code에 새 결정론적 강제 계층을 추가하지 않는다.
-6. 역할별 최소 payload를 사용한다. Training과 Coordinator는 계획 조립에 필요한 전체 승인 pool을
-   받는다. Recovery는 envelope와 pool identity/allowlist만, Feasibility는 실행 가능성 판단에 필요한
-   시간·장소·장비·phase 메타데이터만 받는다.
+6. 역할별 최소 payload를 사용한다. Training은 운동 선택에 필요한 전체 승인 pool을 받는다.
+   Recovery는 envelope와 pool identity/allowlist만, Feasibility는 실행 가능성 판단에 필요한
+   시간·장소·장비·phase 메타데이터만 받는다. Coordinator는 새 운동을 선택하지 않으므로 pool
+   identity와 Training 초안의 시간 계산·phase·FITT volume 확인에 필요한 필드만 받는다.
+7. 동일 모델의 구조화 호출은 `reasoning_effort=low`로 고정한다. provider 기본값 변동을 제거하고
+   직렬 Training·Coordinator 지연을 줄이되, 출력은 기존 schema·compiler·integrity validator를
+   그대로 통과해야 한다.
 
 ## 이유
 
@@ -43,8 +47,8 @@ pool projection을 받아 불필요한 입력 토큰을 사용했다.
 - 모든 non-READY/실패를 허용: 필수 Training 또는 기술 실패를 부분 proposal로 우회하므로 거부한다.
 - Recovery/Feasibility를 제거: 이번 평가의 목표인 multi-agent 구조 자체를 바꾸므로 보류한다.
 - advisory code를 결정적으로 강제: ADR-0015의 책임 분리와 충돌하고 중복 안전 계층을 만들므로 거부한다.
-- Coordinator에도 축약 pool만 제공: plan 조립·repair에 필요한 catalog timing과 FITT 경계를 잃을 수 있어
-  이번 변경에는 포함하지 않는다.
+- Coordinator에 pool identity만 제공: plan 조립·repair에 필요한 catalog timing과 FITT 경계를 잃으므로
+  거부한다. 대신 해당 timing과 FITT field는 유지하는 축약 projection을 사용한다.
 
 ## 결과
 
@@ -55,5 +59,4 @@ pool projection을 받아 불필요한 입력 토큰을 사용했다.
 
 ## 미확정 사항
 
-- Coordinator pool 자체의 추가 축약은 2차 token profile을 본 뒤 별도 결정한다.
 - Recovery/Feasibility 제거 또는 조건부 호출은 multi-agent 구조 비교 결과가 충분할 때 재검토한다.

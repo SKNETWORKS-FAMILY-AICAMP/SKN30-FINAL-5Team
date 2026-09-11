@@ -323,8 +323,9 @@ and the index this profile ranks against:
 docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3production.yaml up -d
 ```
 
-The approved agent model code is `gpt-5.6-terra`, and `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
-it. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
+The approved agent model code is `gpt-5.6-terra`, `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
+it, and the structured decision path pins `LLM_AGENTS_REASONING_EFFORT=low` to bound latency and
+provider-default drift. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
 chat model is `None`, the V3 runtime is never built, and the retriever is never constructed. The
 runtime is not composed and routine creation must not silently use the legacy service. Confirm
 retrieval positively rather

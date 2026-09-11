@@ -152,6 +152,16 @@ _FEASIBILITY_POOL_EXERCISE_FIELDS: Final = (
     "equipment_codes",
     "location_codes",
 )
+_COORDINATOR_POOL_EXERCISE_FIELDS: Final = (
+    "exercise_id",
+    "timing_mode_code",
+    "default_seconds_per_rep",
+    "default_work_seconds",
+    "default_rest_seconds",
+    "default_transition_seconds",
+    "fitt_context",
+    "phase_codes",
+)
 
 
 def _validate_private_machine_payload(
@@ -295,6 +305,18 @@ def _project_feasibility_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
     return projected
 
 
+def _project_coordinator_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    """Keep only fields needed to copy, time, and repair Training's draft."""
+
+    projected = _project_pool_identity(pool)
+    projected["exercises"] = [
+        project_contract(exercise, field_allowlist=_COORDINATOR_POOL_EXERCISE_FIELDS)
+        for exercise in pool.exercises
+    ]
+    assert_private_machine_payload(projected)
+    return projected
+
+
 def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
     if agent_input.agent_type_code.value == "TRAINING":
         pool_payload = project_exercise_pool(agent_input.exercise_pool)
@@ -332,7 +354,7 @@ def coordinator_payload(coordinator_input: CoordinatorInput) -> dict[str, object
             coordinator_input.constraint_envelope,
             field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS,
         ),
-        "exercise_pool": project_exercise_pool(coordinator_input.exercise_pool),
+        "exercise_pool": _project_coordinator_pool(coordinator_input.exercise_pool),
         "specialist_proposals": [
             project_contract(proposal, field_allowlist=_SPECIALIST_PROPOSAL_FIELDS)
             for proposal in coordinator_input.proposals

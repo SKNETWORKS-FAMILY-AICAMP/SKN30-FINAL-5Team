@@ -1,0 +1,9 @@
+{
+  "max_ms": 28500,
+  "min_ms": 20110,
+  "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+  "note": "Wall clock for the whole graph run, measured against the real provider. Includes the three parallel specialist calls and the coordinator.",
+  "p50_ms": 23672,
+  "p95_ms": 26500,
+  "sample_count": 14
+}

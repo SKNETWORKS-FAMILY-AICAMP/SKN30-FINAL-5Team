@@ -3,7 +3,7 @@
 - 기준일: 2026-09-11
 - 작업 브랜치: `fix/v3-round2-quality-improvement`
 - v1 기준선: `3b78731` / `evaluation-v1-baseline`
-- 상태: 품질 보정 후 실-provider tuning smoke 5/5 통과, held-out 2차 평가 준비 가능
+- 상태: 실-provider 최종 pilot 14/14 통과, held-out 2차 평가 준비 가능
 
 ## 1. 구현 결과
 
@@ -13,10 +13,13 @@
   fallback 또는 계획 없는 종료로 간다.
 - Coordinator input schema는 `v3-coordinator-input-v2`로 올렸다.
 - Recovery/Feasibility/Coordinator prompt는 각각 v4/v4/v6으로 올렸다.
-- 실행 단위 prompt version은 최초 `v3-prompts-v2`, Training 보정 후 `v3-prompts-v3`이며
-  Multi-Agent LangSmith experiment는
+- 실행 단위 prompt version은 최초 `v3-prompts-v2`, Training 보정 후 `v3-prompts-v3`,
+  Coordinator payload 축약 후 `v3-prompts-v4`이며 Multi-Agent LangSmith experiment는
   `multi-agent-v2`로 분리했다.
 - Recovery는 pool identity만, Feasibility는 실행 가능성에 필요한 catalog 필드만 받는다.
+- Coordinator는 운동 선택 metadata를 중복 수신하지 않고 Training 초안의 시간·phase·FITT volume
+  확인에 필요한 최소 pool projection만 받는다.
+- 구조화 agent 호출의 `reasoning_effort`를 `low`로 고정했다.
 - SafetyPolicyEngine, compiler, integrity validator, 공개 API, DB schema는 바꾸지 않았다.
 
 ## 2. Payload·예산 예측
@@ -26,8 +29,8 @@
 | 지표 | v1 | v2 | 감소율 |
 |---|---:|---:|---:|
 | Specialist payload bytes | 687,132 | 344,808 | 49.8192% |
-| 전체 평가 prompt token 예측(25% headroom 포함) | 1,327,202 | 918,722 | 30.7776% |
-| Phase 4 pilot prompt token | 259,358 | 177,662 | 31.4993% |
+| 전체 평가 prompt token 예측(25% headroom 포함) | 1,327,202 | 832,982 | 37.2377% |
+| Phase 4 pilot prompt token | 259,358 | 160,514 | 38.1110% |
 
 payload byte는 tokenizer를 거치기 전 canonical JSON 크기이며 실제 token 결과를 대체하지 않는다.
 실제 total token 25% 감소 기준은 provider smoke와 held-out 평가에서 다시 판정한다.
@@ -51,6 +54,8 @@ payload byte는 tokenizer를 거치기 전 canonical JSON 크기이며 실제 to
 - Ruff check: passed
 - mypy: 219 source files passed
 - Training 후속 보정 범위(V3/LangChain/evaluation): 468 passed, 2 skipped,
+  local Qdrant warning 1개
+- 최종 reasoning/payload/deployment 회귀: 547 passed, 2 skipped,
   local Qdrant warning 1개
 
 91개 skip은 `TEST_DATABASE_URL` 또는 명시적 PostgreSQL/Qdrant 환경이 필요한 기존 integration
@@ -93,3 +98,31 @@ intensity는 운동 적격성 필터가 아니고 최종 prescription intensity�
 state consistency, conflict resolution accuracy는 모두 1.0이었다. P50은 23,250ms, P95는
 34,500ms이고 input/output token 합계는 각각 87,741/16,771이다. 이 smoke는 tuning set
 검증이므로 architecture 우월성의 근거로 사용하지 않으며, 다음 판정은 미사용 held-out set으로 한다.
+
+## 7. Token·latency 보정과 최종 pilot
+
+첫 14개 provider pilot은 전부 성공했지만 P95가 33.375초로 사전 기준 30초를 초과했고,
+v1 Multi 대비 평균 total token 감소율도 22.2053%로 25% 기준에 미달했다. LangSmith 역할별
+P95는 Training 18.720초, Coordinator 15.267초로 두 직렬 단계가 병목이었다.
+
+구조화 호출의 provider-default 추론량 변동을 없애기 위해 `reasoning_effort=low`를 명시했다.
+5건 smoke에서 5/5 성공을 유지하며 P95가 25.578초로 낮아졌다. 이어 Coordinator가 새 운동을
+선택하지 않는 계약에 맞춰 선택용 catalog metadata를 제거하고, 시간 산정·phase·FITT volume
+필드만 유지했다. 최종 prompt aggregate version은 `v3-prompts-v4`다.
+
+최종 14개 provider pilot 결과:
+
+| 지표 | 결과 | 사전 기준 | 판정 |
+|---|---:|---:|---|
+| workflow completion | 14/14 = 1.000 | 0.950 이상 | 통과 |
+| safety compliance | 1.000 | 1.000 | 통과 |
+| critical / unsafe plan | 0건 | 0 | 통과 |
+| fallback / repair | 0 / 0 | 관찰 | 이상 없음 |
+| P50 / P95 latency | 23.672초 / 26.500초 | P95 30초 이하 | 통과 |
+| 평균 total token | 19,456.93 | v1 대비 25% 이상 감소 | 통과 |
+| v1 Multi 평균 total token | 26,645.50 | 기준선 | - |
+| token 감소율 | 26.9786% | 25% 이상 | 통과 |
+
+최종 산출물은 `results/round2/paid_pilot_final/`에 저장했다. 이 결과는 기존 tuning dataset에
+대한 gate 판정이며, Multi-Agent가 Single-Agent RAG보다 우수하다는 결론은 최소 30개 held-out
+실행과 독립 blind Human 평가 전에는 내리지 않는다.

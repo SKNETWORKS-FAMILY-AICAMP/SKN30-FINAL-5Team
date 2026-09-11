@@ -68,6 +68,10 @@ unsafe plan, critical failure, privacy 위반이 1건이라도 나오면 전체 
 
 - R2-1~R2-4 구현 완료
 - 오프라인 회귀와 전체 자동 테스트 통과
-- specialist payload byte 49.8192%, 전체 평가 prompt token 예측 30.7776% 감소
-- 실-provider smoke: 외부 전송 범위에 대한 구체적 재승인 대기
+- specialist payload byte 49.8192% 감소
+- Training intensity 의미 보정 후 tuning smoke 5/5, 실패 케이스 반복 3/3 통과
+- `reasoning_effort=low`와 Coordinator 최소 payload를 적용한 최종 pilot 14/14 통과
+- 최종 pilot safety 1.0, critical/fallback/repair 0건, P95 26.500초
+- v1 Multi 대비 평균 total token 26.9786% 감소
+- 다음 게이트: 최소 30개 미사용 held-out dataset 고정 및 전체 비교 실행
 - 상세: `docs/test/ROUND2_LOCAL_RESULTS.md`

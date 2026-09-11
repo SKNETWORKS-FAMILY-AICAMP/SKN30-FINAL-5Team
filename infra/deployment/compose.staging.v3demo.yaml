@@ -39,6 +39,7 @@ services:
       # graph node.
       LLM_AGENTS_TIMEOUT_SECONDS: "60"
       LLM_AGENTS_MAX_OUTPUT_TOKENS: "4000"
+      LLM_AGENTS_REASONING_EFFORT: low
       # Narration (ADR-0011) stays off; the code is aligned so that enabling it
       # later does not introduce a second model. Narration never changes a
       # decision, a safety status or a veto.

@@ -130,7 +130,7 @@ class BoundV3DemoIdentityProvider:
 @dataclass(frozen=True, slots=True)
 class V3DemoRuntimeVersions:
     graph_version: str = "v3-langgraph-demo-v2"
-    prompt_version: str = "v3-prompts-v3"
+    prompt_version: str = "v3-prompts-v4"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
     fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
@@ -193,7 +193,7 @@ def _canonical_validations(
                 if index == 1
                 else ()
             ),
-            prompt_version="v3-prompts-v3",
+            prompt_version="v3-prompts-v4",
             model_version="placeholder-model-v1",
         )
         for index in range(len(canonical))
