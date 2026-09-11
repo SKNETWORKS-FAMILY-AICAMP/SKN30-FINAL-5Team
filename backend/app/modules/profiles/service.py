@@ -1,12 +1,12 @@
 import hashlib
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE, BodyAreaCode
 from backend.app.modules.profiles.age import (
     AgeRequirementNotMetError,
     InvalidBirthdateError,
@@ -45,6 +45,7 @@ from backend.app.modules.profiles.schemas import (
     MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
+    PersistentPainInput,
     ProfileSettingsUpdateRequest,
     ProfileSettingsUpdateResponse,
 )
@@ -274,6 +275,9 @@ class ProfileService:
 
         profile = None
         if record.profile is not None:
+            # One decryption serves both the age and the birthdate the owner
+            # sees in the settings editor.
+            birthdate = self._derive_birthdate(user_id, record.profile)
             profile = MeProfile(
                 nickname=record.profile.nickname,
                 profile_image_url=(
@@ -284,7 +288,9 @@ class ProfileService:
                     and record.profile.profile_image_object_key is not None
                     else None
                 ),
-                age=self._derive_age(user_id, record.profile),
+                age=self._derive_age(record.profile, birthdate),
+                date_of_birth=birthdate,
+                weight_kg=record.profile.weight_kg,
                 primary_goal_code=record.profile.primary_goal_code,
                 experience_level_code=record.profile.experience_level_code,
                 timezone=record.profile.timezone,
@@ -301,6 +307,19 @@ class ProfileService:
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
                 coaching_style_code=FIXED_COACHING_STYLE_CODE,
                 attention_area_codes=list(record.profile.attention_area_codes),
+                persistent_pains=(
+                    [
+                        PersistentPainInput(
+                            body_area_code=BodyAreaCode(body_area_code),
+                            intensity_score=intensity_score,
+                        )
+                        for body_area_code, intensity_score in record.profile.persistent_pains
+                    ]
+                    if record.profile.persistent_pains
+                    else None
+                    if record.profile.attention_area_codes
+                    else []
+                ),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
                 created_at=record.profile.created_at,
@@ -317,8 +336,8 @@ class ProfileService:
             profile=profile,
         )
 
-    def _derive_age(self, user_id: UUID, profile: MeProfileRecord) -> int | None:
-        """Derive the age, returning null rather than failing the read.
+    def _derive_birthdate(self, user_id: UUID, profile: MeProfileRecord) -> date | None:
+        """Decrypt the stored birthdate, returning null rather than failing the read.
 
         A deployment without a birthdate cipher, or a value this deployment
         cannot authenticate, must still be able to serve the profile.
@@ -326,13 +345,22 @@ class ProfileService:
         if self._birthdate_cipher is None:
             return None
         try:
-            birthdate = self._birthdate_cipher.decrypt(user_id, profile.protected_birthdate)
+            return self._birthdate_cipher.decrypt(user_id, profile.protected_birthdate)
+        except (BirthdateDecryptionError, InvalidBirthdateError):
+            return None
+
+    def _derive_age(self, profile: MeProfileRecord, birthdate: date | None) -> int | None:
+        """Derive the age from an already decrypted birthdate.
+
+        A stored timezone this deployment cannot resolve must not fail the read
+        either, so an unusable one yields a null age and leaves the birthdate
+        itself intact.
+        """
+        if birthdate is None:
+            return None
+        try:
             return calculate_age(birthdate, profile.timezone, at=self._clock())
-        except (
-            BirthdateDecryptionError,
-            InvalidBirthdateError,
-            InvalidTimezoneError,
-        ):
+        except (InvalidBirthdateError, InvalidTimezoneError):
             return None
 
     def upsert_onboarding(

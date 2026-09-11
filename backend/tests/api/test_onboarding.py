@@ -1,6 +1,7 @@
 import json
 import logging
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -136,6 +137,7 @@ class FakeProfileRepository:
                 desired_weekly_workout_count=values.desired_weekly_workout_count,
                 attention_area_codes=values.attention_area_codes,
                 preferred_exercise_type_codes=values.preferred_exercise_type_codes,
+                weight_kg=values.weight_kg,
                 profile_version=self.profile_version,
                 created_at=now,
                 updated_at=now,
@@ -208,6 +210,11 @@ class FakeProfileRepository:
     ) -> None:
         del session, user_id, now
         self.persistent_pains = pains
+        if self.me_record is not None and self.me_record.profile is not None:
+            self.me_record = replace(
+                self.me_record,
+                profile=replace(self.me_record.profile, persistent_pains=pains),
+            )
 
 
 def _payload() -> dict[str, object]:
@@ -382,6 +389,11 @@ def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
 
     assert "equipment_codes" not in schemas["OnboardingUpsertRequest"]["properties"]
     assert "equipment_codes" not in schemas["MeProfile"]["properties"]
+    persistent_pains_schema = schemas["MeProfile"]["properties"]["persistent_pains"]
+    assert {item.get("type") for item in persistent_pains_schema["anyOf"]} == {
+        "array",
+        "null",
+    }
 
 
 def test_get_me_profile_response_omits_equipment_codes() -> None:
@@ -397,7 +409,123 @@ def test_get_me_profile_response_omits_equipment_codes() -> None:
     assert onboarding.status_code == 200
     assert response.status_code == 200
     assert response.json()["profile"]["nickname"] == "러너01"
+    assert response.json()["profile"]["persistent_pains"] == [
+        {"body_area_code": "KNEE", "intensity_score": 3}
+    ]
     assert "equipment_codes" not in response.json()["profile"]
+
+
+def test_get_me_marks_a_legacy_attention_only_profile_as_unmigrated() -> None:
+    repository = FakeProfileRepository()
+    repository.me_record = MeRecord(
+        user_id=uuid4(),
+        status_code="ACTIVE",
+        premium_status_code="NOT_AVAILABLE",
+        ai_trial_started_at=NOW,
+        ai_trial_ends_at=NOW,
+        profile=MeProfileRecord(
+            nickname="legacy-user",
+            protected_birthdate="ignored-without-a-cipher",
+            primary_goal_code="GENERAL_FITNESS",
+            experience_level_code="BEGINNER",
+            timezone="Asia/Seoul",
+            default_requested_duration_minutes=40,
+            desired_weekly_workout_count=3,
+            attention_area_codes=("KNEE",),
+            preferred_exercise_type_codes=(),
+            profile_version=1,
+            created_at=NOW,
+            updated_at=NOW,
+        ),
+    )
+
+    with _client(repository) as client:
+        response = client.get("/api/v1/me")
+
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["attention_area_codes"] == ["KNEE"]
+    assert profile["persistent_pains"] is None
+
+
+def test_get_me_returns_the_stored_birthdate_and_weight_to_their_owner() -> None:
+    # 설정 화면은 사용자가 저장한 값을 다시 보여줘야 한다. 서버가 돌려주지 않으면
+    # 클라이언트에 채울 원본이 없어 매번 빈 칸에서 다시 입력하게 된다.
+    repository = FakeProfileRepository()
+    with _client(repository) as client:
+        onboarding = client.put(
+            "/api/v1/me/onboarding",
+            json=_payload(),
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+        response = client.get("/api/v1/me")
+
+    assert onboarding.status_code == 200
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["date_of_birth"] == "2000-08-11"
+    assert profile["weight_kg"] == 68.5
+    # 암호문은 소유자에게도 반환하지 않는다.
+    assert "protected_birthdate" not in profile
+
+
+def test_get_me_without_a_birthdate_cipher_serves_a_null_birthdate() -> None:
+    # 복호화가 불가능한 배포에서도 프로필 조회는 살아 있어야 한다. 여기서 503이
+    # 나면 생년월일 하나 때문에 마이페이지 전체가 열리지 않는다.
+    repository = FakeProfileRepository()
+    repository.me_record = MeRecord(
+        user_id=uuid4(),
+        status_code="ACTIVE",
+        premium_status_code="NOT_AVAILABLE",
+        ai_trial_started_at=NOW,
+        ai_trial_ends_at=NOW,
+        profile=MeProfileRecord(
+            nickname="러너01",
+            protected_birthdate="unreadable-without-a-cipher",
+            primary_goal_code="GENERAL_FITNESS",
+            experience_level_code="BEGINNER",
+            timezone="Asia/Seoul",
+            default_requested_duration_minutes=40,
+            desired_weekly_workout_count=3,
+            attention_area_codes=("KNEE",),
+            preferred_exercise_type_codes=("STRENGTH",),
+            weight_kg=68.5,
+            profile_version=1,
+            created_at=NOW,
+            updated_at=NOW,
+        ),
+    )
+
+    settings = Settings(
+        _env_file=None,
+        app_env="test",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/me")
+
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["date_of_birth"] is None
+    assert profile["age"] is None
+    # 복호화와 무관한 값은 그대로 나와야 한다.
+    assert profile["weight_kg"] == 68.5
+    assert "unreadable-without-a-cipher" not in response.text
 
 
 def test_onboarding_rejects_removed_equipment_field() -> None:

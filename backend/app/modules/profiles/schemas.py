@@ -236,8 +236,21 @@ class ProfileImageMutationResponse(BaseModel):
 class MeProfile(BaseModel):
     """Profile view of the authenticated user.
 
-    `age` is derived per request from the protected birthdate and is null when
-    the deployment cannot decrypt it. The birthdate itself is never returned.
+    `date_of_birth` and `age` are both derived per request from the protected
+    birthdate, and both are null when the deployment cannot decrypt it: a profile
+    read must not fail because a birthdate cipher is missing or a stored envelope
+    cannot be authenticated.
+
+    The birthdate is returned only here, to the authenticated owner of the
+    profile, so the settings editor can show the value the user already stored.
+    Every other prohibition in ADR-0005 stands unchanged: the birthdate and the
+    derived age stay out of logs, analytics, LLM and agent inputs, and decision
+    snapshots, and the encrypted envelope is never returned.
+
+    `weight_kg` is stored for the calorie estimate and returned for the same
+    reason as the birthdate: it is a value the user typed and must be able to see
+    again. It is optional because a profile written before it was collected has
+    none.
 
     `preferred_location_code`, `available_location_codes` and `coaching_style_code`
     are retired: nothing stores them since migrations 0049 and 0050. They stay in
@@ -248,6 +261,8 @@ class MeProfile(BaseModel):
     nickname: str
     profile_image_url: str | None = None
     age: int | None = None
+    date_of_birth: date | None = None
+    weight_kg: float | None = None
     primary_goal_code: str
     experience_level_code: str
     timezone: str
@@ -257,6 +272,10 @@ class MeProfile(BaseModel):
     desired_weekly_workout_count: int
     coaching_style_code: CoachingStyleCode
     attention_area_codes: list[str]
+    # `null` identifies a profile that still has only legacy attention-area
+    # rows. An empty list is the canonical, explicitly migrated "no pain"
+    # value, so clients must not collapse the two states.
+    persistent_pains: list[PersistentPainInput] | None = None
     preferred_exercise_type_codes: list[str]
     profile_version: int
     created_at: datetime

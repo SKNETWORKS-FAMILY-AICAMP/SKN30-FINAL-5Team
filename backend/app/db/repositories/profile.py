@@ -63,6 +63,17 @@ class ProfileRepository:
                         .order_by(UserAttentionArea.body_area_code)
                     )
                 ),
+                persistent_pains=tuple(
+                    (str(body_area_code), int(intensity_score))
+                    for body_area_code, intensity_score in session.execute(
+                        select(
+                            UserPersistentPain.body_area_code,
+                            UserPersistentPain.intensity_score,
+                        )
+                        .where(UserPersistentPain.user_id == user_id)
+                        .order_by(UserPersistentPain.body_area_code)
+                    )
+                ),
                 preferred_exercise_type_codes=tuple(
                     session.scalars(
                         select(UserPreferredExerciseType.exercise_type_code)
@@ -71,6 +82,7 @@ class ProfileRepository:
                     )
                 ),
                 profile_image_object_key=profile.profile_image_object_key,
+                weight_kg=profile.weight_kg,
                 profile_version=profile.profile_version,
                 created_at=profile.created_at,
                 updated_at=profile.updated_at,
@@ -344,6 +356,11 @@ class ProfileRepository:
                 for code in changes.preferred_exercise_type_codes
             )
         if changes.persistent_pains is not None:
+            # An explicit write through the canonical pain contract migrates the
+            # profile away from legacy attention areas. Clearing these rows is
+            # essential when the canonical value is [], otherwise the next read
+            # would resurrect a pain the user explicitly removed.
+            session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
             self.replace_persistent_pains(session, user_id, changes.persistent_pains, now)
 
         profile.profile_version += 1

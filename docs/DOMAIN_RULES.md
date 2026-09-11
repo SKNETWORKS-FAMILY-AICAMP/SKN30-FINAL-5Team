@@ -20,7 +20,7 @@ ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`�
 
 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`가 이 문서의 온보딩·체크인·통증·운동 실행 계약 기준이다.
 
-- 지원 범위는 18–64세 일반 성인이다. 생년월일은 암호화해 수집하고 사용자 timezone의 local date 기준으로 서버가 eligibility를 판정한다. 성별·키·온보딩 장소·기본 시간·사용자 장비는 수집하지 않는다. 선택적 `persistent_pains`는 Daily Check-in 기본값으로만 저장하며, 생년월일과 함께 Eligibility 외의 결정, LLM, snapshot, 로그에 사용하지 않는다.
+- 지원 범위는 18–64세 일반 성인이다. 생년월일은 암호화해 수집하고 사용자 timezone의 local date 기준으로 서버가 eligibility를 판정한다. 저장된 생년월일과 체중은 인증된 본인의 프로필 조회에만 반환한다(ADR-0020). 성별·키·온보딩 장소·기본 시간·사용자 장비는 수집하지 않는다. 선택적 `persistent_pains`는 Daily Check-in 기본값으로만 저장하며, 생년월일과 함께 Eligibility 외의 결정, LLM, snapshot, 로그에 사용하지 않는다.
 - Check-in은 선택적 수면, 필수 피로 코드(`LOW`/`MODERATE`/`HIGH`), 10–90분, 장소, 당일 NRS 통증과 Red Flag를 사용한다. 기본 권장값은 30분이지만 서버는 이 값을 사용자 요청으로 대체하지 않는다. 근육통은 Recovery 입력이나 계산에 사용하지 않으며, 장소는 완화할 수 없다.
 - NRS 1–3/4–6은 해당 부위의 검수된 금기 관계 운동을 제외하며, 4–6에는 전역 `LIGHT` 상한을 더한다. NRS 7–10 또는 Red Flag는 계획을 만들지 않는다. 안전 metadata 결측·미검수 운동만 fail-closed로 제외한다.
 - Recovery는 수면·피로 조합으로 `NORMAL`/`LIGHT`/`VERY_LIGHT`를 계산하고 결측을 좋은 상태로 간주하지 않는다. 통증 상한과 충돌하면 더 보수적인 상한을 적용한다.

@@ -120,7 +120,7 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 
 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`를 현재 API의 기준으로 한다. 모든 endpoint와 Pydantic schema는 이 절의 필드·코드를 따른다.
 
-- 온보딩 request는 `date_of_birth`, `medical_exercise_restriction`, `weight_kg`, `primary_goal_code`, `experience_level_code`, `weekly_target_sessions`, `timezone`, `terms_version`, 분리된 consent를 사용한다. `coaching_style_code`는 구 클라이언트 write 호환을 위해 받되 무시하며, 응답은 항상 `SUPPORTIVE`다. 저장 컬럼은 migration 0049에서 제거했으므로 저장값 자체가 없다. `date_of_birth`는 encrypted-at-rest이며 사용자 timezone 기준 18–64세 eligibility에만 사용한다.
+- 온보딩 request는 `date_of_birth`, `medical_exercise_restriction`, `weight_kg`, `primary_goal_code`, `experience_level_code`, `weekly_target_sessions`, `timezone`, `terms_version`, 분리된 consent를 사용한다. `coaching_style_code`는 구 클라이언트 write 호환을 위해 받되 무시하며, 응답은 항상 `SUPPORTIVE`다. 저장 컬럼은 migration 0049에서 제거했으므로 저장값 자체가 없다. `date_of_birth`는 encrypted-at-rest이며 사용자 timezone 기준 18–64세 eligibility 판정과 본인 프로필 조회 응답에만 사용한다(ADR-0020).
 - Daily Check-in request는 `sleep_minutes`, `sleep_source_code`, `fatigue_level_code`, `available_time_minutes`(10–90), `location_code`, `pain_present`, `red_flag_present`, `pains[{body_area_code,intensity_score}]`를 사용한다. `GET /api/v1/daily-contexts/{local_date}/defaults`는 선택적 통증 기본값, `selectable_location_codes=[HOME,GYM]`, `recommended_duration_minutes=30`, `duration_recommendation_policy_version`을 반환한다. `OUTDOOR`는 기존 데이터·승인 pool 호환을 위해 read/write 값으로 유지하지만 사용자 선택지에는 포함하지 않는다. 권장값은 사용자 요청을 대체하지 않는다. 근육통은 입력·Recovery 계산에 사용하지 않는다. NRS는 서버가 1–3/4–6/7–10으로 변환하고 정책 버전과 함께 저장한다.
 - 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 세부 증상 입력 없이 `STOPPED_SAFETY`와 비재개 상태를 만든다. 안전 이벤트 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이며 증상 data를 반환하지 않는다.
 - 완료 상태는 완료 블록 수에서 server-derived `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`로 반환한다. 실행 상태와 타이머 누적값은 별도 반환한다.
@@ -704,9 +704,9 @@ OnboardingPainInput
 }
 ~~~
 
-`date_of_birth`는 응답에 반환하지 않는다.
+이 온보딩 응답은 `date_of_birth`를 반환하지 않는다.
 
-`GET /api/v1/me`는 생년월일과 계산된 만 나이를 반환하지 않는다. `PUT /api/v1/me/onboarding`으로 생년월일을 수정할 수 있으며, 서버는 저장 전에 사용자 timezone 기준 18–64세 eligibility를 다시 판정한다. 범위를 벗어나면 일반 자동 루틴 생성을 차단한다.
+`GET /api/v1/me`는 인증된 본인에 한해 `date_of_birth`와 계산된 만 나이(`age`)를 반환한다(ADR-0020). `PUT /api/v1/me/onboarding`으로 생년월일을 수정할 수 있으며, 서버는 저장 전에 사용자 timezone 기준 18–64세 eligibility를 다시 판정한다. 범위를 벗어나면 일반 자동 루틴 생성을 차단한다.
 
 `ai_trial_started_at`, `ai_trial_ends_at`, `premium_status_code`는 승인된 POL-013의 14일 AI 코치 무료 체험을 표현한다. 체험 종료 후 접근 범위는 구현 전 PM·개발팀장 검토로 확정한다.
 
@@ -729,6 +729,9 @@ MeResponse
 
 MeProfile
 - nickname: string
+- date_of_birth: date | null  # ADR-0020, 본인 조회 전용. 복호화 불가 시 null
+- age: integer | null  # 요청 시점 파생값. 복호화·timezone 해석 불가 시 null
+- weight_kg: number | null  # kcal 추정 입력. 미수집 프로필은 null
 - primary_goal_code: string
 - experience_level_code: string
 - timezone: IANA timezone
@@ -738,6 +741,7 @@ MeProfile
 - available_location_codes: string[]  # always [HOME]; response-only, no stored column
 - default_requested_duration_minutes: integer
 - attention_area_codes: string[]
+- persistent_pains: PersistentPainInput[] | null  # Daily Check-in 기본값 및 마이페이지 편집값
 - preferred_exercise_type_codes: string[]  # legacy, 결정에 미사용
 - profile_version: integer
 - created_at: datetime
@@ -747,7 +751,21 @@ MeProfile
 온보딩 전 사용자는 `onboarding_completed=false`, `profile=null`이다. 내부 사용자 레코드를 찾을 수
 없으면 `404 RESOURCE_NOT_FOUND`다.
 
-`date_of_birth`, `protected_birthdate`, 계산된 만 나이는 응답에 포함하지 않는다.
+`date_of_birth`와 계산된 만 나이(`age`)는 인증된 본인의 이 응답에만 포함한다(ADR-0020). 편집
+화면이 저장된 값을 다시 보여주기 위한 경로이며, 두 값은 여전히 로그·분석 이벤트·LLM·에이전트
+입력·decision snapshot에 포함하지 않는다. 암호문 `protected_birthdate`는 본인에게도 반환하지
+않는다.
+
+복호화할 수 없는 배포(cipher 미설정, 인증 실패한 envelope)에서는 `date_of_birth`와 `age`가
+함께 `null`이 되고 응답 자체는 `200`이다. 생년월일 때문에 프로필 조회가 실패하지 않는다.
+
+`persistent_pains`는 인증된 본인이 온보딩 또는 마이페이지에서 저장한 통증 부위와 1..10 점수를
+반환한다. 새 계약으로 명시적으로 통증 없음이 저장된 경우 빈 배열이고, 레거시
+`attention_area_codes`만 남은 미전환 프로필은 `null`이다. 클라이언트는 `null`일 때만 레거시 값을
+표시하고, 빈 배열을 레거시 값으로 대체하지 않는다. 이는 마이페이지 표시와 Daily Check-in
+초기값을 위한 값이며, 제출된 당일 `pains`를 대신하거나 Safety·루틴 생성·결정 입력에 직접
+사용하지 않는다. 마이페이지가 `persistent_pains`를 저장하면 같은 transaction에서 레거시
+`attention_area_codes`를 정리해 명시적으로 삭제한 통증이 다음 조회에서 되살아나지 않게 한다.
 
 ### 7.2.1 연결된 인증 identity 조회
 
