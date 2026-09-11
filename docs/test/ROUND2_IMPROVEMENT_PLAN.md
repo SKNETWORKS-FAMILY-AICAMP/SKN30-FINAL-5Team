@@ -17,6 +17,35 @@
 | R2-3 | advisory status·code 처리 지침 강화 | Coordinator 조정 추적성 향상 | code를 하드 규칙으로 강제하지 않음 |
 | R2-4 | prompt version 분리 | v1/v2 재현성 확보 | model/catalog/policy 고정 |
 
+## 2.1 1차 발견 사항 반영 현황 (2026-09-11 확인)
+
+| 1차 발견 | 1차 분류 | 2차 처리 | 확인 위치 |
+|---|---|---|---|
+| D-1 동일 입력 재현 불가 | SERVICE (LLM 고유) | **미해결, 의도적 보류** | 아래 참조 |
+| D-2 계획 미생성 | TEST (하네스) | **하네스 정합 적용** | `scenario._reserved_ranking` |
+| D-3 advisory code 무시 | 설계 결과, PM 검토 | R2-3 완료 | coordinator prompt v6 |
+| D-4 기본 설정 | 정보 | 배포 설정 확정 | `LLM_AGENTS_REASONING_EFFORT=low` 추가 |
+| D-5 advisory non-READY 차단 | 설계 결과, PM 검토 | R2-1 완료, ADR-0021 | `nodes.py`, `v3_contracts.py` |
+| PHASE 6 token 3.6배 | 측정 | R2-2 완료 | 평균 total token 26.9786% 감소 |
+| PHASE 6 latency 1.8배 | 측정 | reasoning_effort=low | P95 26.500초 |
+| PHASE 6 PlanSpec 비중립 | 구조적 발견 | **미해결, 보류** | 아래 참조 |
+
+보류 항목 2건의 사유:
+
+- **D-1**: "동일 입력 → 동일 출력"은 plan 캐싱이나 seed 고정 같은 별도 설계가 필요하며
+  2차 범위가 아니다. 결정적 경로(compiler, integrity validator, fallback)는 영향받지 않고,
+  저장된 proposal로부터의 재구성은 성립한다. 재현성 요구 수준을 제품 요건으로 확정하는 것이
+  선행 과제다.
+- **PlanSpec 비중립성**: `PlanSpec`이 canonical 순서의 proposal_reference 3개를 구조적으로
+  요구하므로 Single-Agent baseline은 contract adapter를 거쳐야 한다. 출력 계약 변경은
+  별도 ADR 대상이며 2차 비교의 타당성에는 영향이 없다(양쪽 모두 동일 게이트 통과).
+
+**D-2 하네스 정합의 실제 효과**: 순위를 선언한 case(14개 중 5개)에서만 동작한다. 나머지
+9개는 ranking을 선언하지 않으므로 운영도 snapshot에 순위를 저장하지 않아 변화가 없다.
+합성 카탈로그 기준 fallback 성공률은 0.50으로 그대로이며, 남은 격차의 주 원인은 **pool 구성이
+아니라 합성 카탈로그가 얇다는 점**(18종 중 WARMUP 4 / COOLDOWN 4)이다. held-out 설계 시
+카탈로그 선택을 명시적으로 결정해야 한다(6.1절).
+
 ## 3. 사전 등록 성공 기준
 
 | 지표 | 통과 기준 |
@@ -64,6 +93,20 @@ unsafe plan, critical failure, privacy 위반이 1건이라도 나오면 전체 
 - 가용성만 개선: D-5 수정은 유지하고 prompt/구조는 추가 실험
 - Single RAG가 동등 이상: multi-agent 단순화 또는 조건부 호출을 후속 ADR로 검토
 
+## 6.1 held-out 카탈로그 결정 (착수 전 확정 필요)
+
+held-out은 `provider failure`를 층화에 포함하므로 fallback 경로가 의도적으로 실행된다.
+합성 카탈로그에서는 그 경로의 성공률이 운영보다 비관적이므로, 사전 등록 기준
+"workflow completion 0.950 이상"과 "conflict/complex plan rate"가 운영에 존재하지 않는
+조건 때문에 미달할 수 있다.
+
+| 선택지 | 내용 | 영향 |
+|---|---|---|
+| A | 운영 카탈로그(v2.0.8-final, 237종)에서 held-out pool 구성 | fallback 수치가 운영 대표성을 가짐. 카탈로그 로더는 이미 있음(`production_catalog.py`) |
+| B | 합성 카탈로그 유지 | 세 architecture에 동일 적용되므로 **비교는 유효**하나 절대 수치는 비관적. 사전 등록 기준 판정에 주석 필요 |
+
+미결정 상태로 held-out을 실행하면 결과 해석이 사후 조정되므로 착수 전에 고정한다.
+
 ## 7. 진행 현황 (2026-09-11)
 
 - R2-1~R2-4 구현 완료
@@ -73,5 +116,9 @@ unsafe plan, critical failure, privacy 위반이 1건이라도 나오면 전체 
 - `reasoning_effort=low`와 Coordinator 최소 payload를 적용한 최종 pilot 14/14 통과
 - 최종 pilot safety 1.0, critical/fallback/repair 0건, P95 26.500초
 - v1 Multi 대비 평균 total token 26.9786% 감소
-- 다음 게이트: 최소 30개 미사용 held-out dataset 고정 및 전체 비교 실행
+- 1차 발견 사항 반영 현황 확인 완료(2.1절): D-5·D-3·D-4·token·latency 반영, D-1과
+  PlanSpec 비중립성은 사유를 남기고 보류
+- D-2 하네스 정합 적용(`scenario._reserved_ranking`), 회귀 434 passed / 2 skipped
+- 다음 게이트: **held-out 카탈로그 결정(6.1절)** 후 최소 30개 미사용 dataset 고정 및
+  전체 비교 실행
 - 상세: `docs/test/ROUND2_LOCAL_RESULTS.md`

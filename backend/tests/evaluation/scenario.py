@@ -15,17 +15,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final
+from uuid import UUID
 
 from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import (
+    ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
+    ExerciseRetrievalRequest,
+    ExerciseRetrievalResult,
     RetrievalFailureCode,
     RetrievalMetadata,
+    RetrievalModeCode,
     RetrievalStatusCode,
 )
 from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
+from backend.app.domain.agents.v3_duration import pool_size_for_duration
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
+from backend.app.integrations.qdrant.snapshot_loader import QdrantExercisePoolSnapshotLoader
 from backend.tests.evaluation import catalog
 from backend.tests.evaluation.dataset import (
     FIXED_TIME,
@@ -140,17 +147,79 @@ def _retrieval_metadata(*, retrieval_failed: bool) -> RetrievalMetadata:
     )
 
 
+def _reserved_ranking(
+    *,
+    envelope: ConstraintEnvelope,
+    records: tuple[ExercisePoolExerciseRecord, ...],
+    ranked: tuple[UUID, ...],
+) -> tuple[UUID, ...]:
+    """Reorder a case's ranking the way the shipped snapshot loader reorders it.
+
+    Ranking alone can hand the agents a pool with no cooldown candidate in it,
+    so production reserves a few candidates per phase and role before spending
+    the rest on rank (`QdrantExercisePoolSnapshotLoader._selected_ids`). This
+    harness declares each case's eligible set directly and used to skip that
+    step, which made the deterministic fallback fail on pool shapes production
+    never produces: D-2 was reported as a service defect on that basis and had
+    to be retracted (`docs/test/TEST_RESULTS.md` 12절).
+
+    The selection is production's own function rather than a copy of it. Only
+    the ordering changes here: `pool.exercises` is stored in canonical UUID
+    order either way, so the projection the agents are shown is byte-identical
+    and token counts are unaffected. What changes is the order the deterministic
+    fallback reads.
+    """
+
+    request = ExerciseRetrievalRequest(
+        catalog_version=catalog.CATALOG_VERSION,
+        constraint_envelope_hash=envelope.envelope_hash,
+        eligible_exercise_ids=tuple(sorted((item.exercise_id for item in records), key=str)),
+        mandatory_exercise_ids=envelope.mandatory_exercise_ids,
+        normalized_query_codes=(envelope.primary_goal_code,),
+        retrieval_mode=RetrievalModeCode.VECTOR_RANKED,
+        requested_limit=pool_size_for_duration(
+            requested_duration_minutes=envelope.requested_duration_minutes,
+            exercises=records,
+        ),
+    )
+    result = ExerciseRetrievalResult(
+        ranked_exercise_ids=ranked,
+        # Scores carry no information here; the selection reads order only.
+        similarity_scores=tuple(
+            round(1.0 - index / (len(ranked) + 1), 6) for index in range(len(ranked))
+        ),
+        collection_name="eval-exercise-catalog-v1",
+        vector_index_version="eval-vector-index-v1",
+        embedding_model_version="eval-embedding-v1",
+        query_hash=QUERY_HASH,
+        retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+        fallback_used=False,
+    )
+    carried = {item.exercise_id for item in records}
+    selected = QdrantExercisePoolSnapshotLoader._selected_ids(request, result, records)
+    # A snapshot may only name ranked exercises it actually carries.
+    return tuple(item for item in selected if item in carried)
+
+
 def build_pool(case: EvaluationCase, envelope: ConstraintEnvelope) -> ExercisePoolSnapshot:
     """Build the pool snapshot the agents receive.
 
     Eligibility comes from the case, mirroring production where PostgreSQL owns
     it; the vector ranking only reorders what is already eligible
-    (`qdrant/snapshot_loader.py`).
+    (`qdrant/snapshot_loader.py`), through the phase and role reservation that
+    `_reserved_ranking` applies.
     """
 
     records = catalog.records_for(case.pool.exercise_codes)
     retrieval_failed = case.pool.retrieval_failed
-    ranked = () if retrieval_failed else catalog.ids_for(case.pool.vector_ranked_exercise_codes)
+    declared = catalog.ids_for(case.pool.vector_ranked_exercise_codes)
+    ranked: tuple[UUID, ...] = ()
+    # A case that declares no ranking is not a successful vector retrieval: the
+    # contract refuses that combination, and production reaches the same state
+    # through `deterministic_retrieval_fallback`, which stores no ranking on the
+    # snapshot either. Only a declared ranking is reordered.
+    if not retrieval_failed and declared:
+        ranked = _reserved_ranking(envelope=envelope, records=records, ranked=declared)
     try:
         return ExercisePoolSnapshot.create(
             catalog_version=catalog.CATALOG_VERSION,

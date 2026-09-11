@@ -27,7 +27,7 @@ from backend.tests.evaluation.production_catalog import (
     coverage,
     load_production_records,
 )
-from backend.tests.evaluation.scenario import build_envelope
+from backend.tests.evaluation.scenario import build_envelope, build_scenario
 
 CASES = planning_cases(GRAPH_CASES)
 SLICES = 5
@@ -107,6 +107,45 @@ def test_compose_pool_reserves_every_phase(
 
     for phase in ("WARMUP", "MAIN", "COOLDOWN"):
         assert any(phase in item.phase_codes for item in window), phase
+
+
+# -- the harness now composes its own pools the production way -----------
+
+
+def test_a_declared_ranking_is_reordered_to_reserve_every_phase() -> None:
+    """D-2 follow-up: the harness no longer hands the fallback a MAIN-only order.
+
+    A case may declare a short ranking of main work, which is what production
+    would receive from Qdrant. Production then reserves candidates per phase
+    before spending the rest on rank; the harness used to skip that, so the
+    deterministic fallback read an order with no warmup or cooldown in front of
+    it and failed on a pool shape production never produces.
+    """
+
+    ranked_cases = [case for case in CASES if case.pool.vector_ranked_exercise_codes]
+    assert ranked_cases, "no case declares a ranking, so this property is untested"
+
+    for case in ranked_cases:
+        pool = build_scenario(case).exercise_pool
+        by_id = {item.exercise_id: item for item in pool.exercises}
+        leading = [by_id[item] for item in pool.vector_ranked_exercise_ids[:12]]
+        for phase in ("WARMUP", "MAIN", "COOLDOWN"):
+            assert any(phase in item.phase_codes for item in leading), (
+                f"{case.case_id} leads with no {phase} candidate"
+            )
+
+
+def test_a_case_without_a_ranking_still_stores_none() -> None:
+    """Production stores no ranking when retrieval did not rank; so does this.
+
+    Inventing an order here would be the harness asserting a retrieval result
+    the case never described.
+    """
+
+    unranked = [case for case in CASES if not case.pool.vector_ranked_exercise_codes]
+    assert unranked
+    for case in unranked:
+        assert build_scenario(case).exercise_pool.vector_ranked_exercise_ids == ()
 
 
 # -- both sides of the comparison are real ------------------------------
