@@ -45,7 +45,16 @@ DEFAULT_PROJECT: Final = "helkki-service-quality"
 # Experiment names the master specification asks for, so runs stay comparable.
 EXPERIMENT_MULTI_AGENT: Final = "multi-agent-v1"
 EXPERIMENT_SINGLE_AGENT: Final = "baseline-single-agent-v1"
+EXPERIMENT_SINGLE_LLM: Final = "baseline-single-llm-v1"
 EXPERIMENT_SCRIPTED: Final = "multi-agent-scripted-offline-v1"
+
+# PHASE 6 traces each architecture under its own experiment name so one run can
+# be told from another in the project without reading the metadata.
+EXPERIMENT_BY_ARCHITECTURE: Final[dict[str, str]] = {
+    "SINGLE_LLM": EXPERIMENT_SINGLE_LLM,
+    "SINGLE_AGENT_RAG": EXPERIMENT_SINGLE_AGENT,
+    "MULTI_AGENT": EXPERIMENT_MULTI_AGENT,
+}
 
 # Measured, not assumed: `_probe_traced_runs` in the tests asserts this list.
 EXPECTED_TRACED_NODES: Final[tuple[str, ...]] = (
@@ -188,9 +197,11 @@ def record_runs() -> Iterator[RunRecorder]:
 __all__ = [
     "DEFAULT_PROJECT",
     "EXPECTED_TRACED_NODES",
+    "EXPERIMENT_BY_ARCHITECTURE",
     "EXPERIMENT_MULTI_AGENT",
     "EXPERIMENT_SCRIPTED",
     "EXPERIMENT_SINGLE_AGENT",
+    "EXPERIMENT_SINGLE_LLM",
     "LANGSMITH_API_KEY_ENV",
     "LANGSMITH_ENDPOINT_ENV",
     "LANGSMITH_PROJECT_ENV",

@@ -1,6 +1,6 @@
 # Service quality evaluation harness
 
-배포 전 서비스 품질 평가(`docs/test/service_test_master_prompt.md`)의 PHASE 0~2
+배포 전 서비스 품질 평가(`docs/test/service_test_master_prompt.md`)의 PHASE 0~6
 구현이다. 계획은 `docs/test/TEST_PLAN.md`, 구조 분석은
 `docs/test/TEST_SYSTEM_ANALYSIS.md`를 따른다.
 
@@ -35,7 +35,11 @@ EvaluationCase (JSON)
 | `planner.py` | 스크립트 모델이 쓰는 결정적 plan 구성기 |
 | `runners/fake_chat.py` | 스크립트 provider (`ScriptCode` 12종) |
 | `runners/payloads.py` | 역할별 응답 본문 생성 |
-| `runners/run_multi_agent.py` | 실제 그래프 실행 |
+| `runners/run_multi_agent.py` | 실제 그래프 실행 (아키텍처 C) |
+| `runners/single_agent.py` | PHASE 6 baseline (아키텍처 A·B). 1회 호출 + 동일 gate |
+| `architectures.py` | 비교 대상 3종과, baseline에 물을 수 없는 지표 목록 |
+| `comparison.py` | PHASE 6 집계. runner가 아니라 공통 산출물에서만 계산 |
+| `comparison_cli.py` | A/B/C 실행 + 비교표 산출 |
 | `evaluators/` | safety · constraint · structure · failure |
 | `harness.py` | 테스트 공용 동기 진입점 |
 | `report_cli.py` | `results/` 산출물 재생성 |
@@ -48,7 +52,20 @@ uv run pytest backend/tests/evaluation -q
 
 # 결과 산출물 재생성 (비용 0)
 uv run python -m backend.tests.evaluation.report_cli
+
+# PHASE 6 A/B/C 비교 — 호출량 예측만, 비용 0
+uv run python -m backend.tests.evaluation.comparison_cli --dry-run
+
+# PHASE 6 배관 점검 — 세 아키텍처 전부 스크립트 모델로, 비용 0
+uv run python -m backend.tests.evaluation.comparison_cli --offline
+
+# PHASE 6 실행 (유료). 절차는 docs/test/PAID_EVALUATION.md
+uv run python -m backend.tests.evaluation.comparison_cli --confirm-spend --repeats 2
 ```
+
+`--offline` 실행에서 A·B·C가 **같은 계획**을 내는지 확인하는 것이 배관 점검이다.
+같은 스크립트 응답을 세 경로에 넣었는데 결과가 다르면, 이후 유료 실행에서 나오는
+차이는 아키텍처가 아니라 harness를 측정한 것이 된다.
 
 ## 재현성
 
@@ -58,6 +75,21 @@ uv run python -m backend.tests.evaluation.report_cli
 - envelope/pool: canonical SHA-256 자기 검증
 
 동일 입력이면 `plan_hash`까지 동일하다(`test_repeated_runs_of_one_case_agree`).
+
+## PHASE 6 공정성
+
+baseline을 약하게 만들면 실험이 무의미해진다. `test_comparison.py`가 다음을
+코드로 고정한다.
+
+- baseline 지시문은 배포 중인 `ROLE_PROMPTS`에서 조립한다. 제거한 문장은
+  `_DROPPED_CLAUSES`에 사유와 함께 남기고, 테스트가 그 문장이 실제로 배포
+  프롬프트에 있었는지와 계획 규칙이 함께 사라지지 않았는지를 검증한다.
+- Output Schema는 `PlanSpec`에서 multi-agent 전용 2개 필드만 뺀 것이다.
+  이 집합이 커지면 테스트가 깨진다.
+- A는 B가 보는 pool의 **진부분집합**만 본다.
+- 세 아키텍처 모두 동일한 compiler·integrity validator·fallback을 통과한다.
+- baseline에 물을 수 없는 지표(`agent_role_consistency`, `state_consistency`)는
+  1.0이 아니라 **n/a**로 보고한다. 없는 질문에 만점을 주면 무승부가 조작된다.
 
 ## 이 harness가 하지 않는 것
 

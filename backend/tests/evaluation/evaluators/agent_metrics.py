@@ -9,6 +9,10 @@ One metric is deliberately *not* pass/fail.  Recovery and Feasibility answer wit
 advisory `adjustment_codes` that carry no deterministic enforcement (ADR-0015),
 so "did the coordinator follow Recovery?" is recorded as an observation.  Scoring
 it would be testing a requirement the design does not make.
+
+PHASE 6 reuses this module for the single-agent baselines, which is why two of
+the seven metrics return None rather than a number for them: `architectures.py`
+explains why a vacuous 1.0 would be worse than an honest absence.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
     SpecialistAgentTypeCode,
 )
+from backend.tests.evaluation.architectures import is_multi_agent
 from backend.tests.evaluation.runners.run_multi_agent import CaseRunResult
 
 SPECIALIST_ROLE_CODES: Final[tuple[str, ...]] = tuple(role.value for role in SPECIALIST_AGENT_ORDER)
@@ -43,6 +48,7 @@ class RunMetrics:
     case_id: str
     category: str
     status_code: str
+    architecture_code: str
 
     invoked_roles: frozenset[str]
     expected_roles: frozenset[str]
@@ -72,11 +78,17 @@ def _expected_roles(run: CaseRunResult) -> frozenset[str]:
 
     A blocked safety envelope calls none: `validate_entry` terminates before the
     parallel agents, which is both a cost and a privacy property.
+
+    A PHASE 6 baseline is expected to make exactly one call. Holding it to the
+    multi-agent role set would score it as inaccurate for having the
+    architecture it is there to represent.
     """
 
     envelope = run.scenario.constraint_envelope
     if not envelope.plan_generation_allowed or envelope.safety_required_action_code is not None:
         return frozenset()
+    if not is_multi_agent(run.architecture_code):
+        return frozenset({COORDINATOR_ROLE_CODE})
     roles = set(SPECIALIST_ROLE_CODES)
     # The coordinator only runs when all three specialists returned READY.
     if len(run.graph_result.round_one_proposals) == len(SPECIALIST_ROLE_CODES):
@@ -159,6 +171,7 @@ def collect_run_metrics(run: CaseRunResult) -> RunMetrics:
         case_id=run.case.case_id,
         category=run.case.category.value,
         status_code=run.status_code,
+        architecture_code=run.architecture_code,
         invoked_roles=frozenset(item.role_code for item in run.invocations),
         expected_roles=_expected_roles(run),
         role_separation_held=role_separation_held,
@@ -195,11 +208,32 @@ class AgentMetricsReport:
         return _rate(sum(1 for run in self.runs if run.invocation_accuracy), len(self.runs))
 
     @property
+    def is_multi_agent(self) -> bool:
+        return is_multi_agent(self.architecture_code)
+
+    @property
     def agent_role_consistency(self) -> float | None:
+        """Advisory specialists that refrained from prescribing exercises.
+
+        None for a baseline. There are no advisory specialists to separate from,
+        so the synthesized contract wrapper would score a vacuous 1.0 and read as
+        a tie with the architecture the metric was written for.
+        """
+
+        if not self.is_multi_agent:
+            return None
         return _rate(self._count("role_separation_held"), len(self.runs))
 
     @property
     def state_consistency(self) -> float | None:
+        """Proposals bound to this envelope and pool, and referenced by the plan.
+
+        None for a baseline, for the same reason: the proposals it references are
+        a contract adapter over its own answer, so the check has no subject.
+        """
+
+        if not self.is_multi_agent:
+            return None
         held = sum(
             1 for run in self.runs if run.state_context_held and run.plan_references_proposals
         )
@@ -233,14 +267,25 @@ class AgentMetricsReport:
             1
             for run in applicable
             if run.safety_respected
-            and run.state_context_held
-            and run.plan_references_proposals
             and run.workflow_completed
+            and (
+                # Only a multi-agent run has proposals whose binding can drift
+                # from the plan that references them.
+                not self.is_multi_agent
+                or (run.state_context_held and run.plan_references_proposals)
+            )
         )
         return _rate(correct, len(applicable))
 
     @property
     def advisory_observations(self) -> dict[str, object]:
+        if not self.is_multi_agent:
+            return {
+                "note": (
+                    "Not applicable: this architecture has no advisory "
+                    "specialists. Recorded as absent, never as compliance."
+                )
+            }
         followed = [
             run.coordinator_used_training_plan
             for run in self.runs

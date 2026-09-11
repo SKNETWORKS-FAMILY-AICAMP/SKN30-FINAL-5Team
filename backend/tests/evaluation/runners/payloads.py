@@ -212,4 +212,47 @@ class PayloadBuilder:
         return payload
 
 
-__all__ = ["PayloadBuilder"]
+@dataclass(frozen=True, slots=True)
+class SingleAgentPayloadBuilder:
+    """Answer as a PHASE 6 baseline would, for one case's envelope and pool.
+
+    The scripts are the same ones the multi-agent builder uses, so an offline
+    comparison exercises both architectures against identical faults. Only the
+    envelope of the answer differs: a baseline returns the plan draft directly
+    rather than a proposal and then a coordinated plan.
+    """
+
+    envelope: ConstraintEnvelope
+    pool: ExercisePoolSnapshot
+    action_code: str = "KEEP"
+
+    def build(self, request: ModelRequest, script_code: ScriptCode) -> dict[str, object]:
+        del request
+        inner = PayloadBuilder(envelope=self.envelope, pool=self.pool, action_code=self.action_code)
+        prescriptions = inner._training_prescriptions(script_code)
+        estimated = prescriptions_duration_seconds(
+            tuple(
+                ExercisePrescription.model_validate_json(json.dumps(item)) for item in prescriptions
+            ),
+            self.pool,
+        )
+        payload: dict[str, object] = {
+            "envelope_hash": self.envelope.envelope_hash,
+            "pool_hash": self.pool.pool_hash,
+            "action_code": self.action_code,
+            "requested_duration_minutes": self.envelope.requested_duration_minutes,
+            "estimated_duration_seconds": estimated,
+            "exercise_prescriptions": prescriptions,
+            "decision_codes": ["EVAL_SCRIPTED_SINGLE_AGENT"],
+            "public_summary_code": "EVAL_SUMMARY",
+        }
+        if script_code is ScriptCode.SCHEMA_INVALID:
+            payload["action_code"] = "DEFINITELY_NOT_AN_ACTION"
+        if script_code is ScriptCode.NOT_READY:
+            # A baseline has no status field to refuse with, so the only shape of
+            # "I cannot answer" available to it is an empty plan.
+            payload["exercise_prescriptions"] = []
+        return payload
+
+
+__all__ = ["PayloadBuilder", "SingleAgentPayloadBuilder"]

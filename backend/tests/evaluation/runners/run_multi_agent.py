@@ -42,13 +42,14 @@ from backend.app.integrations.llm_agents.specialists import (
     RecoveryAgentAdapter,
     TrainingAgentAdapter,
 )
+from backend.tests.evaluation.architectures import ARCHITECTURE_MULTI_AGENT
 from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.runners.fake_chat import InvocationLog, Script, ScriptedChatModel
 from backend.tests.evaluation.runners.openai_provider import ProviderContext
 from backend.tests.evaluation.runners.payloads import PayloadBuilder
 from backend.tests.evaluation.scenario import Scenario, build_scenario
 
-ARCHITECTURE_CODE = "MULTI_AGENT"
+ARCHITECTURE_CODE = ARCHITECTURE_MULTI_AGENT
 EVAL_MODEL_CODE = "eval-scripted-model-v1"
 
 # Short so a HANG script resolves quickly. The production default (5.0s) is a

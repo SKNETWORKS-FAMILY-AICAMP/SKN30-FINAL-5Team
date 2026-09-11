@@ -28,19 +28,15 @@
 | 0 | 구조 분석 | 없음 | **완료** |
 | 1 | Evaluation Dataset | 없음 | **완료** (smoke 20건 + retrieval 8건) |
 | 2 | Deterministic Evaluation | 없음 | **완료** (204 run, critical 0) |
-| 3 | Retrieval 평가 | 없음(fake) / 소액(실 임베딩) | **harness 완료.** 실 임베딩 수치 대기 |
-| 4 | Multi-Agent 지표 | 없음(scripted) / 유료(실 LLM) | **harness 완료.** 실호출 대기 |
-| 5 | LLM-as-a-Judge | **유료** | **harness 완료.** 실호출 대기 |
-| 6 | Single vs Multi | **유료** | 미착수 (별도 작업) |
-| 7 | Pairwise Judge | **유료** | 미착수 |
+| 3 | Retrieval 평가 | 없음(fake) / 소액(실 임베딩) | **완료** (실 임베딩, R@3 0.59) |
+| 4 | Multi-Agent 지표 | 없음(scripted) / 유료(실 LLM) | **완료** (14 case, critical 0) |
+| 5 | LLM-as-a-Judge | **유료** | **완료** (12건 채점) |
+| 6 | Single vs Multi | **유료** | **완료** (A/B/C × 14 case × 2회) |
+| 7 | Pairwise Judge | **유료** | 미착수 (PHASE 6 산출물로 실행 가능) |
 | 8 | LangSmith | 없음 | **조사 완료.** 워크플로 trace만 사용 결정 |
-| 9 | Performance / Failure | 없음/유료 | 실패 경로 완료, latency는 실호출 대기 |
+| 9 | Performance / Failure | 없음/유료 | 실패 경로 완료, latency 측정 완료 |
 | 10 | Human Calibration | 없음 | 양식만 |
 | 11 | 결과 산출 | 없음 | 부분 |
-
-**대기 사유**: AWS 세션 만료로 `/helkki/staging/openai-api-key` 접근 불가.
-`aws login` 재인증 후 `docs/test/PAID_EVALUATION.md` 절차대로 실행하면 된다.
-실행 범위는 파일럿 우선(70 호출)으로 결정되었다.
 
 ---
 
@@ -268,22 +264,53 @@ fake chat model은 case별로 다음 시나리오를 스크립트한다:
 - Judge Prompt/Model/버전을 결과에 저장
 - 선행 조건: `OPENAI_API_KEY`, 예산 승인
 
-## PHASE 6. Single vs Multi 비교 (계획, 유료, 별도 작업)
+## PHASE 6. Single vs Multi 비교 — 완료
 
-**별도 작업으로 분리한다**(마스터 명세 권고).
+결과: `docs/test/PHASE6_COMPARISON.md`
+구현: `backend/tests/evaluation/runners/single_agent.py`,
+`backend/tests/evaluation/comparison.py`, `comparison_cli.py`
+공정성 테스트: `backend/tests/evaluation/test_comparison.py`
+
+비교 대상:
+
+| | 아키텍처 | LLM 호출 | pool 정보 |
+|---|---|---|---|
+| A | Single LLM | 1 | 출력 스키마를 채우는 데 필요한 4개 필드만 |
+| B | Single Agent + RAG | 1 | production pool projection 전체 |
+| C | Multi-Agent + RAG | 4 | production pool projection 전체 |
 
 Baseline 공정성 조건 — 이것을 어기면 실험이 무의미해진다:
 
-- Single Agent baseline을 **일부러 약하게 만들지 않는다**
-- 동일: LLM 모델, temperature, 사용자 입력, dataset, 운동 데이터, Vector DB,
-  Embedding, Tool 접근 범위, Output Schema(`PlanSpec`)
-- 하나의 Agent가 Training/Recovery/Safety/Feasibility 판단을 **하나의 Context
-  안에서** 수행
-- **동일한 compiler / integrity validator / evaluator를 통과**시킨다
+- Single Agent baseline을 **일부러 약하게 만들지 않는다.** baseline 지시문은
+  새로 쓰지 않고 배포 중인 `ROLE_PROMPTS` 4개에서 조립한다. 제거한 문장은
+  `_DROPPED_CLAUSES`에 사유와 함께 기록하고, 테스트가 "제거된 문장이 실제 배포
+  프롬프트에 존재하는 문장인지"와 "계획 규칙이 함께 사라지지 않았는지"를 검증한다.
+- 동일: LLM 모델, temperature, timeout, 토큰 상한, 사용자 입력, dataset,
+  운동 데이터, pool, Output Schema
+- 하나의 Agent가 Training/Recovery/Feasibility/Coordination 판단을 **하나의
+  Context 안에서** 수행한다
+- **동일한 compiler / integrity validator / evaluator / fallback을 통과**시킨다
 - 기존 멀티에이전트 서비스를 Single Agent로 영구 수정하지 않는다.
-  `runners/run_single_agent.py`를 별도로 둔다.
+  `runners/single_agent.py`를 별도로 둔다. **서비스 코드 변경 0줄.**
 
-비교 대상: A(Single LLM) / B(Single Agent + RAG/Tools) / C(현재 Multi-Agent)
+공정성을 완전히 만족시키지 못한 지점 2개 — 둘 다 C에 유리하며 보고서에 명시한다:
+
+1. **Output Schema가 완전히 동일하지 않다.** `PlanSpec`은 canonical 순서의
+   proposal_reference 3개를 구조적으로 요구한다. baseline은 자기 출력을
+   TRAINING proposal로 감싸는 contract adapter를 거쳐야 배포 compiler에 들어간다.
+   adapter는 advice를 만들어내지 않는다(advisory 2개는 "특화 에이전트 조언 없음"
+   코드 하나만 싣는다). **이 제약 자체가 PHASE 6의 발견이다.**
+2. **baseline에는 repair 라운드가 없다.** C는 1회 있다. PHASE 4 유료 실행
+   14건 전부 `repair_attempts == 0`이었으므로 실측상 영향은 없었다.
+
+측정 지표는 두 갈래로 분리해 보고한다. 합치면 PHASE 6의 질문이 사라진다:
+
+- `llm_plan_rate` — 모델이 만든 계획이 integrity gate를 통과한 비율. **아키텍처의 성적**
+- `plan_delivery_rate` — 사용자가 계획을 받은 비율(결정적 fallback 포함). **서비스의 성적**
+
+Judge는 **blind**로 실행한다. 아키텍처를 식별시키는 유일한 payload 필드
+(`advisory_codes`)를 양쪽 모두에서 제거한다. 그 대가로 PHASE 6의 judge 점수는
+PHASE 5 수치와 직접 비교할 수 없다.
 
 검증 가설: 단순 케이스에서는 차이가 작고, 복수·상충 조건에서는 Multi-Agent가
 조건 충족률·안전성·일관성에서 우수하다.
@@ -291,6 +318,10 @@ Baseline 공정성 조건 — 이것을 어기면 실험이 무의미해진다:
 **가설에 맞지 않는 결과가 나와도 수정하거나 제외하지 않는다.**
 
 ## PHASE 7. Pairwise Judge (계획, 유료)
+
+선행 조건은 PHASE 6 완료로 충족되었다. blind judge payload
+(`build_judge_payload(..., blind=True)`)를 이미 사용하고 있으므로 pairwise는
+같은 payload 2개를 한 번에 제시하는 형태로 확장하면 된다.
 
 - Judge에게 Single/Multi를 알리지 않는다
 - A/B 위치 randomize, 동일 case를 순서 바꿔 재평가 → Position Bias 측정

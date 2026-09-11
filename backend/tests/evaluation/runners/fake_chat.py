@@ -32,6 +32,23 @@ _ROLE_BY_PROMPT_VERSION: Final[dict[str, LlmAgentRoleCode]] = {
     prompt.version: role for role, prompt in ROLE_PROMPTS.items()
 }
 
+
+def register_prompt_role(prompt_version: str, role_code: LlmAgentRoleCode) -> None:
+    """Teach the scripted model about a prompt the service does not ship.
+
+    The PHASE 6 baselines send their own prompt version through the same
+    provider boundary, so the stand-in has to recognise it to answer at all.
+    Registration is explicit rather than a fallback guess: an unmapped version
+    must still be an error, because silently answering an unknown role is how a
+    scripted test starts passing for the wrong reason.
+    """
+
+    existing = _ROLE_BY_PROMPT_VERSION.get(prompt_version)
+    if existing is not None and existing is not role_code:
+        raise ValueError(f"prompt version already mapped to {existing.value}")
+    _ROLE_BY_PROMPT_VERSION[prompt_version] = role_code
+
+
 # Fixed so token metrics are exercised without pretending to measure a provider.
 FAKE_INPUT_TOKENS: Final = 1200
 FAKE_OUTPUT_TOKENS: Final = 300
@@ -256,4 +273,5 @@ __all__ = [
     "Script",
     "ScriptCode",
     "ScriptedChatModel",
+    "register_prompt_role",
 ]

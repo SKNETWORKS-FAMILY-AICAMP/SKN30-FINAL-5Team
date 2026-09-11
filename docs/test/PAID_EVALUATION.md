@@ -121,11 +121,20 @@ AWS 세션이 만료되면 `aws login`으로 재인증해야 한다. 키 값을 
 
 ### 3.2 LangSmith 키 (선택)
 
-Secrets Manager에 **없다.** 필요하면 별도 발급 후:
+Secrets Manager `/helkki/staging/langsmith`에 있다. **JSON 객체**이며
+`LANGSMITH_API_KEY`, `LANGSMITH_ENDPOINT`, `LANGSMITH_PROJECT`,
+`LANGSMITH_TRACING`을 담고 있다.
+
+주의: 값에 따옴표가 포함되어 저장되어 있다. 그대로 export하면 프로젝트 이름이
+`"helkki"`(따옴표 포함)가 되어 LangSmith에 다른 프로젝트가 생긴다. 꺼내면서
+양끝 따옴표를 제거해야 한다.
 
 ```bash
-export LANGSMITH_API_KEY=...
-export LANGSMITH_PROJECT=helkki-service-quality
+eval "$(aws secretsmanager get-secret-value --region ap-northeast-2   --secret-id '/helkki/staging/langsmith' --query SecretString --output text   | python -c "
+import json,sys,shlex
+for k, v in json.load(sys.stdin).items():
+    print('export %s=%s' % (k, shlex.quote(str(v).strip().strip('\"'))))
+")"
 ```
 
 없어도 평가는 정상 수행된다. 상세는 `docs/test/LANGSMITH_TRACING.md`.
@@ -202,5 +211,18 @@ results/
 - **Judge 모델이 Agent 모델과 같으면 self-preference 편향이 있다.**
   `EVAL_JUDGE_MODEL_CODE`로 분리할 수 있으며, 결과에는 항상 `model_label`이
   기록된다. 보고서에 이 한계를 명시할 것.
-- PHASE 6(Single vs Multi)은 별도 작업이며 이 문서 범위가 아니다.
-  동일 조건 보장 체크리스트는 `docs/test/TEST_PLAN.md` PHASE 6을 따른다.
+- PHASE 6(Single vs Multi)은 별도 CLI로 실행한다. 절차와 안전장치는 동일하다.
+
+  ```bash
+  uv run python -m backend.tests.evaluation.comparison_cli --dry-run   # 예측만
+  uv run python -m backend.tests.evaluation.comparison_cli --offline   # 배관 점검
+  uv run python -m backend.tests.evaluation.comparison_cli --confirm-spend --repeats 2
+  ```
+
+  `--max-calls`는 **세 아키텍처 합계**에 적용되는 단일 예산이며 A→B→C 순서로
+  소진된다. 값을 낮게 잡으면 앞 아키텍처가 예산을 모두 써서 뒤 아키텍처가
+  0회로 남는다(보고서에는 n/a로 나타난다). 14 case × 2회 기준 필요량은
+  graph 168 + judge 42 = **210회**이므로 여유를 두고 260을 쓴다.
+
+  동일 조건 보장 체크리스트는 `docs/test/TEST_PLAN.md` PHASE 6을 따르며,
+  코드로 고정된 항목은 `backend/tests/evaluation/test_comparison.py`에 있다.

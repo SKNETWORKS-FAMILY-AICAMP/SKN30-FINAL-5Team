@@ -126,8 +126,16 @@ class JudgeResult:
         }
 
 
-def build_judge_payload(run: CaseRunResult) -> dict[str, Any]:
-    """Project one run into the identifier-free body the judge is shown."""
+def build_judge_payload(run: CaseRunResult, *, blind: bool = False) -> dict[str, Any]:
+    """Project one run into the identifier-free body the judge is shown.
+
+    `blind` drops `advisory_codes`, which is the one field that tells a judge
+    which architecture produced the plan: only a multi-agent run has separate
+    specialists to advise, so its presence or absence identifies the source.
+    PHASE 6 scores every architecture blind, so the judge is comparing plans
+    rather than recognising pipelines. The cost is that blind scores are not
+    comparable with the PHASE 5 numbers, which were taken unblinded.
+    """
 
     envelope = run.scenario.constraint_envelope
     plan = run.compiled_plan
@@ -172,15 +180,16 @@ def build_judge_payload(run: CaseRunResult) -> dict[str, Any]:
             ],
         },
         "decision_codes": list(run.plan_spec.decision_codes) if run.plan_spec else [],
-        "advisory_codes": sorted(
+        "used_deterministic_fallback": run.used_fallback,
+    }
+    if not blind:
+        payload["advisory_codes"] = sorted(
             {
                 code
                 for proposal in run.graph_result.round_one_proposals
                 for code in proposal.adjustment_codes
             }
-        ),
-        "used_deterministic_fallback": run.used_fallback,
-    }
+        )
     # The same guard the service applies to its own agent payloads. A judge is
     # still an external model, so it gets no wider a view than an agent does.
     assert_private_machine_payload(payload)
@@ -207,6 +216,7 @@ def judge_run(
     model: JudgeModel,
     *,
     evaluation: CaseEvaluation | None = None,
+    blind: bool = False,
 ) -> JudgeResult:
     """Score one run, but only once the deterministic gates have passed it.
 
@@ -237,7 +247,7 @@ def judge_run(
             model_label=model.model_label,
         )
 
-    payload = build_judge_payload(run)
+    payload = build_judge_payload(run, blind=blind)
     output = model.score(system=SYSTEM_INSTRUCTION, payload=payload)
     return JudgeResult(
         case_id=run.case.case_id,
