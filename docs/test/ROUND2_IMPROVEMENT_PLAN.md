@@ -163,6 +163,18 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
   - **실행 간 변동이 크다**: B의 conflict plan rate가 0.800 → 0.400으로 뒤집혔다. category별
     n이 3~9라 1건이 0.11~0.33을 움직이므로 단일 실행으로는 판정할 수 없다. 두 실행 합산
     (58 run)은 B 0.879 대 C 0.741, conflict는 0.600 동률, complex는 0.944 대 0.667
+- **Training READY 조사 및 plan rate 분해 완료(2026-09-11)**: 9~10절.
+  - payload 가설 기각: `specialist_payload`는 TRAINING에만 전체 pool을 준다(R2-2 대상 아님)
+  - 프롬프트 조건도 객관적으로 성립하지 않음: 실패 case 전부 WARMUP/MAIN/COOLDOWN 후보,
+    CORE, 승인 volume을 보유. 구조가 동일한 4개 case 중 1개만 실패 → 거절은 확률적
+  - **원인은 출력 계약 비대칭**: `SingleAgentPlanDraft`에는 상태 필드가 없고 처방이 최소 1개
+    필수라 baseline은 거절할 수 없다. `llm_plan_rate`는 "거절 수단 유무"를 함께 재고 있었다
+  - **(c)안 채택**: 사전 등록 기준·값은 그대로 두고 `outcomes.py`로 분해해 병기
+  - 분해 결과(2회차): 아키텍처 대칭 지표인 게이트 거부율은 **C 0.0345 대 B 0.1379**.
+    계획을 시도한 run만 보면 C 0.0455 대 B 0.1379 — **C가 낸 계획이 게이트를 더 잘 통과한다**
+  - **판정은 불변**: 미달 항목의 해석만 바뀐다
+- **D-7 수정**: 실패·거절 분기가 telemetry를 버려 과금된 호출이 0 토큰으로 집계됐다.
+  Multi-Agent 토큰이 run당 약 12% 과소 보고됐고, 보정하면 비용 비교는 C에게 더 불리하다
 - 다음 게이트: 독립 blind Human 평가(5절 6단계), Judge calibration(7단계) — 둘 다 사람 필요
 
 ### 하네스 한계 (held-out 해석 시 유의)

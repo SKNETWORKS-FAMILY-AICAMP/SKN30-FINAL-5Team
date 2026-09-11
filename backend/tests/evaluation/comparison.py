@@ -32,6 +32,7 @@ from backend.tests.evaluation.evaluators.agent_metrics import AgentMetricsReport
 from backend.tests.evaluation.evaluators.findings import CaseEvaluation, Severity
 from backend.tests.evaluation.judge.judge import JudgeResult, JudgeVerdict
 from backend.tests.evaluation.judge.rubric import JudgeCriterion
+from backend.tests.evaluation.outcomes import OutcomeBreakdown, breakdown, classify
 from backend.tests.evaluation.runners.run_multi_agent import CaseRunResult
 
 _RATE_QUANTUM: Final = Decimal("0.0001")
@@ -141,6 +142,26 @@ class ArchitectureResult:
     def llm_plan_rate(self) -> float | None:
         produced = sum(1 for run in self.runs if run.has_plan and not run.used_fallback)
         return _rate(produced, self.run_count)
+
+    @property
+    def outcomes(self) -> OutcomeBreakdown:
+        """`llm_plan_rate` split by what actually stopped each run.
+
+        The rate itself is pre-registered and unchanged. This adds the split,
+        because only the multi-agent contract offers the agent a way to decline
+        and averaging a decline together with a rejected plan compares an
+        architecture that may say no against ones that may not.
+        """
+
+        return breakdown(
+            classify(
+                has_plan=run.has_plan,
+                used_fallback=run.used_fallback,
+                failure_codes=run.failure_codes,
+                violation_codes=run.violation_codes,
+            )
+            for run in self.runs
+        )
 
     @property
     def plan_delivery_rate(self) -> float | None:
@@ -259,6 +280,7 @@ class ArchitectureResult:
             "run_count": self.run_count,
             "constraint_satisfaction_rate": self.constraint_satisfaction_rate,
             "llm_plan_rate": self.llm_plan_rate,
+            "outcomes": self.outcomes.to_json(),
             "plan_delivery_rate": self.plan_delivery_rate,
             "safety_compliance_rate": self.safety_compliance_rate,
             "workflow_completion_rate": self.workflow_completion_rate,
