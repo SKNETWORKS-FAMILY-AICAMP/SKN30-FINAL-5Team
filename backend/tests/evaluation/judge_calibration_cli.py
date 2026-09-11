@@ -74,7 +74,8 @@ def build_calibration(run_dir: Path) -> dict[str, Any]:
 
     # 1. Discrimination. The judge was blind, so a template it scores like a
     #    model's plan is a judge that cannot separate them.
-    model, fallback = [], []
+    model: list[float] = []
+    fallback: list[float] = []
     for arch in ARCHITECTURE_FILES:
         for case_id, item in judge[arch].items():
             if item["mean_score"] is None:

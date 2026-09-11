@@ -114,5 +114,7 @@ def test_an_architecture_that_cannot_decline_reports_a_zero_decline_rate() -> No
 def test_the_json_names_the_asymmetry_it_exists_to_expose() -> None:
     payload = breakdown([OutcomeClass.PLAN]).to_json()
 
+    counts = payload["counts"]
+    assert isinstance(counts, dict)
     assert "multi-agent" in str(payload["note"])
-    assert set(payload["counts"]) == {item.value for item in OutcomeClass}
+    assert set(counts) == {item.value for item in OutcomeClass}
