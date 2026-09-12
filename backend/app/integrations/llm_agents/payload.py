@@ -9,7 +9,11 @@ from typing import Final
 from pydantic import BaseModel
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
-from backend.app.domain.agents.v3_contracts import CoordinatorInput, SpecialistAgentInput
+from backend.app.domain.agents.v3_contracts import (
+    CoordinatorInput,
+    SpecialistAgentInput,
+    TrainingPlanFeasibilityCode,
+)
 from backend.app.domain.rules.safety import BodyAreaCode
 
 _MACHINE_VALUE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$")
@@ -116,6 +120,9 @@ _POOL_EXERCISE_FIELDS: Final = (
     "training_type_code",
     "body_focus_code",
     "movement_pattern_codes",
+    # Near-identical catalog variants share a family. Training needs this to
+    # avoid padding its draft with several names for the same movement.
+    "family_code",
     "difficulty_code",
     "timing_mode_code",
     # Agents cannot fit a plan to the requested duration without the approved
@@ -139,6 +146,30 @@ _POOL_EXERCISE_FIELDS: Final = (
     "equipment_codes",
     "location_codes",
     "prescription_reference_codes",
+)
+_FEASIBILITY_POOL_EXERCISE_FIELDS: Final = (
+    "exercise_id",
+    "timing_mode_code",
+    "default_seconds_per_rep",
+    "default_work_seconds",
+    "default_rest_seconds",
+    "default_transition_seconds",
+    "phase_codes",
+    "role_eligibility_code",
+    "equipment_codes",
+    "location_codes",
+)
+_COORDINATOR_POOL_EXERCISE_FIELDS: Final = (
+    "exercise_id",
+    # Required to interpret and repair PLAN_EXERCISE_FAMILY_REPEATED.
+    "family_code",
+    "timing_mode_code",
+    "default_seconds_per_rep",
+    "default_work_seconds",
+    "default_rest_seconds",
+    "default_transition_seconds",
+    "fitt_context",
+    "phase_codes",
 )
 
 
@@ -260,7 +291,52 @@ def project_exercise_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
     return projected
 
 
-def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
+def _project_pool_identity(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    projected: dict[str, object] = {
+        "schema_version": pool.schema_version,
+        "catalog_version": pool.catalog_version,
+        "constraint_envelope_hash": pool.constraint_envelope_hash,
+        "pool_hash": pool.pool_hash,
+        "exercise_id_allowlist": [str(exercise.exercise_id) for exercise in pool.exercises],
+        "mandatory_exercise_ids": [str(value) for value in pool.mandatory_exercise_ids],
+    }
+    assert_private_machine_payload(projected)
+    return projected
+
+
+def _project_feasibility_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    projected = _project_pool_identity(pool)
+    projected["exercises"] = [
+        project_contract(exercise, field_allowlist=_FEASIBILITY_POOL_EXERCISE_FIELDS)
+        for exercise in pool.exercises
+    ]
+    assert_private_machine_payload(projected)
+    return projected
+
+
+def _project_coordinator_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
+    """Keep only fields needed to copy, time, and repair Training's draft."""
+
+    projected = _project_pool_identity(pool)
+    projected["exercises"] = [
+        project_contract(exercise, field_allowlist=_COORDINATOR_POOL_EXERCISE_FIELDS)
+        for exercise in pool.exercises
+    ]
+    assert_private_machine_payload(projected)
+    return projected
+
+
+def specialist_payload(
+    agent_input: SpecialistAgentInput,
+    *,
+    training_plan_feasibility_code: TrainingPlanFeasibilityCode | None = None,
+) -> dict[str, object]:
+    if agent_input.agent_type_code.value == "TRAINING":
+        pool_payload = project_exercise_pool(agent_input.exercise_pool)
+    elif agent_input.agent_type_code.value == "RECOVERY":
+        pool_payload = _project_pool_identity(agent_input.exercise_pool)
+    else:
+        pool_payload = _project_feasibility_pool(agent_input.exercise_pool)
     projected: dict[str, object] = {
         "schema_version": agent_input.schema_version,
         "agent_type_code": agent_input.agent_type_code.value,
@@ -270,8 +346,14 @@ def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
             agent_input.constraint_envelope,
             field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS,
         ),
-        "exercise_pool": project_exercise_pool(agent_input.exercise_pool),
+        "exercise_pool": pool_payload,
     }
+    if agent_input.agent_type_code.value == "TRAINING":
+        projected["training_plan_feasibility_code"] = (
+            training_plan_feasibility_code or TrainingPlanFeasibilityCode.UNPROVEN
+        ).value
+    elif training_plan_feasibility_code is not None:
+        raise ValueError("training feasibility evidence is valid only for TRAINING")
     if agent_input.regeneration_context is not None:
         projected["regeneration_context"] = project_contract(
             agent_input.regeneration_context,
@@ -291,7 +373,7 @@ def coordinator_payload(coordinator_input: CoordinatorInput) -> dict[str, object
             coordinator_input.constraint_envelope,
             field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS,
         ),
-        "exercise_pool": project_exercise_pool(coordinator_input.exercise_pool),
+        "exercise_pool": _project_coordinator_pool(coordinator_input.exercise_pool),
         "specialist_proposals": [
             project_contract(proposal, field_allowlist=_SPECIALIST_PROPOSAL_FIELDS)
             for proposal in coordinator_input.proposals

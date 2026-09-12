@@ -1,0 +1,788 @@
+{
+  "blind": true,
+  "scores": [
+    {
+      "case_id": "SQ-HELD-001",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 허용 강도 범위가 일관된다.",
+        "EXPLANATION_QUALITY": "장소·시간·체중부하·회복 한도 적용 코드가 제시되지만 운동별 선택 이유는 제한적이다.",
+        "FEASIBILITY": "짧은 세트와 충분한 휴식, 단계적 구성으로 대체로 현실적이나 점프 동작이 포함된다.",
+        "GROUNDEDNESS": "계획 내 운동과 수치는 제시됐으나 승인 후보 목록이 없어 출처 범위를 직접 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건을 잘 반영한 홈 기반 일반 체력 계획이지만 일부 운동 선택의 근거는 더 명확할 수 있다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청, 일반 체력 목표와 저강도·중강도 회복 한도를 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-002",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저·중강도 배분이 결정 코드 및 계획 내에서 일관된다.",
+        "EXPLANATION_QUALITY": "목표·장소·시간·회복 강도 관련 결정 코드는 있으나 운동별 선택 이유는 직접 제시되지 않는다.",
+        "FEASIBILITY": "저강도 준비·마무리와 중강도 본운동, 30~60초 휴식이 포함되어 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "제공된 결정 코드와 계획 값은 일치하지만 승인 후보 목록은 제공되지 않았다.",
+        "OVERALL_QUALITY": "요청 시간과 홈 환경에 맞추면서 허용된 저·중강도 범위로 구성된 완결된 계획이다.",
+        "PERSONALIZATION": "일반 체력 목표, 홈 장소, 30분 요청, 허용 강도와 휴식 조건이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-003",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도-중강도-저강도 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "회복 하향 조정, 일반 체력, 시간 충족 결정 코드가 계획 선택의 근거를 비교적 명확히 보여준다.",
+        "FEASIBILITY": "저강도 준비·마무리와 중강도 유산소 및 휴식 구성이 대체로 현실적이나 8세트의 세부 수행 단위는 드러나지 않는다.",
+        "GROUNDEDNESS": "제공된 데이터에는 승인 후보 목록이 없어 각 운동과 세트 수의 후보 기반 여부를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건과 회복 제한을 잘 반영한 간결한 계획이나 본운동 세트의 수행 단위 설명은 보완될 수 있다.",
+        "PERSONALIZATION": "일반 체력 목표, 헬스장 조건, 20분 요청 시간과 회복 강도 제한을 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-004",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 3.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "저강도 준비운동-중강도 본운동-저강도 마무리 순서와 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "시간·목표·회복 조정 관련 결정 코드는 있으나 개별 운동 선택과의 연결 설명은 제한적이다.",
+        "FEASIBILITY": "준비·마무리와 휴식은 갖췄으나 유산소 운동의 세트별 수행 시간이 제시되지 않아 실제 볼륨이 불명확하다.",
+        "GROUNDEDNESS": "제공된 계획 필드는 일관되지만 승인 후보 목록이 없어 모든 운동과 세부 수치의 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건과 회복 상한을 충족하는 구조이나 유산소 세트별 수행 기준을 보완할 여지가 있다.",
+        "PERSONALIZATION": "일반 체력 목표, 체육관 장소, 45분 요청과 LOW·MODERATE 회복 상한이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-005",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 모든 운동의 낮은 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드와 운동 선택·시간 조정의 근거 설명이 제공되지 않았다.",
+        "FEASIBILITY": "낮은 강도, 1~2세트 구성, 30~60초 휴식과 단계적 순서는 대체로 수행 가능하다.",
+        "GROUNDEDNESS": "구조화된 운동과 수치는 제시됐지만 승인 후보 목록이 없어 출처 범위를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "홈에서 수행할 수 있는 일관된 저강도 구성이나 근거 설명과 요청 시간 정합성의 개선 여지가 있다.",
+        "PERSONALIZATION": "홈 장소와 낮은 강도 제한은 반영했으나 일반 체력 목표와 10분 요청에 대한 구체적 연결은 제한적이다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-006",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 구조와 홈 운동 조건은 일관되나 다운시프트에 중간 강도 런지가 포함된다.",
+        "EXPLANATION_QUALITY": "시간 충족, 홈 장소, 일반 체력 및 회복 조정 결정 코드가 계획 선택의 근거를 보여 준다.",
+        "FEASIBILITY": "낮거나 중간 강도와 충분한 휴식, 단계적 순서로 구성되어 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "제공된 데이터 내 코드와 범위에는 맞지만 승인 후보 목록이 없어 각 운동의 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건과 회복 조정을 대체로 충실히 반영한 홈 기반 운동 계획이다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 요청 시간 및 회복 강도 범위가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-007",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.6667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도·보통 강도 배분이 전반적으로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 목표와 회복 조정을 보여주지만 각 운동 선택의 직접적 이유는 제한적이다.",
+        "FEASIBILITY": "저강도 준비·마무리와 보통 강도 본운동, 30초 휴식이 포함되어 대체로 수행 가능하다.",
+        "GROUNDEDNESS": "제공된 데이터에는 승인 후보 목록이 없어 모든 운동과 세부 수치의 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 시간과 강도 제한을 충족하는 간결하고 구조화된 일반 체력 계획이다.",
+        "PERSONALIZATION": "일반 체력 목표, 체육관 환경, 15분 요청 시간과 회복 강도 제한이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-008",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 LOW·MODERATE 강도 제한이 일관된다.",
+        "EXPLANATION_QUALITY": "계획 선택과 조정 이유를 사용자 조건에 연결한 설명이 제공되지 않았다.",
+        "FEASIBILITY": "저강도 준비·마무리와 운동 간 180초 휴식으로 구성되어 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "제공된 데이터에 승인 후보 목록이 없어 운동 및 수치의 후보 근거를 확인할 수 없다.",
+        "OVERALL_QUALITY": "조건은 대체로 반영됐으나 시간 불일치와 선택 근거 부재로 개선 여지가 있다.",
+        "PERSONALIZATION": "홈 환경·일반 체력 목표와 허용 강도는 반영됐지만 예상 시간이 요청 25분보다 짧다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-009",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.3333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전반적인 저강도 구성이 대체로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드와 운동 코드가 있으나 각 운동 선택 및 시간 배분의 이유는 명시되지 않았다.",
+        "FEASIBILITY": "저강도와 충분한 휴식은 현실적이나 점프 운동의 반복 기준이 없어 수행량이 불명확하다.",
+        "GROUNDEDNESS": "제공된 구조화 계획 범위에서는 일관되지만 승인 후보 목록이 없어 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 제한을 대체로 반영했지만 점프 운동의 수행량과 계획 시간 구성은 더 명확할 필요가 있다.",
+        "PERSONALIZATION": "홈 장소, 저강도·2세트·10회 제한과 20분 요청 및 일반 체력 목표를 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-010",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.6667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 모든 운동의 저강도 설정이 일관된다.",
+        "EXPLANATION_QUALITY": "시간·목표·강도 관련 결정 코드는 있으나 개별 운동 선택의 연결 근거는 제한적이다.",
+        "FEASIBILITY": "저강도·2세트·60초 휴식 구성은 현실적이나 점프와 런지가 초보자에게 다소 부담스러울 수 있다.",
+        "GROUNDEDNESS": "제공된 계획 수치와 코드는 일관되지만 승인 후보 목록이 없어 후보 내 근거 여부는 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 조건에 맞춘 균형 있는 저강도 홈 운동 계획이나 일부 본운동의 난이도 조정 여지는 있다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 20분 요청과 저강도 회복 한도를 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-011",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.3333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비-본운동-마무리 구성은 갖췄으나 다운시프트 계획에 중강도 점프가 다소 어긋난다.",
+        "EXPLANATION_QUALITY": "결정 코드가 목표, 장소, 시간 및 회복 조정 근거를 명확히 제시한다.",
+        "FEASIBILITY": "세트·반복·휴식은 제한 범위이나 점프 동작이 일부 사용자에게 부담스러울 수 있다.",
+        "GROUNDEDNESS": "제한 범위 준수는 확인되지만 승인 후보 목록이 제공되지 않아 각 운동의 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "조건을 대체로 충족하지만 다운시프트 목적에 맞춘 본운동 강도 조정 여지가 있다.",
+        "PERSONALIZATION": "일반 체력 목표, 홈 환경, 요청 시간 및 회복 제한을 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 3,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-012",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 3.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전 구간 LOW 강도는 일관되지만 준비운동의 구성은 다소 제한적이다.",
+        "EXPLANATION_QUALITY": "DURATION_TARGET_MET와 RECOVERY_DOWNSHIFT 코드가 방향을 제시하지만 운동별 선택 이유는 명확히 연결되지 않는다.",
+        "FEASIBILITY": "전반적으로 낮은 강도와 짧은 세트, 충분한 휴식으로 구성되었으나 유산소 구간의 수행량이 구체적이지 않다.",
+        "GROUNDEDNESS": "제공된 계획 데이터에는 운동과 수치가 명시되어 있으나 승인 후보 목록은 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 시간과 회복 제한을 충족하는 실용적인 홈 운동 계획이나 유산소 수행 기준의 보완 여지가 있다.",
+        "PERSONALIZATION": "홈 환경, 20분 요청, LOW 강도·2세트·8회·90초 휴식 제한과 회복 조정 코드가 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-013",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도 구성이 전반적으로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드 외에 운동 선택과 조정 이유를 연결한 설명이 없다.",
+        "FEASIBILITY": "저강도와 휴식은 현실적이나 유산소 운동의 반복 기준이 제시되지 않았다.",
+        "GROUNDEDNESS": "제공된 데이터에 승인 후보 목록이 없어 각 운동과 수치의 후보 근거를 확인할 수 없다.",
+        "OVERALL_QUALITY": "조건 반영과 구성은 대체로 적절하지만 수행 기준과 선택 근거가 부족하다.",
+        "PERSONALIZATION": "홈 장소, 저강도 제한, 20분 요청과 일반 체력 목표가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-014",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 강도 배분은 일관되지만 동일 점프 운동이 두 구간으로 반복된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 목표, 장소, 시간, 회복 한도 적용을 명시하지만 개별 운동 선택 이유는 제한적이다.",
+        "FEASIBILITY": "저강도 준비·마무리와 60초 휴식이 포함되어 있으나 중강도 점프 구간이 반복된다.",
+        "GROUNDEDNESS": "제공된 계획과 결정 코드는 일치하지만 승인 후보 목록이 없어 모든 운동의 후보 근거는 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건에 맞는 홈 기반 일반 체력 계획이나 반복 점프 구성은 개선 여지가 있다.",
+        "PERSONALIZATION": "일반 체력 목표, 홈 장소, 30분 요청 시간과 저강도·중강도 회복 한도가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-015",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비-본운동-마무리 흐름은 갖췄지만 다운시프트 계획에 7세트 점프가 다소 어긋난다.",
+        "EXPLANATION_QUALITY": "목표·준비 상태·회복 상한 관련 결정 코드는 있으나 세부 운동량 조정 이유는 제한적이다.",
+        "FEASIBILITY": "저강도 준비·마무리와 휴식은 현실적이나 7세트 점프 구간은 부담이 될 수 있다.",
+        "GROUNDEDNESS": "제공된 계획 수치와 운동은 구조화되어 있으나 승인 후보 목록은 제시되지 않았다.",
+        "OVERALL_QUALITY": "기본 조건은 잘 반영했으나 점프 운동의 높은 세트 수는 개선 여지가 있다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 20분 요청과 회복 강도 상한이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 3,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-016",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 강도 배분이 일관되게 구성됐다.",
+        "EXPLANATION_QUALITY": "시간 허용 범위와 회복 상한 적용 코드는 있으나 운동 선택별 근거 연결은 제한적이다.",
+        "FEASIBILITY": "저·중강도 구성과 충분한 휴식은 현실적이나 유산소 8세트의 세부 수행량은 명확하지 않다.",
+        "GROUNDEDNESS": "구조화된 계획과 제약 준수 코드는 있으나 승인 후보 목록은 제공되지 않았다.",
+        "OVERALL_QUALITY": "요청 시간과 제약을 충족한 균형 잡힌 구성이나 유산소 세트의 구체성은 개선 여지가 있다.",
+        "PERSONALIZATION": "GYM 장소, 30분 요청, 일반 체력 목표와 LOW·MODERATE 회복 상한을 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-017",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.3333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도·중강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "READY 코드와 계획 수치만 있고 목표 및 시간 조정의 이유가 명확히 연결되지 않는다.",
+        "FEASIBILITY": "저강도 준비·마무리와 충분한 휴식이 포함되어 전반적으로 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "제공된 데이터에는 승인 후보 목록이 없어 운동과 반복 수치의 후보 근거를 확인할 수 없다.",
+        "OVERALL_QUALITY": "홈 일반 체력 목적에 대체로 적합하지만 요청 시간과의 차이가 뚜렷하다.",
+        "PERSONALIZATION": "홈 환경과 허용 강도는 반영했으나 20분 요청 대비 예상 시간이 907초로 짧다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 2,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-018",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-중강도 본운동-마무리 순서와 강도 배분이 일관되며 서로 충돌하지 않는다.",
+        "EXPLANATION_QUALITY": "결정 코드가 목표 선택과 회복 상한 적용을 보여주지만 각 운동 선택의 구체적 연결은 제한적이다.",
+        "FEASIBILITY": "낮은 세트 수와 충분한 휴식, 준비·마무리 스트레칭 구성으로 전반적으로 수행 가능하다.",
+        "GROUNDEDNESS": "제공된 데이터에는 승인 후보 목록이 없어 운동별 후보 근거를 직접 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건을 대체로 충족하는 균형 잡힌 홈 운동 계획이나 선택 근거의 상세성은 개선 여지가 있다.",
+        "PERSONALIZATION": "일반 체력 목표와 홈 환경, 저강도·중강도 회복 상한 및 요청 시간 조건이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-019",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.6667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전반적인 저강도 배분이 대체로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 시간, 장소, 목표 및 저강도 조정의 근거를 명확히 보여 준다.",
+        "FEASIBILITY": "저강도와 충분한 휴식은 현실적이나 본운동의 반복 기준이 없어 수행량을 가늠하기 어렵다.",
+        "GROUNDEDNESS": "제공된 계획 코드에는 근거가 있으나 승인 후보 목록이 없어 개별 운동의 후보 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건에 잘 맞는 저강도 홈 계획이나 본운동의 수행 기준이 보완되면 더 좋다.",
+        "PERSONALIZATION": "홈 환경, 일반 체력 목표, 요청 시간과 저강도 회복 조정 코드가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-020",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-유산소 및 하체 본운동-마무리의 순서와 강도 배분이 대체로 일관된다.",
+        "EXPLANATION_QUALITY": "READY와 DOWNSHIFT 코드가 있으나 운동 구성과 시간 조정의 구체적 연결 근거는 제시되지 않았다.",
+        "FEASIBILITY": "준비운동과 마무리, 60초 휴식은 현실적이나 점프 동작의 반복 비중이 높다.",
+        "GROUNDEDNESS": "모든 운동은 허용된 GYM 위치와 LOW·MODERATE 강도 및 휴식 하한을 준수한다.",
+        "OVERALL_QUALITY": "기본 구조는 적절하지만 요청 시간 미달과 반복적인 점프 구성은 개선 여지가 있다.",
+        "PERSONALIZATION": "GYM 장소와 GENERAL_FITNESS 목표 및 LOW·MODERATE 강도 제한은 반영됐으나 20분 요청 대비 920초로 짧다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 2,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 4,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-021",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 3.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비-본운동-마무리 순서는 갖췄지만 DOWNSHIFT 계획에 보통 강도 점프가 반복된다.",
+        "EXPLANATION_QUALITY": "목표와 회복 조정 결정 코드는 있으나 운동별 선택 및 시간 조정 이유는 드러나지 않는다.",
+        "FEASIBILITY": "낮음·보통 강도와 휴식은 현실적이나 점프 동작이 두 차례 포함돼 흐름이 다소 부담스럽다.",
+        "GROUNDEDNESS": "제공된 계획 코드와 제한 범위에는 맞지만 승인 후보 목록이 없어 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "기본 구조와 제한 준수는 양호하나 시간 부족과 반복 점프 구성의 개선 여지가 뚜렷하다.",
+        "PERSONALIZATION": "홈 장소와 일반 체력 목표, 회복 강도 상한은 반영됐지만 요청 20분보다 짧다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 3,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-022",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 3.1667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전체 저강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드와 선택 이유가 제공되지 않아 계획 근거를 확인할 수 없다.",
+        "FEASIBILITY": "저강도 구성과 1~2세트, 충분한 휴식으로 실제 수행 흐름이 무난하다.",
+        "GROUNDEDNESS": "제공된 제한 범위는 준수하지만 승인 후보 목록이 없어 운동 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "제약은 잘 맞추었으나 일반 체력 목표 대비 상체 중심 구성과 근거 부재가 개선점이다.",
+        "PERSONALIZATION": "홈 장소, 저강도 제한, 세트·반복 상한과 15분 요청 시간을 반영한다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-023",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 2.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전 운동의 저강도 설정은 대체로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 비어 있어 운동 선택과 사용자 조건을 연결하는 근거가 제시되지 않았다.",
+        "FEASIBILITY": "저강도와 제한된 세트·반복 수는 수행 가능성을 높이지만 본운동 사이 260초 휴식은 흐름을 다소 끊는다.",
+        "GROUNDEDNESS": "제공된 계획 내 코드와 수치는 확인되지만 승인 후보 목록이 없어 후보 범위 내 여부는 확인할 수 없다.",
+        "OVERALL_QUALITY": "제약 조건은 대체로 충족하지만 목표 적합성 및 선택 근거의 설명이 부족하다.",
+        "PERSONALIZATION": "홈 장소, 저강도, 세트·반복·휴식 제한과 20분 요청은 반영됐지만 일반 체력 목표와의 구성 연결은 제한적이다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 3
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-024",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "워밍업-본운동-쿨다운 순서와 전 구간의 저강도 설정이 DOWNSHIFT 방향과 일관된다.",
+        "EXPLANATION_QUALITY": "DURATION_WITHIN_TOLERANCE, PHASE_COVERAGE_COMPLETE, RECOVERY_DOWNSHIFT 코드가 시간·구성·강도 조정 근거를 제공한다.",
+        "FEASIBILITY": "모든 운동이 저강도이며 운동당 2세트와 60초 휴식으로 구성되어 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "계획 수치는 제공된 회복 상한에는 맞지만 승인 후보 목록이 없어 각 운동의 후보 근거는 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 시간과 홈 환경 및 저강도 회복 조건을 충족한 균형 있는 단기 계획이다.",
+        "PERSONALIZATION": "홈 환경, 15분 요청, 저강도 회복 상한과 세트·반복·휴식 조건이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-025",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 3.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전 항목의 저강도 설정이 대체로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드와 선택 이유가 제공되지 않아 사용자 조건과의 연결 근거를 확인할 수 없다.",
+        "FEASIBILITY": "저강도와 제한된 세트 수는 수행 가능성을 높이지만 유산소 항목의 수행 시간이나 횟수가 없어 실제 진행이 불명확하다.",
+        "GROUNDEDNESS": "운동 코드와 수치는 계획에 제시되어 있으나 승인 후보 목록이 없어 후보 범위 내 여부는 확인할 수 없다.",
+        "OVERALL_QUALITY": "조건 제한은 반영했으나 반복 유산소 구성의 구체적 수행 기준과 선택 근거가 부족하다.",
+        "PERSONALIZATION": "홈 장소, 저강도·세트·반복 상한, 20분 요청과 일반 체력 목표가 계획에 반영되어 있다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 4,
+        "EXPLANATION_QUALITY": 1,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 3,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-026",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전 항목의 저강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "시간, 장소, 목표, 저강도 및 회복 상한 적용 코드가 계획 선택과 명확히 연결된다.",
+        "FEASIBILITY": "모든 운동이 저강도이며 세트·반복·휴식이 제시된 회복 상한 내에서 현실적으로 구성되었다.",
+        "GROUNDEDNESS": "계획 수치는 제공된 상한과 일치하지만 승인 후보 목록이 제공되지 않아 각 운동의 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "제공된 조건과 결정 코드에 맞춘 짧고 일관된 홈 회복 계획이다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 15분 요청과 회복 상한이 계획의 저강도 구성에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-031",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "회복 조정과 시간 충족 결정 코드가 계획 구성과 연결된다.",
+        "FEASIBILITY": "저·중강도와 충분한 휴식, 2세트 구성이 전반적으로 수행 가능하다.",
+        "GROUNDEDNESS": "운동과 수치는 제시되었으나 승인 후보 목록은 제공되지 않았다.",
+        "OVERALL_QUALITY": "요청 조건과 회복 조정을 반영한 균형 잡힌 홈 운동 계획이다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청 시간과 회복 강도 범위를 반영한 구성이다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-032",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도·중강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "목표, 시간, 준비 상태 및 회복 강도 관련 결정 코드가 제시되어 있다.",
+        "FEASIBILITY": "저강도 준비·마무리와 중강도 유산소 구성은 수행 가능하나 본운동 18세트는 다소 부자연스럽다.",
+        "GROUNDEDNESS": "계획 항목은 구조화되어 있으나 승인 후보 목록이 제공되지 않아 출처를 완전히 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건에 맞는 간결한 유산소 중심 계획이나 본운동 세트 구성은 개선 여지가 있다.",
+        "PERSONALIZATION": "목표, 체육관 장소, 30분 요청 시간 및 허용 강도가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 3,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-033",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.0,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 저강도·보통 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "목표, 준비 상태, 시간 및 회복 한도 관련 결정 코드는 있으나 운동별 선택 이유는 제한적이다.",
+        "FEASIBILITY": "저강도 준비·마무리와 보통 강도 본운동, 충분한 휴식으로 구성되어 있다.",
+        "GROUNDEDNESS": "제공된 계획은 조건 범위와 일치하지만 승인 후보 목록은 입력에 제시되지 않았다.",
+        "OVERALL_QUALITY": "요청 시간과 홈 환경, 목표 및 강도 한도를 충족하는 균형 잡힌 구성이다.",
+        "PERSONALIZATION": "일반 체력 목표, 홈 운동 조건, 15분 요청 시간과 허용 강도 범위를 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    }
+  ]
+}

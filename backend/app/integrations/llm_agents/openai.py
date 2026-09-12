@@ -22,7 +22,12 @@ def _build_openai_chat_model(settings: Settings) -> BaseChatModel:
         # StructuredChatInvoker owns the single bounded retry.
         max_retries=0,
         max_completion_tokens=settings.llm_agents_max_output_tokens,
-        callbacks=[],
+        reasoning_effort=settings.llm_agents_reasoning_effort,
+        # An empty callback list is one of the two points that suppress tracing:
+        # it stops LangChain attaching its tracer to this model at all. Leaving
+        # it None lets an ambient tracer attach, which is what an approved traced
+        # run needs. `StructuredChatInvoker` owns the other point (ADR-0020).
+        callbacks=None if settings.llm_agents_tracing_enabled else [],
         disable_streaming=True,
     )
 

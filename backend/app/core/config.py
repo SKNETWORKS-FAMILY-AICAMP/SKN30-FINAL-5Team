@@ -86,7 +86,18 @@ class Settings(BaseSettings):
     llm_agents_timeout_seconds: float = 5.0
     llm_agents_max_attempts: int = 2
     llm_agents_max_output_tokens: int = 1200
+    # Structured planning needs bounded deliberation more than open-ended prose.
+    # Pinning this removes provider-default drift and limits serial Training +
+    # Coordinator latency while the deterministic validator remains authoritative.
+    llm_agents_reasoning_effort: Literal["low", "medium", "high"] = "low"
     llm_agents_approved_model_codes: Annotated[tuple[str, ...], NoDecode] = ()
+    # Export the provider call itself -- prompt and model output -- to LangSmith.
+    # Off by default and separately approved (ADR-0020). The prompt carries the
+    # same identifier-free machine projection the provider already receives, so
+    # this adds a second third-party processor for it rather than a new class of
+    # data. A LangSmith key must also be present, so enabling this alone still
+    # exports nothing.
+    llm_agents_tracing_enabled: bool = False
     # V3 graph construction is separately gated so incomplete provider/domain
     # wiring cannot alter the existing V1/V2 production decision path.
     v3_langgraph_enabled: bool = False

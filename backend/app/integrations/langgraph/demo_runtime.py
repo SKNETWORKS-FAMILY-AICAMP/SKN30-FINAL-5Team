@@ -58,6 +58,7 @@ from backend.app.integrations.llm_agents.openai import (
     build_openai_demo_chat_model,
     openai_demo_gates_ready,
 )
+from backend.app.integrations.llm_agents.prompts import V3_PROMPT_AGGREGATE_VERSION
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
 from backend.app.integrations.llm_agents.specialists import (
     FeasibilityAgentAdapter,
@@ -130,7 +131,7 @@ class BoundV3DemoIdentityProvider:
 @dataclass(frozen=True, slots=True)
 class V3DemoRuntimeVersions:
     graph_version: str = "v3-langgraph-demo-v2"
-    prompt_version: str = "v3-prompts-v1"
+    prompt_version: str = V3_PROMPT_AGGREGATE_VERSION
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
     fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
@@ -193,7 +194,7 @@ def _canonical_validations(
                 if index == 1
                 else ()
             ),
-            prompt_version="v3-prompts-v1",
+            prompt_version=V3_PROMPT_AGGREGATE_VERSION,
             model_version="placeholder-model-v1",
         )
         for index in range(len(canonical))
@@ -273,7 +274,12 @@ class V3DemoRuntime:
             snapshot_is_fresh=True,
             specialists={
                 SpecialistAgentTypeCode.TRAINING: cast(
-                    SpecialistPort, TrainingAgentAdapter(invoker=self.invoker)
+                    SpecialistPort,
+                    TrainingAgentAdapter(
+                        invoker=self.invoker,
+                        feasibility_provider=self.fallback_provider,
+                        fallback_version=self.versions.fallback_version,
+                    ),
                 ),
                 SpecialistAgentTypeCode.RECOVERY: cast(
                     SpecialistPort, RecoveryAgentAdapter(invoker=self.invoker)
@@ -391,6 +397,7 @@ def build_v3_demo_runtime(
             model_code=settings.llm_agents_model_code,
             max_attempts=min(settings.llm_agents_max_attempts, 2),
             use_native_json_schema=chat_model is None,
+            tracing_enabled=settings.llm_agents_tracing_enabled,
         ),
         identity_provider=identity_provider or BoundV3DemoIdentityProvider(),
         fallback_provider=fallback_provider

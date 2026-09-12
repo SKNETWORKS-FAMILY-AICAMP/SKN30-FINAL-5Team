@@ -1,0 +1,241 @@
+{
+  "architectures": [
+    {
+      "architecture_code": "SINGLE_LLM",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.1111,
+          "plan_delivery_rate": 1.0,
+          "runs": 9
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 5
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.3333,
+          "plan_delivery_rate": 1.0,
+          "runs": 3
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.125,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        }
+      },
+      "constraint_satisfaction_rate": 1.0,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 1.0,
+        "average_tokens_per_run": 4403.2,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 107613,
+        "llm_calls": 29,
+        "output_tokens": 20081
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 0,
+        "feasibility": 3.2414,
+        "mean": 2.977,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.1724,
+        "personalization": 3.8276,
+        "scored_runs": 29
+      },
+      "label": "A. Single LLM",
+      "latency": {
+        "p50_ms": 13953,
+        "p95_ms": 17485
+      },
+      "llm_plan_rate": 0.1034,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "plan_delivery_rate": 1.0,
+      "run_count": 29,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 0.1724,
+      "workflow_completion_rate": 1.0
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 9
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.4,
+          "plan_delivery_rate": 1.0,
+          "runs": 5
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 3
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.875,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        }
+      },
+      "constraint_satisfaction_rate": 1.0,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 1.0,
+        "average_tokens_per_run": 8721.0,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 198166,
+        "llm_calls": 29,
+        "output_tokens": 54744
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 0,
+        "feasibility": 3.6207,
+        "mean": 3.6322,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.6552,
+        "personalization": 4.1379,
+        "scored_runs": 29
+      },
+      "label": "B. Single Agent + RAG",
+      "latency": {
+        "p50_ms": 23922,
+        "p95_ms": 40390
+      },
+      "llm_plan_rate": 0.8621,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "plan_delivery_rate": 1.0,
+      "run_count": 29,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 1.0,
+      "workflow_completion_rate": 1.0
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.6667,
+          "plan_delivery_rate": 1.0,
+          "runs": 9
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.6,
+          "plan_delivery_rate": 1.0,
+          "runs": 5
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.6667,
+          "plan_delivery_rate": 1.0,
+          "runs": 3
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.875,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.75,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        }
+      },
+      "constraint_satisfaction_rate": 1.0,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 3.7931,
+        "average_tokens_per_run": 19247.7,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 478464,
+        "llm_calls": 110,
+        "output_tokens": 79720
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 0,
+        "feasibility": 3.5517,
+        "mean": 3.5172,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.6207,
+        "personalization": 3.931,
+        "scored_runs": 29
+      },
+      "label": "C. Multi-Agent + RAG",
+      "latency": {
+        "p50_ms": 27094,
+        "p95_ms": 43093
+      },
+      "llm_plan_rate": 0.7241,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "plan_delivery_rate": 1.0,
+      "run_count": 29,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 0.7586,
+      "workflow_completion_rate": 1.0
+    }
+  ],
+  "dataset": "smoke",
+  "fairness_conditions": {
+    "downstream_gate": "identical compiler, integrity validator and deterministic fallback",
+    "embedding": "not re-run per architecture; the pool is composed once per case",
+    "evaluation_dataset": "identical",
+    "exercise_data": "identical synthetic catalog",
+    "llm_model": "identical: one provider object is built once and shared",
+    "output_schema": "identical up to proposal_references and repair_attempt, which only a multi-agent run can supply",
+    "prompt": "the baseline instruction is composed from the four shipped role prompts",
+    "temperature": "identical: fixed by build_openai_demo_chat_model",
+    "tool_scope": "A sees only the fields the output schema requires; B and C see the same full pool projection",
+    "user_input": "identical: the same EvaluationCase list, in the same order",
+    "vector_db": "identical ExercisePoolSnapshot per case; PostgreSQL decides eligibility"
+  },
+  "judge_blind": true,
+  "notes": [
+    "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
+    "The baselines get no repair round; the multi-agent path does. Every paid multi-agent run in PHASE 4 used zero repairs, so the asymmetry had no measured effect, but it favours C.",
+    "A PlanSpec structurally requires three proposal references, so a baseline plan reaches the shipped compiler through a contract adapter that invents no advice. See runners/single_agent.py."
+  ],
+  "repeats": 1
+}

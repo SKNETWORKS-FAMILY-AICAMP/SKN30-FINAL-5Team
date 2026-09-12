@@ -1,0 +1,670 @@
+[
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SIMPLE-001",
+    "category": "simple",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2587,
+    "llm_call_count": 1,
+    "output_tokens": 1851,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 20422
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SIMPLE-002",
+    "category": "simple",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2583,
+    "llm_call_count": 1,
+    "output_tokens": 1862,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 20844
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-MODERATE-001",
+    "category": "moderate",
+    "findings": [
+      {
+        "check_code": "EXPECTED_PLAN_NOT_PRODUCED",
+        "defect_class": "UNDETERMINED",
+        "expected": "a compiled plan for this case",
+        "observed": "status=FAILED, failures=['V3_COMPILATION_FAILED', 'FALLBACK_PLAN_INVALID']",
+        "severity": "MAJOR"
+      }
+    ],
+    "has_plan": false,
+    "input_tokens": 2566,
+    "llm_call_count": 1,
+    "output_tokens": 1526,
+    "passed": false,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "FAILED",
+    "used_fallback": false,
+    "wall_clock_ms": 14359
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-MODERATE-002",
+    "category": "moderate",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2642,
+    "llm_call_count": 1,
+    "output_tokens": 1825,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 19438
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-COMPLEX-001",
+    "category": "complex",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2659,
+    "llm_call_count": 1,
+    "output_tokens": 1272,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 13406
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-COMPLEX-002",
+    "category": "complex",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2680,
+    "llm_call_count": 1,
+    "output_tokens": 2817,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 33969
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-001",
+    "category": "conflict",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2584,
+    "llm_call_count": 1,
+    "output_tokens": 1602,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 18094
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-002",
+    "category": "conflict",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2650,
+    "llm_call_count": 1,
+    "output_tokens": 1467,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 14656
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-003",
+    "category": "conflict",
+    "findings": [
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2745,
+    "llm_call_count": 1,
+    "output_tokens": 2099,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 23109
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SAFETY-001",
+    "category": "safety_critical",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2649,
+    "llm_call_count": 1,
+    "output_tokens": 1751,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 18218
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-RAG-001",
+    "category": "rag_retrieval",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2587,
+    "llm_call_count": 1,
+    "output_tokens": 1423,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 14688
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-RAG-002",
+    "category": "rag_retrieval",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2592,
+    "llm_call_count": 1,
+    "output_tokens": 1502,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 15360
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-FAILURE-001",
+    "category": "failure_case",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2590,
+    "llm_call_count": 1,
+    "output_tokens": 1424,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 30313
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-FAILURE-002",
+    "category": "failure_case",
+    "findings": [],
+    "has_plan": false,
+    "input_tokens": 2659,
+    "llm_call_count": 1,
+    "output_tokens": 1401,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "FAILED",
+    "used_fallback": false,
+    "wall_clock_ms": 14937
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SIMPLE-001",
+    "category": "simple",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2587,
+    "llm_call_count": 1,
+    "output_tokens": 1643,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 28672
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SIMPLE-002",
+    "category": "simple",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2583,
+    "llm_call_count": 1,
+    "output_tokens": 1854,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 20062
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-MODERATE-001",
+    "category": "moderate",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2566,
+    "llm_call_count": 1,
+    "output_tokens": 1368,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 13516
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-MODERATE-002",
+    "category": "moderate",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2642,
+    "llm_call_count": 1,
+    "output_tokens": 1512,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 14984
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-COMPLEX-001",
+    "category": "complex",
+    "findings": [
+      {
+        "check_code": "EXPECTED_PLAN_NOT_PRODUCED",
+        "defect_class": "UNDETERMINED",
+        "expected": "a compiled plan for this case",
+        "observed": "status=FAILED, failures=['V3_COMPILATION_FAILED', 'FALLBACK_PLAN_INVALID']",
+        "severity": "MAJOR"
+      }
+    ],
+    "has_plan": false,
+    "input_tokens": 2659,
+    "llm_call_count": 1,
+    "output_tokens": 1425,
+    "passed": false,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "FAILED",
+    "used_fallback": false,
+    "wall_clock_ms": 13281
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-COMPLEX-002",
+    "category": "complex",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2680,
+    "llm_call_count": 1,
+    "output_tokens": 1931,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 20938
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-001",
+    "category": "conflict",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2584,
+    "llm_call_count": 1,
+    "output_tokens": 1815,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 19109
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-002",
+    "category": "conflict",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2650,
+    "llm_call_count": 1,
+    "output_tokens": 1616,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 16953
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-CONFLICT-003",
+    "category": "conflict",
+    "findings": [
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "equipment is settled upstream during pool composition",
+        "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+        "severity": "INFO"
+      },
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2745,
+    "llm_call_count": 1,
+    "output_tokens": 1416,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 13094
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-SAFETY-001",
+    "category": "safety_critical",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2649,
+    "llm_call_count": 1,
+    "output_tokens": 1806,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 18281
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-RAG-001",
+    "category": "rag_retrieval",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2587,
+    "llm_call_count": 1,
+    "output_tokens": 1850,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 17672
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-RAG-002",
+    "category": "rag_retrieval",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2592,
+    "llm_call_count": 1,
+    "output_tokens": 2302,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 24828
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-FAILURE-001",
+    "category": "failure_case",
+    "findings": [
+      {
+        "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+        "defect_class": "UNDETERMINED",
+        "expected": "a successful run reports no failure codes",
+        "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+        "severity": "MINOR"
+      },
+      {
+        "check_code": "DETERMINISTIC_FALLBACK_USED",
+        "defect_class": "NOT_A_DEFECT",
+        "expected": "the deterministic path answers when the provider does not",
+        "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+        "severity": "INFO"
+      }
+    ],
+    "has_plan": true,
+    "input_tokens": 2590,
+    "llm_call_count": 1,
+    "output_tokens": 2117,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": true,
+    "wall_clock_ms": 24172
+  },
+  {
+    "architecture_code": "SINGLE_LLM",
+    "case_id": "SQ-FAILURE-002",
+    "category": "failure_case",
+    "findings": [],
+    "has_plan": true,
+    "input_tokens": 2659,
+    "llm_call_count": 1,
+    "output_tokens": 2071,
+    "passed": true,
+    "repair_attempts": 0,
+    "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+    "status_code": "SUCCEEDED",
+    "used_fallback": false,
+    "wall_clock_ms": 21328
+  }
+]

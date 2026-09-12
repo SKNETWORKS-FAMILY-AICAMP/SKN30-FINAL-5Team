@@ -7,6 +7,8 @@ import socket
 import tomllib
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import cast
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import HumanMessage
@@ -16,6 +18,7 @@ from backend.app.core.config import Settings
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
+    CoordinatorInput,
     RecoveryCeiling,
     SpecialistAgentInput,
     SpecialistAgentProposal,
@@ -24,6 +27,7 @@ from backend.app.domain.agents.v3_contracts import (
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
 from backend.app.integrations.llm_agents.payload import (
     assert_private_machine_payload,
+    coordinator_payload,
     project_exercise_pool,
     specialist_payload,
 )
@@ -37,7 +41,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import envelope, pool, proposal
+from backend.tests.unit.test_v3_agent_contracts import envelope, exercise, pool, proposal
 
 FORBIDDEN_PROMPT_FIELDS = {
     "user_id",
@@ -144,6 +148,77 @@ def test_pool_projection_carries_id_allowlist_but_not_qdrant_ranking() -> None:
     assert "beginner_suitable" not in serialized
     assert "similarity" not in serialized
     assert "retrieval_metadata" not in serialized
+
+
+def test_coordinator_pool_keeps_only_repair_metadata() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_proposals = tuple(
+        proposal(agent_type, current_envelope, current_pool)
+        for agent_type in SpecialistAgentTypeCode
+    )
+
+    payload = coordinator_payload(
+        CoordinatorInput(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+            proposals=current_proposals,
+            repair_attempt=0,
+        )
+    )
+
+    projected_pool = payload["exercise_pool"]
+    assert isinstance(projected_pool, dict)
+    first = projected_pool["exercises"][0]
+    allowed_fields = {
+        "exercise_id",
+        "family_code",
+        "timing_mode_code",
+        "default_seconds_per_rep",
+        "default_work_seconds",
+        "default_rest_seconds",
+        "default_transition_seconds",
+        "fitt_context",
+        "phase_codes",
+    }
+    assert set(first) <= allowed_fields
+    assert {"exercise_id", "default_seconds_per_rep", "fitt_context", "phase_codes"} <= set(first)
+    assert "goal_codes" not in first
+    assert "body_focus_code" not in first
+
+
+def test_training_and_coordinator_receive_family_codes_for_duplicate_prevention() -> None:
+    current_envelope = envelope()
+    current_pool = pool(
+        current_envelope,
+        records=(
+            exercise(UUID(int=1), family_code="PUSH_FAMILY"),
+            exercise(UUID(int=2), family_code="PUSH_FAMILY"),
+            exercise(UUID(int=3), family_code="PULL_FAMILY"),
+            exercise(UUID(int=4), family_code=None),
+        ),
+    )
+    training_pool = project_exercise_pool(current_pool)
+    current_proposals = tuple(
+        proposal(agent_type, current_envelope, current_pool)
+        for agent_type in SpecialistAgentTypeCode
+    )
+    coordinator_pool = coordinator_payload(
+        CoordinatorInput(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+            proposals=current_proposals,
+            repair_attempt=1,
+            repair_violation_codes=("PLAN_EXERCISE_FAMILY_REPEATED",),
+        )
+    )["exercise_pool"]
+
+    assert isinstance(coordinator_pool, dict)
+    training_rows = cast(list[dict[str, object]], training_pool["exercises"])
+    coordinator_rows = cast(list[dict[str, object]], coordinator_pool["exercises"])
+    assert training_rows[0]["family_code"] == "PUSH_FAMILY"
+    assert coordinator_rows[0]["family_code"] == "PUSH_FAMILY"
+    assert "family_code" not in training_rows[3]
 
 
 def test_fake_model_path_never_opens_a_network_socket(

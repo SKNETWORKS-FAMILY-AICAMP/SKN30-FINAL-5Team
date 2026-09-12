@@ -14,7 +14,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import envelope, pool
+from backend.tests.unit.test_v3_agent_contracts import OUTSIDE, envelope, pool, prescription
 from backend.tests.unit.test_v3_coordinator_contracts import (
     coordinator_input,
     plan,
@@ -75,7 +75,7 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
     )
     assert isinstance(human_message.content, str)
     prompt_payload = json.loads(human_message.content)
-    assert prompt_payload["input"]["schema_version"] == "v3-coordinator-input-v1"
+    assert prompt_payload["input"]["schema_version"] == "v3-coordinator-input-v2"
     assert prompt_payload["input"]["mode_code"] == "INITIAL"
     assert [
         item["agent_type_code"] for item in prompt_payload["input"]["specialist_proposals"]
@@ -87,18 +87,66 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
     assert "sole draft plan" in system_message.content
     assert "advisory perspectives" in system_message.content
     assert "without a fixed precedence" in system_message.content
+    assert "valid advisory NEEDS_INPUT" in system_message.content
+    assert "ADVISORY_UNAVAILABLE" in system_message.content
+    assert "PLAN_EXERCISE_FAMILY_REPEATED" in system_message.content
+    assert "family_code" in system_message.content
 
 
-def test_coordinator_cannot_relax_envelope_constraints() -> None:
+def test_coordinator_identity_fields_are_derived_from_server_input() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     current_proposals = proposals(current_envelope, current_pool)
     current_input = coordinator_input(current_envelope, current_pool)
-    changed = plan(current_input, requested_duration_minutes=29)
-    model = ToolCallingFakeChatModel(responses=[tool_response(PlanSpec, changed, 1)])
+    expected = plan(current_input)
+    provider_values = expected.model_dump(mode="json")
+    provider_values.update(
+        envelope_hash="f" * 64,
+        pool_hash="e" * 64,
+        requested_duration_minutes=29,
+        estimated_duration_seconds=1740,
+        proposal_references=list(reversed(provider_values["proposal_references"])),
+        repair_attempt=1,
+        plan_hash="d" * 64,
+    )
+    model = ToolCallingFakeChatModel(responses=[tool_response(PlanSpec, provider_values, 1)])
     adapter = _adapter(model)
 
     result = adapter.coordinate(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+        proposals=current_proposals,
+    )
+
+    assert result.output == expected
+    assert result.output.requested_duration_minutes == current_envelope.requested_duration_minutes
+    assert result.output.envelope_hash == current_envelope.envelope_hash
+    assert result.output.pool_hash == current_pool.pool_hash
+    assert result.output.repair_attempt == 0
+    assert model.invocation_count == 1
+
+
+def test_server_owned_identity_does_not_weaken_plan_constraint_validation() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_proposals = proposals(current_envelope, current_pool)
+    current_input = coordinator_input(current_envelope, current_pool)
+    outside_plan = plan(
+        current_input,
+        plan_prescriptions=(
+            prescription(current_envelope.mandatory_exercise_ids[0], 1, phase_code="WARMUP"),
+            prescription(OUTSIDE, 2),
+            prescription(current_pool.exercises[-1].exercise_id, 3, phase_code="COOLDOWN"),
+        ),
+    )
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(PlanSpec, outside_plan, 1),
+            tool_response(PlanSpec, outside_plan, 2),
+        ]
+    )
+
+    result = _adapter(model).coordinate(
         constraint_envelope=current_envelope,
         exercise_pool=current_pool,
         proposals=current_proposals,

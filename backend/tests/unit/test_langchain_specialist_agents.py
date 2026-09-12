@@ -11,7 +11,9 @@ from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    V3ProposalStatusCode,
 )
+from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
 from backend.app.integrations.llm_agents.models import (
     LlmAgentFailureCode,
     LlmAgentRoleCode,
@@ -64,6 +66,113 @@ def test_async_specialist_boundary_preserves_structured_contract() -> None:
 
     assert result.output == expected
     assert model.invocation_count == 1
+
+
+def test_training_retries_decline_when_deterministic_candidate_is_available() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    declined = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        status=V3ProposalStatusCode.NEEDS_INPUT,
+        prescriptions=(),
+    )
+    expected = proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(SpecialistAgentProposal, declined, 1),
+            tool_response(SpecialistAgentProposal, expected, 2),
+        ]
+    )
+    adapter = TrainingAgentAdapter(
+        invoker=StructuredChatInvoker(chat_model=model, model_code="fake-model-v1"),
+        feasibility_provider=DeterministicGraphFallbackProvider(),
+        fallback_version="v3-deterministic-fallback-v2",
+    )
+
+    result = adapter.propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.output == expected
+    assert result.telemetry is not None
+    assert result.telemetry.attempt_count == 2
+    human_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, HumanMessage)
+    )
+    assert isinstance(human_message.content, str)
+    payload = json.loads(human_message.content)["input"]
+    assert payload["training_plan_feasibility_code"] == "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
+
+
+def test_training_may_decline_with_stable_reason_when_feasibility_is_unproven() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    declined = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        status=V3ProposalStatusCode.NEEDS_INPUT,
+        prescriptions=(),
+    )
+    model = ToolCallingFakeChatModel(
+        responses=[tool_response(SpecialistAgentProposal, declined, 1)]
+    )
+    adapter = TrainingAgentAdapter(
+        invoker=StructuredChatInvoker(
+            chat_model=model,
+            model_code="fake-model-v1",
+            max_attempts=1,
+        )
+    )
+
+    result = adapter.propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.output == declined
+    human_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, HumanMessage)
+    )
+    assert isinstance(human_message.content, str)
+    payload = json.loads(human_message.content)["input"]
+    assert payload["training_plan_feasibility_code"] == "DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
+
+
+def test_new_training_output_rejects_legacy_free_form_decline_reason() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    declined = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        status=V3ProposalStatusCode.NEEDS_INPUT,
+        prescriptions=(),
+    )
+    legacy_payload = declined.model_dump(mode="json")
+    legacy_payload["reason_codes"] = ["NO_DURATION_COMPLIANT_VOLUME_COMBINATION"]
+    model = ToolCallingFakeChatModel(
+        responses=[tool_response(SpecialistAgentProposal, legacy_payload, 1)]
+    )
+    adapter = TrainingAgentAdapter(
+        invoker=StructuredChatInvoker(
+            chat_model=model,
+            model_code="fake-model-v1",
+            max_attempts=1,
+        )
+    )
+
+    result = adapter.propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.output is None
+    assert result.failure is not None
+    assert result.failure.code is LlmAgentFailureCode.DOMAIN_INVALID
 
 
 @pytest.mark.parametrize(
@@ -147,6 +256,61 @@ def test_advisory_specialist_prompt_forbids_exercise_plans(adapter_type: type) -
     assert "adjustment_codes" in system_message.content
     assert "always leave exercise_prescriptions empty" in system_message.content
     assert "advisory" in system_message.content
+    assert "Use NEEDS_INPUT only" in system_message.content
+
+
+def test_advisory_specialists_receive_role_minimized_pool_payloads() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    recovery_model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(
+                SpecialistAgentProposal,
+                proposal(SpecialistAgentTypeCode.RECOVERY, current_envelope, current_pool),
+                1,
+            )
+        ]
+    )
+    feasibility_model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(
+                SpecialistAgentProposal,
+                proposal(SpecialistAgentTypeCode.FEASIBILITY, current_envelope, current_pool),
+                1,
+            )
+        ]
+    )
+
+    _adapter(RecoveryAgentAdapter, recovery_model).propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+    _adapter(FeasibilityAgentAdapter, feasibility_model).propose(
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    recovery_message = next(
+        message for message in recovery_model.seen_messages[0] if isinstance(message, HumanMessage)
+    )
+    feasibility_message = next(
+        message
+        for message in feasibility_model.seen_messages[0]
+        if isinstance(message, HumanMessage)
+    )
+    assert isinstance(recovery_message.content, str)
+    assert isinstance(feasibility_message.content, str)
+    recovery_pool = json.loads(recovery_message.content)["input"]["exercise_pool"]
+    feasibility_pool = json.loads(feasibility_message.content)["input"]["exercise_pool"]
+
+    assert "exercises" not in recovery_pool
+    assert recovery_pool["exercise_id_allowlist"]
+    assert feasibility_pool["exercises"]
+    feasibility_fields = set(feasibility_pool["exercises"][0])
+    assert "location_codes" in feasibility_fields
+    assert "default_rest_seconds" in feasibility_fields
+    assert "fitt_context" not in feasibility_fields
+    assert "body_focus_code" not in feasibility_fields
 
 
 def test_training_receives_structured_fitt_ranges_and_non_maximum_guidance() -> None:
@@ -310,6 +474,14 @@ def test_training_prompt_explains_that_repeated_blocks_share_the_sets_ceiling() 
 
     assert "all blocks for that exercise share one cumulative" in instruction
     assert "Do not repeat an exercise" in instruction
+
+
+def test_training_prompt_distinguishes_fitt_reference_from_plan_intensity() -> None:
+    instruction = ROLE_PROMPTS[LlmAgentRoleCode.TRAINING].instruction
+
+    assert "not an exercise eligibility filter" in instruction
+    assert "prescription's intensity_code" in instruction
+    assert "never reject an exercise solely because its FITT intensity differs" in instruction
 
 
 def test_schema_invalid_output_is_retried_once_then_succeeds() -> None:

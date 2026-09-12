@@ -1,0 +1,951 @@
+{
+  "blinding": {
+    "advisory_codes_withheld": true,
+    "revealing_decision_codes_redacted": 20
+  },
+  "judge_calls": 76,
+  "model_label": "OPENAI:gpt-5.6-terra",
+  "orders_per_pair": 2,
+  "pairs": [
+    {
+      "agreement_rate": 0.9231,
+      "by_category": {
+        "complex": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 0,
+          "SINGLE_LLM": 1,
+          "TIE": 0
+        },
+        "conflict": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 3,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "failure_case": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 2,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "moderate": {
+          "DISAGREED": 1,
+          "SINGLE_AGENT_RAG": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "rag_retrieval": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 2,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "safety_critical": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "simple": {
+          "DISAGREED": 0,
+          "SINGLE_AGENT_RAG": 2,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        }
+      },
+      "by_criterion": {
+        "CONSISTENCY": {
+          "SINGLE_AGENT_RAG": 6,
+          "SINGLE_LLM": 3,
+          "TIE_OR_DISAGREED": 4
+        },
+        "EXPLANATION_QUALITY": {
+          "SINGLE_AGENT_RAG": 12,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 1
+        },
+        "FEASIBILITY": {
+          "SINGLE_AGENT_RAG": 8,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 5
+        },
+        "GROUNDEDNESS": {
+          "SINGLE_AGENT_RAG": 0,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 13
+        },
+        "OVERALL_QUALITY": {
+          "SINGLE_AGENT_RAG": 11,
+          "SINGLE_LLM": 1,
+          "TIE_OR_DISAGREED": 1
+        },
+        "PERSONALIZATION": {
+          "SINGLE_AGENT_RAG": 11,
+          "SINGLE_LLM": 1,
+          "TIE_OR_DISAGREED": 1
+        }
+      },
+      "judged_cases": 13,
+      "outcomes": [
+        {
+          "agreed": true,
+          "case_id": "SQ-SIMPLE-001",
+          "category": "simple",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "1안은 목표·장소·20분·중강도 조건을 근거 코드와 함께 반영하며, 2안보다 반복 구성과 흐름이 간결하고 일관적이다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표·홈 환경·20분 목표와 중강도 허용 범위를 근거 코드와 함께 더 명확히 반영하고, 운동 구성이 더 간결하고 일관적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-SIMPLE-002",
+          "category": "simple",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 목표·장소·시간·허용 강도를 결정 코드로 명시하고, 더 간결한 구성으로 요청 조건에 직접 부합한다.",
+          "rationale_order_two": "PLAN_ONE은 목표·15분·홈·허용 강도를 결정 코드로 명확히 반영하고, 중복 없이 균형 잡힌 구성이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-MODERATE-001",
+          "category": "moderate",
+          "consensus_winner": null,
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청한 20분에 더 가깝고 DURATION_WITHIN_TOLERANCE 근거가 명시되어 사용자 조건 반영이 더 분명하다.",
+          "rationale_order_two": "두 계획 모두 홈·저강도·회복 제한을 동일하게 반영하며, 계획 1만 요청 시간 허용 범위를 결정 코드로 명시한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": null
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-MODERATE-002",
+          "category": "moderate",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청한 20분에 더 가깝고 시간·목표 반영 코드가 명확하며, PLAN_ONE은 준비·마무리 강도 흐름이 더 일관적이다.",
+          "rationale_order_two": "PLAN_ONE은 요청 20분에 더 정확히 맞고 더 긴 휴식으로 수행 부담을 낮췄으며, PLAN_TWO는 준비·마무리 강도 흐름이 더 일관적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-COMPLEX-002",
+          "category": "complex",
+          "consensus_winner": "SINGLE_LLM",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 20분에 더 가깝고 준비·마무리 강도를 낮춰 회복 상한과의 흐름이 더 일관적이다.",
+          "rationale_order_two": "계획 2는 요청한 20분에 더 가깝고 저강도 준비·마무리와 중강도 본운동의 흐름이 더 일관적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_LLM",
+          "winner_order_two": "SINGLE_LLM"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-001",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 저강도·홈·회복 상한을 지키면서 요청 20분에 더 가깝고, 시간 목표를 충족했다는 근거 코드도 명확하다.",
+          "rationale_order_two": "1안은 요청한 20분에 더 가깝고 목표·회복 제한을 반영하면서도, 2안은 준비와 마무리 구성이 더 충실하다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-002",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "1안은 일반 체력·홈·저강도 조건을 결정 코드로 더 명확히 반영하면서 동일한 구성에서 반복 수가 더 보수적이다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표·홈·저강도·회복 상한 준수 근거가 명시되어 사용자 조건과의 연결이 더 분명하다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-003",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_ONE은 목표·홈 환경·20분·허용 강도를 결정 코드와 간결한 전신 구성에 일관되게 반영한다.",
+          "rationale_order_two": "계획 2는 홈·20분·일반 체력 목표와 중간 강도 조건을 결정 코드와 구성에 명확히 반영한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-SAFETY-001",
+          "category": "safety_critical",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청 시간 범위와 저강도 회복 한도를 코드와 구성에서 더 명확히 반영하며, 세트 간 휴식도 더 간결해 수행 흐름이 좋다.",
+          "rationale_order_two": "PLAN_ONE은 요청 20분에 더 가깝고 시간·회복 강도·홈 운동 조건을 결정 코드로 더 명확히 반영한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-RAG-001",
+          "category": "rag_retrieval",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 시간·홈 운동·회복 한도 준수 근거가 명시되고 구성도 더 간결하고 일관적이다.",
+          "rationale_order_two": "PLAN_ONE은 요청 시간·홈 운동·회복 한도 준수 근거가 명시되고, PLAN_TWO보다 반복 구성이 간결하고 균형적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-RAG-002",
+          "category": "rag_retrieval",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 일반 체력 목표·20분 요청·허용 강도를 근거 코드와 함께 반영하며 구성도 더 간결하고 일관적이다.",
+          "rationale_order_two": "PLAN_ONE은 목표·20분 요청·회복 한도를 근거 코드와 함께 반영하며, PLAN_TWO보다 반복 구성이 간결하고 일관적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-001",
+          "category": "failure_case",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "계획 1은 일반 체력·홈 운동·시간·회복 한도 근거가 명시되고, 계획 2보다 반복 구성이 간결하다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표·홈 운동·20분 요청과의 적합 근거가 명시되고 균형 잡힌 구성인 반면, PLAN_ONE은 반복 구성이 더 불균형하며 근거 코드가 없다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-002",
+          "category": "failure_case",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "SINGLE_AGENT_RAG"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청한 20분에 더 가깝고 휴식 여유가 있으며, PLAN_ONE은 준비·마무리 강도 배분이 더 일관적이다.",
+          "rationale_order_two": "PLAN_ONE은 요청된 20분에 더 가깝고 시간 적합 코드가 있으며, 본운동 구성이 더 간결해 일반 체력 목적의 홈 운동으로 수행 부담이 낮다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        }
+      ],
+      "pair": "SINGLE_LLM vs SINGLE_AGENT_RAG",
+      "position_bias_rate": 0.0,
+      "tally": {
+        "DISAGREED": 1,
+        "SINGLE_AGENT_RAG": 11,
+        "SINGLE_LLM": 1,
+        "TIE": 0
+      },
+      "unjudgeable": [
+        {
+          "case_id": "SQ-COMPLEX-001",
+          "no_plan_from": "SINGLE_LLM"
+        }
+      ]
+    },
+    {
+      "agreement_rate": 0.9167,
+      "by_category": {
+        "complex": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "conflict": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 2,
+          "SINGLE_LLM": 1,
+          "TIE": 0
+        },
+        "failure_case": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 2,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "moderate": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "rag_retrieval": {
+          "DISAGREED": 1,
+          "MULTI_AGENT": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "safety_critical": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 1,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        },
+        "simple": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 2,
+          "SINGLE_LLM": 0,
+          "TIE": 0
+        }
+      },
+      "by_criterion": {
+        "CONSISTENCY": {
+          "MULTI_AGENT": 7,
+          "SINGLE_LLM": 4,
+          "TIE_OR_DISAGREED": 1
+        },
+        "EXPLANATION_QUALITY": {
+          "MULTI_AGENT": 10,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 2
+        },
+        "FEASIBILITY": {
+          "MULTI_AGENT": 10,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 2
+        },
+        "GROUNDEDNESS": {
+          "MULTI_AGENT": 0,
+          "SINGLE_LLM": 0,
+          "TIE_OR_DISAGREED": 12
+        },
+        "OVERALL_QUALITY": {
+          "MULTI_AGENT": 10,
+          "SINGLE_LLM": 1,
+          "TIE_OR_DISAGREED": 1
+        },
+        "PERSONALIZATION": {
+          "MULTI_AGENT": 8,
+          "SINGLE_LLM": 1,
+          "TIE_OR_DISAGREED": 3
+        }
+      },
+      "judged_cases": 12,
+      "outcomes": [
+        {
+          "agreed": true,
+          "case_id": "SQ-SIMPLE-001",
+          "category": "simple",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "계획 1은 요청 시간과 회복 한도를 근거 코드와 간결한 전신 구성에 일관되게 반영한 반면, 계획 2는 반복 운동이 많고 근거 코드가 없다.",
+          "rationale_order_two": "PLAN_TWO는 요청 시간·홈 운동·허용 강도와 반복·세트·휴식 제한을 근거 코드와 함께 반영하면서, PLAN_ONE보다 반복 구성이 적어 더 일관되고 수행하기 쉽다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-SIMPLE-002",
+          "category": "simple",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 시간과 허용 강도 범위 안에서 전신을 균형 있게 구성하고 검증 코드가 제시된 반면, PLAN_TWO는 동일 동작 반복과 근거 코드 부재가 있다.",
+          "rationale_order_two": "PLAN_TWO는 요청 시간과 허용 강도 범위에 맞는 일관된 세트 구성과 검증 근거 코드를 함께 제시한다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-MODERATE-002",
+          "category": "moderate",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청 20분과 홈·회복 제한을 결정 코드와 1,140초 구성에 더 직접적으로 반영하며, 본운동 휴식도 더 길게 배치했다.",
+          "rationale_order_two": "PLAN_ONE은 요청한 20분에 더 가깝고, 홈·회복 제한·필수 운동 반영 근거가 더 구체적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-COMPLEX-002",
+          "category": "complex",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청 시간과 회복 한도를 더 명시적으로 반영하며, PLAN_ONE은 20분 요청보다 긴 편이다.",
+          "rationale_order_two": "PLAN_ONE은 요청한 20분과 회복 한도를 더 직접적으로 반영하면서도 PLAN_TWO보다 짧고 낮은 볼륨으로 구성됐다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-001",
+          "category": "conflict",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청한 20분에 더 가깝고 회복 상한을 명시적으로 반영하면서 근력 목표에 필요한 본운동 구성이 더 다양하다.",
+          "rationale_order_two": "PLAN_TWO는 요청한 20분·홈·저강도 회복 한도를 더 명시적으로 반영하며, PLAN_ONE은 25분으로 요청 시간보다 길다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-002",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_LLM",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청한 20분에 더 가깝고 본운동 구성이 중복 없이 균형적인 반면, PLAN_TWO는 근거 코드 설명이 더 구체적이다.",
+          "rationale_order_two": "PLAN_TWO는 요청한 20분에 더 가깝고 전 구간의 세트 구성이 더 균일하며, PLAN_ONE은 조건 반영 근거 코드가 더 구체적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_LLM",
+          "winner_order_two": "SINGLE_LLM"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-003",
+          "category": "conflict",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 조건 준수 코드와 검증 근거가 있으며, 중간 강도의 균형 잡힌 구성으로 PLAN_TWO의 반복적 저강도 구성보다 적합하다.",
+          "rationale_order_two": "PLAN_TWO는 홈·중강도 조건과 일반 체력 목표에 맞는 균형 잡힌 구성 및 검증 근거가 명확하며, PLAN_ONE은 반복 구성이 불균형하고 근거 코드가 없다.",
+          "redacted_code_count": 1,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-SAFETY-001",
+          "category": "safety_critical",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청한 20분에 더 가깝고 세트 간 휴식이 짧아 실제 수행 흐름이 더 자연스럽다.",
+          "rationale_order_two": "PLAN_ONE은 요청 20분에 더 가깝고 시간 목표 준수 코드가 있어, PLAN_TWO보다 사용자 요청 시간에 더 잘 맞는다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-RAG-001",
+          "category": "rag_retrieval",
+          "consensus_winner": null,
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 중간 강도의 균형 잡힌 전신 구성과 회복 한도 반영 근거가 있으며, PLAN_TWO보다 반복 구간이 적어 더 간결하고 일관적이다.",
+          "rationale_order_two": "1안은 요청 시간에 더 가깝고, 2안은 구성과 근거 코드가 더 명확하지만 시간이 짧아 전체 우열이 뚜렷하지 않다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": null
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-RAG-002",
+          "category": "rag_retrieval",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "SINGLE_LLM",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 회복 제약 적용 근거가 명시되어 있고, 20분 요청에 맞춘 더 간결하고 일관된 전신 구성이다.",
+          "rationale_order_two": "계획 1은 회복 제약 적용 근거가 있고 간결한 전신 구성으로, 반복 항목이 많은 계획 2보다 수행 흐름이 더 명확하다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-001",
+          "category": "failure_case",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 시간에 가깝고 최소 유효 볼륨·회복 한도를 근거로 균형 있게 구성된 반면, PLAN_TWO는 반복 구성이 길고 결정 근거가 없다.",
+          "rationale_order_two": "PLAN_TWO는 요청 시간과 일반 체력 목표에 맞춘 균형 잡힌 2세트 구성 및 명시적 결정 근거가 있어 더 낫다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-002",
+          "category": "failure_case",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_LLM",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 시간 준수 코드와 더 낮은 세트 수·긴 휴식으로 수행 부담이 적고, PLAN_TWO는 목표·장소 근거 코드와 저강도 준비·마무리 설명이 더 명확하다.",
+          "rationale_order_two": "PLAN_TWO는 요청한 20분에 더 가깝고 본운동 볼륨이 낮으며 휴식이 길어 수행 부담이 더 현실적이다.",
+          "redacted_code_count": 1,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        }
+      ],
+      "pair": "SINGLE_LLM vs MULTI_AGENT",
+      "position_bias_rate": 0.0,
+      "tally": {
+        "DISAGREED": 1,
+        "MULTI_AGENT": 10,
+        "SINGLE_LLM": 1,
+        "TIE": 0
+      },
+      "unjudgeable": [
+        {
+          "case_id": "SQ-MODERATE-001",
+          "no_plan_from": "MULTI_AGENT"
+        },
+        {
+          "case_id": "SQ-COMPLEX-001",
+          "no_plan_from": "SINGLE_LLM"
+        }
+      ]
+    },
+    {
+      "agreement_rate": 0.6154,
+      "by_category": {
+        "complex": {
+          "DISAGREED": 1,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 1,
+          "TIE": 0
+        },
+        "conflict": {
+          "DISAGREED": 1,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 2,
+          "TIE": 0
+        },
+        "failure_case": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 1,
+          "SINGLE_AGENT_RAG": 1,
+          "TIE": 0
+        },
+        "moderate": {
+          "DISAGREED": 1,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 0,
+          "TIE": 0
+        },
+        "rag_retrieval": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 2,
+          "TIE": 0
+        },
+        "safety_critical": {
+          "DISAGREED": 0,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 1,
+          "TIE": 0
+        },
+        "simple": {
+          "DISAGREED": 2,
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 0,
+          "TIE": 0
+        }
+      },
+      "by_criterion": {
+        "CONSISTENCY": {
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 4,
+          "TIE_OR_DISAGREED": 9
+        },
+        "EXPLANATION_QUALITY": {
+          "MULTI_AGENT": 3,
+          "SINGLE_AGENT_RAG": 5,
+          "TIE_OR_DISAGREED": 5
+        },
+        "FEASIBILITY": {
+          "MULTI_AGENT": 2,
+          "SINGLE_AGENT_RAG": 2,
+          "TIE_OR_DISAGREED": 9
+        },
+        "GROUNDEDNESS": {
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 0,
+          "TIE_OR_DISAGREED": 13
+        },
+        "OVERALL_QUALITY": {
+          "MULTI_AGENT": 1,
+          "SINGLE_AGENT_RAG": 7,
+          "TIE_OR_DISAGREED": 5
+        },
+        "PERSONALIZATION": {
+          "MULTI_AGENT": 0,
+          "SINGLE_AGENT_RAG": 7,
+          "TIE_OR_DISAGREED": 6
+        }
+      },
+      "judged_cases": 13,
+      "outcomes": [
+        {
+          "agreed": false,
+          "case_id": "SQ-SIMPLE-001",
+          "category": "simple",
+          "consensus_winner": null,
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": true,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청 시간과 강도·반복·휴식·세트 제한을 결정 코드로 더 구체적으로 반영한다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표를 명시하고 요청 시간 20분에 더 정확히 맞추면서도 동일한 장소·강도·회복 한도를 반영한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-SIMPLE-002",
+          "category": "simple",
+          "consensus_winner": null,
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "계획 1은 목표·장소·강도·시간 근거가 더 구체적이고, 푸시업 뒤 가슴 스트레칭으로 마무리 구성이 더 일관적이다.",
+          "rationale_order_two": "두 계획은 구성과 시간·강도가 사실상 같고, 계획 2만 목표·장소·강도를 직접 나타내는 결정 코드를 제공한다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": null
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-MODERATE-002",
+          "category": "moderate",
+          "consensus_winner": null,
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": true,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 요청 시간에 정확히 맞고 반복 수를 낮추면서 회복 제한 근거를 더 구체적으로 제시한다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표와 20분 요청 시간을 더 직접적으로 반영하면서도 모든 구성 요소가 홈·중강도·회복 한도 조건을 충족한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-COMPLEX-001",
+          "category": "complex",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 일반 체력 목표와 회복 상한을 명시하면서 준비·본운동·마무리 구성이 더 균형적이다.",
+          "rationale_order_two": "PLAN_ONE은 일반 체력 목표를 명시하고 상·하체와 코어를 더 고르게 구성하며, PLAN_TWO는 조건 근거 코드의 구체성에서 앞선다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-COMPLEX-002",
+          "category": "complex",
+          "consensus_winner": null,
+          "first_presented": "MULTI_AGENT",
+          "followed_position": true,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 일반 체력 목표를 명시하고 요청 시간에 더 가깝게 맞추면서 본운동 세트 수가 낮아 수행 부담이 더 적다.",
+          "rationale_order_two": "PLAN_TWO는 요청한 20분에 더 가깝고 장소·강도·반복수·세트·휴식 조건을 결정 코드로 더 구체적으로 반영한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": false,
+          "case_id": "SQ-CONFLICT-001",
+          "category": "conflict",
+          "consensus_winner": null,
+          "first_presented": "MULTI_AGENT",
+          "followed_position": true,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "두 계획 모두 홈·저강도 회복 한도를 충족하지만, 계획 2는 20분 목표와 근력 중심 구성이 결정 코드에 더 직접적으로 드러나고 구성이 더 간결하다.",
+          "rationale_order_two": "PLAN_TWO는 동일한 회복·장소 조건을 지키면서 코어를 포함해 근력 목표를 더 폭넓게 반영하고 근거 코드도 더 구체적이다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "MULTI_AGENT"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-002",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 요청 20분에 더 가깝고 운동 구성이 중복 없이 준비·본운동·마무리 흐름을 유지한다.",
+          "rationale_order_two": "PLAN_TWO는 일반 체력 목표를 명시하고 요청 20분에 더 가까운 시간과 일관된 저강도 구성을 제시한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-CONFLICT-003",
+          "category": "conflict",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "두 계획 모두 조건을 충족하지만, 계획 2는 일반 체력 목표와 회복 범위를 명시하고 요청한 20분에 더 가깝다.",
+          "rationale_order_two": "PLAN_ONE은 일반 체력 목표와 20분 요청 시간에 더 직접적으로 부합하며, PLAN_TWO는 낮은 반복 수로 수행 부담이 약간 낮다.",
+          "redacted_code_count": 1,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-SAFETY-001",
+          "category": "safety_critical",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 홈·저강도·회복 한도뿐 아니라 일반 체력 목표와 시간 허용 범위를 결정 코드로 더 명확히 반영한다.",
+          "rationale_order_two": "두 계획은 구성과 제한 준수가 유사하지만, PLAN_ONE은 홈·일반 체력·회복 상한·시간 조건을 더 직접적으로 근거 코드에 연결한다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-RAG-001",
+          "category": "rag_retrieval",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "SINGLE_AGENT_RAG",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "계획 1은 요청 20분에 더 가깝고 시간·홈 운동·회복 한도 관련 근거 코드가 사용자 조건과 더 직접적으로 연결된다.",
+          "rationale_order_two": "PLAN_TWO는 요청한 20분에 더 가깝고 시간·홈 운동·회복 한도 준수 근거가 더 명확하다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-RAG-002",
+          "category": "rag_retrieval",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 일반 체력 목표와 20분 요청을 코드로 명시하고 코어·런지를 포함해 전신 구성이 더 균형적이다.",
+          "rationale_order_two": "PLAN_ONE은 요청 시간과 일반 체력 목표를 명시적으로 반영하면서 몸통을 포함한 더 균형적인 전신 구성을 제시한다.",
+          "redacted_code_count": 2,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-001",
+          "category": "failure_case",
+          "consensus_winner": "SINGLE_AGENT_RAG",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_TWO는 일반 체력 목표와 균형 구성을 명시하며, 더 간결한 전신 구성으로 요청 시간 안의 수행 흐름이 더 일관적이다.",
+          "rationale_order_two": "PLAN_ONE은 일반 체력 목표에 맞춘 균형 구성으로, 비슷한 시간 안에 더 단순하고 일관된 흐름을 제공한다.",
+          "redacted_code_count": 0,
+          "winner_order_one": "SINGLE_AGENT_RAG",
+          "winner_order_two": "SINGLE_AGENT_RAG"
+        },
+        {
+          "agreed": true,
+          "case_id": "SQ-FAILURE-002",
+          "category": "failure_case",
+          "consensus_winner": "MULTI_AGENT",
+          "first_presented": "MULTI_AGENT",
+          "followed_position": false,
+          "pair": [
+            "SINGLE_AGENT_RAG",
+            "MULTI_AGENT"
+          ],
+          "rationale_order_one": "PLAN_ONE은 장소·시간·회복 한도뿐 아니라 제외 운동 부재와 전체 단계 검증 근거를 명시하면서 더 낮은 운동별 볼륨으로 구성되어 있다.",
+          "rationale_order_two": "PLAN_TWO는 동일한 홈·시간·강도 조건을 충족하면서 세트와 반복 수가 더 낮아 수행 부담이 비교적 현실적이고, 준수 근거 코드도 더 구체적이다.",
+          "redacted_code_count": 1,
+          "winner_order_one": "MULTI_AGENT",
+          "winner_order_two": "MULTI_AGENT"
+        }
+      ],
+      "pair": "SINGLE_AGENT_RAG vs MULTI_AGENT",
+      "position_bias_rate": 0.3077,
+      "tally": {
+        "DISAGREED": 5,
+        "MULTI_AGENT": 1,
+        "SINGLE_AGENT_RAG": 7,
+        "TIE": 0
+      },
+      "unjudgeable": [
+        {
+          "case_id": "SQ-MODERATE-001",
+          "no_plan_from": "MULTI_AGENT"
+        }
+      ]
+    }
+  ],
+  "phase": "PHASE 7 pairwise",
+  "plans_from": "OPENAI:gpt-5.6-terra"
+}

@@ -24,11 +24,13 @@ define competing domain enums or Pydantic schemas.
 
 The three specialist nodes fan out in one LangGraph superstep and merge through an
 append reducer. `collect_proposals` reads them back in `SPECIALIST_AGENT_ORDER`, never
-in completion order. A missing, timed-out, invalid, `FAILED`, or `NEEDS_INPUT` branch
-prevents Coordinator execution and routes to deterministic fallback. Three valid
-proposals go directly to the Coordinator without conflict detection or a specialist
-review round. Training owns the draft exercise plan; Recovery and Feasibility provide
-advisory adjustment codes.
+in completion order. A missing, timed-out, invalid, or `FAILED` branch
+prevents Coordinator execution and routes to deterministic fallback. Training must
+return a valid `READY` proposal. Recovery and Feasibility may return valid `READY` or
+`NEEDS_INPUT` proposals because their content is advisory; all three role records still
+go directly to the Coordinator without conflict detection or a specialist review round.
+Training owns the draft exercise plan; Recovery and Feasibility provide advisory
+adjustment codes.
 
 LLM nodes call native async adapter methods inside `asyncio.timeout`. Cancellation
 therefore propagates to the provider coroutine; no worker thread is left running.

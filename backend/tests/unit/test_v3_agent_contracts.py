@@ -23,6 +23,7 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentInput,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    TrainingNeedsInputReasonCode,
     V3ProposalStatusCode,
 )
 
@@ -194,7 +195,11 @@ def proposal(
             else (f"{agent_type.value}_CONSTRAINTS_PRESERVED",)
         ),
         hard_constraint_codes=("DURATION_PRESERVED",),
-        reason_codes=("GOAL_PRESERVED",),
+        reason_codes=(
+            (TrainingNeedsInputReasonCode.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN.value,)
+            if agent_type is SpecialistAgentTypeCode.TRAINING and not ready
+            else ("GOAL_PRESERVED",)
+        ),
         evidence_reference_codes=("ENVELOPE", "POOL"),
         public_summary_code=(f"{agent_type.value}_READY" if ready else None),
     )
@@ -212,6 +217,22 @@ def agent_input(
         exercise_pool=current_pool,
         pool_hash=current_pool.pool_hash,
     )
+
+
+def test_legacy_training_needs_input_reason_remains_read_compatible() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+
+    legacy = SpecialistAgentProposal.create(
+        agent_type_code=SpecialistAgentTypeCode.TRAINING,
+        proposal_status_code=V3ProposalStatusCode.NEEDS_INPUT,
+        envelope_hash=current_envelope.envelope_hash,
+        pool_hash=current_pool.pool_hash,
+        requested_duration_minutes=current_envelope.requested_duration_minutes,
+        reason_codes=("NO_DURATION_COMPLIANT_VOLUME_COMBINATION",),
+    )
+
+    assert legacy.reason_codes == ("NO_DURATION_COMPLIANT_VOLUME_COMBINATION",)
 
 
 @pytest.mark.parametrize("agent_type", tuple(SpecialistAgentTypeCode))

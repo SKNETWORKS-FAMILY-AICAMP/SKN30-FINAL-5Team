@@ -51,8 +51,8 @@ SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION: Final[Literal["specialist-agent-propos
 LLM_INVOCATION_METADATA_SCHEMA_VERSION: Final[Literal["llm-invocation-metadata-v1"]] = (
     "llm-invocation-metadata-v1"
 )
-V3_COORDINATOR_INPUT_SCHEMA_VERSION: Final[Literal["v3-coordinator-input-v1"]] = (
-    "v3-coordinator-input-v1"
+V3_COORDINATOR_INPUT_SCHEMA_VERSION: Final[Literal["v3-coordinator-input-v2"]] = (
+    "v3-coordinator-input-v2"
 )
 PLAN_SPEC_SCHEMA_VERSION: Final[Literal["plan-spec-v1"]] = "plan-spec-v1"
 
@@ -77,6 +77,25 @@ class V3ProposalStatusCode(StrEnum):
     READY = "READY"
     NEEDS_INPUT = "NEEDS_INPUT"
     FAILED = "FAILED"
+
+
+class TrainingNeedsInputReasonCode(StrEnum):
+    """Stable explanation allowed when Training cannot author a plan.
+
+    A validated specialist input has already ruled out absent or inconsistent
+    shared contracts.  The remaining honest result is therefore deliberately
+    narrow: the deterministic planner could not prove that a valid candidate
+    exists.  ``UNPROVEN`` is not an assertion that no plan exists.
+    """
+
+    DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN = "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
+
+
+class TrainingPlanFeasibilityCode(StrEnum):
+    """Conservative preflight evidence supplied to the Training adapter."""
+
+    CANDIDATE_AVAILABLE = "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
+    UNPROVEN = "DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
 
 
 class PlanActionCode(StrEnum):
@@ -685,11 +704,11 @@ class LLMInvocationMetadata(BaseModel):
 
 
 class CoordinatorInput(BaseModel):
-    """Canonical three-proposal input accepted by the future LLM Coordinator adapter."""
+    """Canonical three-proposal input accepted by the LLM Coordinator adapter."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["v3-coordinator-input-v1"] = V3_COORDINATOR_INPUT_SCHEMA_VERSION
+    schema_version: Literal["v3-coordinator-input-v2"] = V3_COORDINATOR_INPUT_SCHEMA_VERSION
     constraint_envelope: ConstraintEnvelope
     exercise_pool: ExercisePoolSnapshot
     proposals: tuple[SpecialistAgentProposal, ...]
@@ -712,11 +731,14 @@ class CoordinatorInput(BaseModel):
         agent_order = tuple(proposal.agent_type_code for proposal in self.proposals)
         if agent_order != SPECIALIST_AGENT_ORDER:
             raise ValueError("Coordinator requires three proposals in canonical role order")
+        training, recovery, feasibility = self.proposals
+        if training.proposal_status_code is not V3ProposalStatusCode.READY:
+            raise ValueError("Coordinator requires a READY Training proposal")
         if any(
-            proposal.proposal_status_code is not V3ProposalStatusCode.READY
-            for proposal in self.proposals
+            proposal.proposal_status_code is V3ProposalStatusCode.FAILED
+            for proposal in (recovery, feasibility)
         ):
-            raise ValueError("Coordinator cannot run with missing, failed, or non-ready proposals")
+            raise ValueError("Coordinator cannot run with a failed advisory proposal")
         if self.repair_attempt == 0 and self.repair_violation_codes:
             raise ValueError("initial Coordinator input cannot carry repair violations")
         if self.repair_attempt == 1 and not self.repair_violation_codes:
@@ -877,5 +899,7 @@ __all__ = [
     "SpecialistAgentInput",
     "SpecialistAgentProposal",
     "SpecialistAgentTypeCode",
+    "TrainingNeedsInputReasonCode",
+    "TrainingPlanFeasibilityCode",
     "V3ProposalStatusCode",
 ]

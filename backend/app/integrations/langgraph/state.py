@@ -117,6 +117,12 @@ class AgentOutcome:
     failure_code: str | None = None
     telemetry: LlmInvocationTelemetry | None = None
 
+    # Why the agent declined, when it did. A rejected proposal is dropped, and
+    # the prompt asks the agent to name the condition in `reason_codes`, so
+    # dropping it with the proposal discards the one diagnostic that was
+    # requested. Never merged into the proposals the Coordinator sees.
+    decline_reason_codes: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class InvocationAudit:
@@ -129,6 +135,7 @@ class InvocationAudit:
     output_token_count: int | None = None
     provider_usage_present: bool = False
     failure_code: str | None = None
+    decline_reason_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

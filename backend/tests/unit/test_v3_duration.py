@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import (
     ExerciseFittContext,
@@ -301,21 +300,36 @@ def _fallback_spec(
     )
 
 
-def test_compilation_rejects_a_plan_that_cannot_fill_the_requested_duration() -> None:
-    # The reported defect: a plan declaring the requested duration while
-    # prescribing a fraction of it. Compilation now measures the prescriptions,
-    # so the claim can no longer stand in for the work.
+def test_compilation_exposes_a_duration_mismatch_to_the_integrity_validator() -> None:
+    # Compilation must measure rather than trust the plan's duration claim, but
+    # the downstream integrity validator owns rejection and bounded repair.
     envelope = _envelope(requested_duration_minutes=30)
     pool = _pool(envelope)
     spec = _fallback_spec(envelope, pool, (reps_prescription(),))
 
-    with pytest.raises(ValidationError):
-        compile_plan(
-            spec,
-            envelope=envelope,
-            pool=pool,
-            compiler_version="v3-plan-compiler-v1",
-        )
+    compiled = compile_plan(
+        spec,
+        envelope=envelope,
+        pool=pool,
+        compiler_version="v3-plan-compiler-v1",
+    )
+
+    result = validate_plan_integrity(
+        compiled,
+        envelope=envelope,
+        pool=pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=IntegrityValidationContext(),
+    )
+
+    assert compiled.estimated_duration_seconds == 195
+    violation = next(
+        item
+        for item in result.violations
+        if item.code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+    )
+    assert violation.repairable
 
 
 def test_compiled_duration_is_the_measured_sum_of_its_prescriptions() -> None:
@@ -351,8 +365,7 @@ class _StubCompiledExercise:
 class _StubCompiledPlan:
     """A compiled plan whose measured duration can be set independently.
 
-    CompiledPlan itself now rejects an out-of-window duration, so reaching the
-    validator's own duration rule needs a stand-in that skips that constructor.
+    Used to exercise validator boundary values independently from compilation.
     """
 
     def __init__(

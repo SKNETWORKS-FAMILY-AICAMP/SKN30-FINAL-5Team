@@ -343,8 +343,9 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
   resolver 호환성을 검증한다.
 - OpenAI model은 integrations 아래 factory에서만 만들며 temperature 0, bounded timeout,
   provider retry 0을 고정한다. 전체 retry 상한은 기존 `StructuredChatInvoker`가 소유한다.
-- LangSmith tracing과 callbacks는 명시적으로 비활성화하고 provider raw body/error는 결과·로그에
-  전달하지 않는다.
+- LangSmith provider tracing과 callbacks는 기본적으로 명시적 비활성화한다. ADR-0020 승인 전에는
+  켤 수 없으며, 승인 후에도 `LLM_AGENTS_TRACING_ENABLED=true`인 평가·staging 실행에서만 prompt와
+  모델 응답 span을 허용한다. provider raw body/error는 결과·로그에 전달하지 않는다.
 - token은 provider `AIMessage.usage_metadata`의 유효한 input/output count가 모두 있을 때만 기록한다.
   비용은 exact model이 일치하는 외부 versioned pricing reference가 주입될 때만 계산한다.
 - `V3_REGENERATION_ENABLED=false`를 유지하며 production API composition과 shadow composition을

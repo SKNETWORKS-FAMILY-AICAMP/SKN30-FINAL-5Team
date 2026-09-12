@@ -1,0 +1,283 @@
+{
+  "architectures": [
+    {
+      "architecture_code": "SINGLE_LLM",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 0.9375,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.1875,
+          "plan_delivery_rate": 1.0,
+          "runs": 16
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0833,
+          "plan_delivery_rate": 1.0,
+          "runs": 12
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 14
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        }
+      },
+      "constraint_satisfaction_rate": 0.9815,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 1.0,
+        "average_tokens_per_run": 4581.1,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 205972,
+        "llm_calls": 54,
+        "output_tokens": 41407
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 1,
+        "feasibility": 3.3019,
+        "mean": 2.9874,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.1698,
+        "personalization": 3.6981,
+        "scored_runs": 53
+      },
+      "label": "A. Single LLM",
+      "latency": {
+        "p50_ms": 15391,
+        "p95_ms": 20546
+      },
+      "llm_plan_rate": 0.0741,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "outcomes": {
+        "counts": {
+          "CONTRACT": 45,
+          "DECLINED": 0,
+          "GATE": 5,
+          "PLAN": 4,
+          "PROVIDER": 0
+        },
+        "decline_rate": 0.0,
+        "note": "DECLINED is available to the multi-agent path only: a baseline output schema has no status field and requires at least one prescription. rejected_rate is the architecture-symmetric part.",
+        "plan_rate": 0.0741,
+        "rejected_rate": 0.9259,
+        "run_count": 54
+      },
+      "plan_delivery_rate": 1.0,
+      "run_count": 54,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 0.1667,
+      "workflow_completion_rate": 1.0
+    },
+    {
+      "architecture_code": "SINGLE_AGENT_RAG",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 16
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.8333,
+          "plan_delivery_rate": 1.0,
+          "runs": 12
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 14
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        }
+      },
+      "constraint_satisfaction_rate": 1.0,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 1.0,
+        "average_tokens_per_run": 9171.7,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 391311,
+        "llm_calls": 54,
+        "output_tokens": 103962
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 0,
+        "feasibility": 3.7593,
+        "mean": 3.7377,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.8333,
+        "personalization": 4.2778,
+        "scored_runs": 54
+      },
+      "label": "B. Single Agent + RAG",
+      "latency": {
+        "p50_ms": 25641,
+        "p95_ms": 48953
+      },
+      "llm_plan_rate": 0.963,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "outcomes": {
+        "counts": {
+          "CONTRACT": 0,
+          "DECLINED": 0,
+          "GATE": 2,
+          "PLAN": 52,
+          "PROVIDER": 0
+        },
+        "decline_rate": 0.0,
+        "note": "DECLINED is available to the multi-agent path only: a baseline output schema has no status field and requires at least one prescription. rejected_rate is the architecture-symmetric part.",
+        "plan_rate": 0.963,
+        "rejected_rate": 0.037,
+        "run_count": 54
+      },
+      "plan_delivery_rate": 1.0,
+      "run_count": 54,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 1.0,
+      "workflow_completion_rate": 1.0
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 0.9375,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.625,
+          "plan_delivery_rate": 1.0,
+          "runs": 16
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.6667,
+          "plan_delivery_rate": 1.0,
+          "runs": 12
+        },
+        "failure_case": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 4
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.8571,
+          "plan_delivery_rate": 1.0,
+          "runs": 14
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.75,
+          "plan_delivery_rate": 1.0,
+          "runs": 8
+        }
+      },
+      "constraint_satisfaction_rate": 0.9815,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 3.8519,
+        "average_tokens_per_run": 22043.6,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 1023349,
+        "llm_calls": 208,
+        "output_tokens": 167008
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 1,
+        "feasibility": 3.7547,
+        "mean": 3.5943,
+        "no_plan_not_scored": 0,
+        "overall_quality": 3.6415,
+        "personalization": 3.8491,
+        "scored_runs": 53
+      },
+      "label": "C. Multi-Agent + RAG",
+      "latency": {
+        "p50_ms": 31813,
+        "p95_ms": 51047
+      },
+      "llm_plan_rate": 0.7407,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "outcomes": {
+        "counts": {
+          "CONTRACT": 0,
+          "DECLINED": 9,
+          "GATE": 5,
+          "PLAN": 40,
+          "PROVIDER": 0
+        },
+        "decline_rate": 0.1667,
+        "note": "DECLINED is available to the multi-agent path only: a baseline output schema has no status field and requires at least one prescription. rejected_rate is the architecture-symmetric part.",
+        "plan_rate": 0.7407,
+        "rejected_rate": 0.0926,
+        "run_count": 54
+      },
+      "plan_delivery_rate": 1.0,
+      "run_count": 54,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 0.8333,
+      "workflow_completion_rate": 1.0
+    }
+  ],
+  "dataset": "smoke",
+  "fairness_conditions": {
+    "downstream_gate": "identical compiler, integrity validator and deterministic fallback",
+    "embedding": "not re-run per architecture; the pool is composed once per case",
+    "evaluation_dataset": "identical",
+    "exercise_data": "identical synthetic catalog",
+    "llm_model": "identical: one provider object is built once and shared",
+    "output_schema": "identical up to proposal_references and repair_attempt, which only a multi-agent run can supply",
+    "prompt": "the baseline instruction is composed from the four shipped role prompts",
+    "temperature": "identical: fixed by build_openai_demo_chat_model",
+    "tool_scope": "A sees only the fields the output schema requires; B and C see the same full pool projection",
+    "user_input": "identical: the same EvaluationCase list, in the same order",
+    "vector_db": "identical ExercisePoolSnapshot per case; PostgreSQL decides eligibility"
+  },
+  "judge_blind": true,
+  "notes": [
+    "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
+    "The baselines get no repair round; the multi-agent path does. Every paid multi-agent run in PHASE 4 used zero repairs, so the asymmetry had no measured effect, but it favours C.",
+    "A PlanSpec structurally requires three proposal references, so a baseline plan reaches the shipped compiler through a contract adapter that invents no advice. See runners/single_agent.py."
+  ],
+  "repeats": 1
+}

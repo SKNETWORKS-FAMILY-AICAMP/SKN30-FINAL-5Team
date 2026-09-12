@@ -1,0 +1,322 @@
+{
+  "architecture_code": "MULTI_AGENT",
+  "cases": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24249,
+      "llm_call_count": 4,
+      "output_tokens": 3870,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 28531
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-002",
+      "category": "simple",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24229,
+      "llm_call_count": 4,
+      "output_tokens": 3951,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 28844
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24103,
+      "llm_call_count": 4,
+      "output_tokens": 4091,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 29703
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24564,
+      "llm_call_count": 4,
+      "output_tokens": 4029,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 29375
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-COMPLEX-001",
+      "category": "complex",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24407,
+      "llm_call_count": 4,
+      "output_tokens": 3712,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 29766
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-COMPLEX-002",
+      "category": "complex",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24635,
+      "llm_call_count": 4,
+      "output_tokens": 3418,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 24671
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-CONFLICT-001",
+      "category": "conflict",
+      "findings": [
+        {
+          "check_code": "EXPECTED_PLAN_NOT_PRODUCED",
+          "defect_class": "UNDETERMINED",
+          "expected": "a compiled plan for this case",
+          "observed": "status=FAILED, failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_TRAINING_NOT_READY']",
+          "severity": "MAJOR"
+        },
+        {
+          "check_code": "DETERMINISTIC_FALLBACK_USED",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "the deterministic path answers when the provider does not",
+          "observed": "fallback produced no plan; failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_TRAINING_NOT_READY']",
+          "severity": "INFO"
+        }
+      ],
+      "has_plan": false,
+      "input_tokens": 11075,
+      "llm_call_count": 3,
+      "output_tokens": 756,
+      "passed": false,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "FAILED",
+      "used_fallback": true,
+      "wall_clock_ms": 4344
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-CONFLICT-002",
+      "category": "conflict",
+      "findings": [
+        {
+          "check_code": "EXPECTED_PLAN_NOT_PRODUCED",
+          "defect_class": "UNDETERMINED",
+          "expected": "a compiled plan for this case",
+          "observed": "status=FAILED, failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_FEASIBILITY_NOT_READY']",
+          "severity": "MAJOR"
+        },
+        {
+          "check_code": "DETERMINISTIC_FALLBACK_USED",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "the deterministic path answers when the provider does not",
+          "observed": "fallback produced no plan; failures=['V3_FALLBACK_PLAN_UNAVAILABLE', 'V3_FEASIBILITY_NOT_READY']",
+          "severity": "INFO"
+        }
+      ],
+      "has_plan": false,
+      "input_tokens": 11513,
+      "llm_call_count": 3,
+      "output_tokens": 1497,
+      "passed": false,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "FAILED",
+      "used_fallback": true,
+      "wall_clock_ms": 10140
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-CONFLICT-003",
+      "category": "conflict",
+      "findings": [
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "ROW_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "equipment is settled upstream during pool composition",
+          "observed": "OVERHEAD_PRESS_DUMBBELL requires ['DUMBBELL'] with an empty envelope allowlist",
+          "severity": "INFO"
+        },
+        {
+          "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+          "defect_class": "UNDETERMINED",
+          "expected": "a successful run reports no failure codes",
+          "observed": "failure codes: ['V3_COMPILATION_FAILED']",
+          "severity": "MINOR"
+        },
+        {
+          "check_code": "DETERMINISTIC_FALLBACK_USED",
+          "defect_class": "NOT_A_DEFECT",
+          "expected": "the deterministic path answers when the provider does not",
+          "observed": "fallback produced a plan; failures=['V3_COMPILATION_FAILED']",
+          "severity": "INFO"
+        }
+      ],
+      "has_plan": true,
+      "input_tokens": 26645,
+      "llm_call_count": 4,
+      "output_tokens": 3650,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": true,
+      "wall_clock_ms": 28047
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SAFETY-001",
+      "category": "safety_critical",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24432,
+      "llm_call_count": 4,
+      "output_tokens": 3935,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 31281
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-RAG-001",
+      "category": "rag_retrieval",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24207,
+      "llm_call_count": 4,
+      "output_tokens": 3667,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 27359
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-RAG-002",
+      "category": "rag_retrieval",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24328,
+      "llm_call_count": 4,
+      "output_tokens": 3526,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 22234
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24389,
+      "llm_call_count": 4,
+      "output_tokens": 4373,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 39000
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-FAILURE-002",
+      "category": "failure_case",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24515,
+      "llm_call_count": 4,
+      "output_tokens": 3581,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 25422
+    }
+  ],
+  "critical_failures": 0,
+  "llm_calls_made": 66,
+  "model_label": "OPENAI:gpt-5.6-terra",
+  "passed_runs": 12,
+  "run_count": 14,
+  "tracing": "LangSmith tracing on: project=helkki run=multi-agent-v1"
+}

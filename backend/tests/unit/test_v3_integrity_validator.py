@@ -77,21 +77,50 @@ def test_valid_compiled_plan_passes_with_stable_validation_hash() -> None:
     assert first.validation_hash == second.validation_hash
 
 
-def test_exact_duration_mismatch_is_repairable_only_with_approved_alternative() -> None:
+def test_a_duration_mismatch_is_repairable_from_the_pool_alone() -> None:
+    """ADR-0022: rearranging a plan needs no Safety-approved substitute.
+
+    This asserted the opposite until ADR-0022. Nothing populates
+    `approved_safe_alternative_ids` outside these tests, so requiring it here
+    made every violation terminal and left the repair node unreachable in a
+    real run -- measured in `docs/test/ROUND2_HELDOUT_RESULTS.md` (D-6).
+    """
+
     current_envelope = envelope()
     compiled, current_pool = compiled_plan(current_envelope)
     wrong_duration = compiled.model_copy(update={"estimated_duration_seconds": 1799})
 
-    repairable = validate_plan_integrity(
-        wrong_duration,
-        envelope=current_envelope,
-        pool=current_pool,
-        repair_attempt=0,
-        validator_version=VALIDATOR_VERSION,
-        context=context(),
+    for alternatives in ((B,), ()):
+        result = validate_plan_integrity(
+            wrong_duration,
+            envelope=current_envelope,
+            pool=current_pool,
+            repair_attempt=0,
+            validator_version=VALIDATOR_VERSION,
+            context=context(alternatives=alternatives),
+        )
+        assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE, alternatives
+        assert result.violations[0].code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+
+
+def test_a_safety_exclusion_still_needs_an_approved_substitute() -> None:
+    """The half of the old rule that ADR-0022 keeps.
+
+    Replacing an exercise Safety removed is not the same as rearranging a plan:
+    the pool at large is not an answer to what this user may do instead.
+    """
+
+    current_envelope = envelope(excluded_ids=(C,))
+    compiled, current_pool = compiled_plan(current_envelope)
+    excluded = compiled.exercises[0].model_copy(
+        update={
+            "prescription": compiled.exercises[0].prescription.model_copy(update={"exercise_id": C})
+        }
     )
+    with_excluded = compiled.model_copy(update={"exercises": (excluded, *compiled.exercises[1:])})
+
     terminal = validate_plan_integrity(
-        wrong_duration,
+        with_excluded,
         envelope=current_envelope,
         pool=current_pool,
         repair_attempt=0,
@@ -99,9 +128,63 @@ def test_exact_duration_mismatch_is_repairable_only_with_approved_alternative() 
         context=context(alternatives=()),
     )
 
-    assert repairable.status_code is IntegrityValidationStatusCode.REPAIRABLE
-    assert repairable.violations[0].code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+    assert IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED in {
+        item.code for item in terminal.violations
+    }
     assert terminal.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+
+
+def test_a_repeated_family_is_repairable_which_is_what_the_held_out_run_lost() -> None:
+    """SQ-HELD-023 exactly: a conditionally-repairable violation sent straight
+    to the deterministic fallback because no approved substitute existed."""
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    repeated = tuple(
+        item.model_copy(
+            update={
+                "prescription": item.prescription.model_copy(
+                    update={"exercise_id": compiled.exercises[0].prescription.exercise_id}
+                ),
+                "catalog_record": compiled.exercises[0].catalog_record,
+            }
+        )
+        for item in compiled.exercises
+    )
+    duplicated = compiled.model_copy(update={"exercises": repeated})
+
+    result = validate_plan_integrity(
+        duplicated,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(alternatives=()),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+
+
+def test_the_second_round_is_never_repairable_again() -> None:
+    """One repair round, not a loop. ADR-0022 did not touch this bound."""
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    wrong_duration = compiled.model_copy(update={"estimated_duration_seconds": 1799})
+
+    result = validate_plan_integrity(
+        wrong_duration,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=1,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+    assert IntegrityViolationCode.REPAIR_ATTEMPT_EXHAUSTED in {
+        item.code for item in result.violations
+    }
 
 
 def test_recovery_ceiling_and_safety_exclusion_cannot_be_relaxed() -> None:
