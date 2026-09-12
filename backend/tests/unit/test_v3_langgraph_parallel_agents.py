@@ -229,7 +229,5 @@ def test_a_declining_training_still_reports_its_tokens_and_its_reason() -> None:
 
     assert "V3_TRAINING_NOT_READY" in result.failure_codes
     training = next(audit for audit in result.invocation_audits if audit.role_code == "TRAINING")
-    assert training.decline_reason_codes == (
-        "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN",
-    )
+    assert training.decline_reason_codes == ("TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN",)
     assert training.attempt_count > 0, "a declined call still cost an attempt"

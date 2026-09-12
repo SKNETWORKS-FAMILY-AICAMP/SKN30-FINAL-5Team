@@ -487,9 +487,7 @@ def build_expanded_cases() -> list[dict[str, Any]]:
     ):
         builder.add(
             category="conflict",
-            description=(
-                f"확대 표본: {area} {severity} 제외 + {duration}분 + 회복 상한 동시 적용"
-            ),
+            description=(f"확대 표본: {area} {severity} 제외 + {duration}분 + 회복 상한 동시 적용"),
             duration_minutes=duration,
             location_code=location,
             fatigue_code="HIGH",

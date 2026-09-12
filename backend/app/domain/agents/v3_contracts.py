@@ -88,9 +88,7 @@ class TrainingNeedsInputReasonCode(StrEnum):
     exists.  ``UNPROVEN`` is not an assertion that no plan exists.
     """
 
-    DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN = (
-        "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
-    )
+    DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN = "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
 
 
 class TrainingPlanFeasibilityCode(StrEnum):

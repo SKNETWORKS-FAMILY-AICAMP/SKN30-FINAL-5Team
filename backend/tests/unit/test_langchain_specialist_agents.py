@@ -104,10 +104,7 @@ def test_training_retries_decline_when_deterministic_candidate_is_available() ->
     )
     assert isinstance(human_message.content, str)
     payload = json.loads(human_message.content)["input"]
-    assert (
-        payload["training_plan_feasibility_code"]
-        == "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
-    )
+    assert payload["training_plan_feasibility_code"] == "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
 
 
 def test_training_may_decline_with_stable_reason_when_feasibility_is_unproven() -> None:
