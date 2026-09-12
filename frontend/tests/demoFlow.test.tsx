@@ -2721,27 +2721,37 @@ describe('OnboardingScreen', () => {
       fireEvent.press(screen.getByLabelText('연도 1997년'));
 
       const scrollRequests = scrollTo.mock.calls
-        .map(([request]) => request)
+        .map(([request], index) => ({
+          context: scrollTo.mock.contexts[index],
+          request,
+        }))
         .filter(
           (
-            request,
-          ): request is {
-            animated?: boolean;
-            x?: number;
-            y?: number;
-          } => typeof request === 'object' && request !== null,
+            entry,
+          ): entry is {
+            context: unknown;
+            request: {
+              animated?: boolean;
+              x?: number;
+              y?: number;
+            };
+          } => typeof entry.request === 'object' && entry.request !== null,
         );
       const animatedSelection = scrollRequests.find(
-        (request) => request.animated === true,
+        ({ request }) => request.animated === true,
       );
-      expect(animatedSelection).toEqual({
+      expect(animatedSelection?.request).toEqual({
         animated: true,
         y: expect.any(Number),
       });
-      expect(scrollRequests).not.toContainEqual({
-        animated: false,
-        y: animatedSelection?.y,
-      });
+      expect(
+        scrollRequests.some(
+          ({ context, request }) =>
+            context === animatedSelection?.context &&
+            request.animated === false &&
+            request.y === animatedSelection?.request.y,
+        ),
+      ).toBe(false);
       expect(screen.getByLabelText('연도 1997년')).toHaveProp(
         'accessibilityState',
         expect.objectContaining({ selected: true }),

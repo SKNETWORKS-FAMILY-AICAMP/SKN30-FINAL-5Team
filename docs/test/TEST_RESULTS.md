@@ -6,11 +6,34 @@ PHASE 0~11 최종 실행 결과. 마스터 명세는 `docs/test/service_test_mas
 - 최종 갱신일: 2026-09-12
 - 브랜치: `fix/v3-round2-quality-improvement` (`develop`의 `6deb151`에서 분기)
 - PHASE 0~7은 서비스 코드 변경 없음. PHASE 8은 승인된 provider tracing 옵트인만 추가
+- 서비스 기능 보강 실행: 2026-09-12, `fix/banana-rewards-and-workout-ux` / `1dba253`
 
 > 이 문서는 마스터 명세가 지정한 공식 최종 산출물이다. 1차(튜닝 데이터셋) 결과를 보존하면서
 > 개선 후 2차 held-out 최종 판정을 함께 반영한다. 상세 추적 근거는
 > `docs/test/ROUND2_HELDOUT_RESULTS.md`에 있다.
 > **Round 2는 2026-09-12 종료했다.** 이후 숫자를 기존 사전 등록 판정에 합산하지 않는다.
+
+> 본 평가의 원래 주요 범위는 운동 계획 생성 엔진과 안전 제약 검증이다. 인증부터 운동 수행,
+> 주간 리포트까지의 서비스 기능 보강 결과는 `SERVICE_FUNCTIONAL_TEST_RESULTS.md`에 분리했다.
+> 실제 Firebase·PostgreSQL·Android 기기를 한 번에 연결한 전체 E2E는 아직 미실행이다.
+
+### 서비스 배포 판정과 아키텍처 판정
+
+**서비스 안전성과 계획 전달의 코드·HTTP 계약은 배포 가능한 수준으로 확인됐다. 발견된 프론트엔드
+회귀 2건은 테스트 계약을 바로잡은 뒤 전체 736건 통과로 해소했다. AWS staging의 readiness·인증
+경계·CORS, 로그인된 Firebase 세션의 주요 조회와 readiness 동시 요청 50건도 통과했다. 다만 전용
+PostgreSQL test DB 통합 테스트, 신규 Firebase 로그인, Android 실기기와 업무 API 부하 검증이 남아
+있어 서비스 배포 판정은 `조건부 통과`로 한다. 멀티에이전트의 Single-Agent+RAG 대비 비교 우위는
+이번 평가에서 입증되지 않았다.**
+
+2026-09-12 보강 실행에서 백엔드 API 303건, 핵심 서비스·골든·개인정보 160건, 프론트 핵심 화면
+243건과 Android/iOS production export가 통과했다. 프론트 전체 회귀에서 발견된 2건은 제품 결함이
+아닌 테스트 계약 문제로 판별해 수정했고 최종 736/736건이 통과했다. 백엔드 integration은 7건
+통과, PostgreSQL 의존 89건 skip이었다. 이후 AWS staging에서 실제 TLS readiness 200, 인증 실패
+401, CORS 경계, 로그인 세션 기반 홈·프로필·캘린더·저장 운동 상세 조회와 readiness 동시 50건
+전부 200을 확인했다. 전용 `_test` DB가 없고 runtime DB 계정에 생성 권한이 없어 schema reset 기반
+integration 89건은 운영성 DB 보호를 위해 실행하지 않았다. 상세 입력 조건, 기대·실제 결과, 판정과
+재현 명령은 `SERVICE_FUNCTIONAL_TEST_RESULTS.md`를 따른다.
 
 ### 최종 판정 요약
 
@@ -595,7 +618,8 @@ token 수치가 과소 보고됐으므로 비용 비교에는 재측정이 필�
 3. **검색 순위가 최종 계획에 미치는 영향 미측정.**
 4. **PHASE 4 표본 14건, 반복 1회**(변동성 측정만 3회). 지표의 신뢰구간을
    말할 수 있는 규모가 아니다.
-5. **HTTP·DB·인증 경로 미포함.** 기존 `tests/api`, `tests/integration` 담당.
+5. **전체 E2E 미포함.** 2026-09-12 보강 실행으로 FastAPI HTTP 계약과 mock 기반 인증·프론트 흐름은
+   검증했지만, 실제 Firebase·PostgreSQL·배포 API·모바일 앱을 한 번에 연결한 E2E는 미실행이다.
 6. **한국어 rubric의 토큰 추정은 문자수 기반**이라 오차가 있다.
 7. **사람 평가와 자동 Judge는 최종 판정에서 제외했다.** 독립 다수 평가·평가자 간 일치도가
    없고 Judge에도 self-preference와 fallback 교란이 있기 때문이다.
@@ -634,6 +658,12 @@ token 수치가 과소 보고됐으므로 비용 비교에는 재측정이 필�
    안전 영향은 없고 순수 품질 개선 과제다.
 
 ## 결론
+
+서비스 전체 판정은 **조건부 통과**다. 코드·HTTP 계약 수준에서 핵심 사용자 흐름과 안전한 계획
+전달을 확인했고 발견된 프론트엔드 회귀 2건도 수정 후 전체 통과했다. AWS staging의 실제 조회
+흐름과 공개 API 경계도 통과했지만, 전용 PostgreSQL test DB·신규 Firebase 로그인·Android 환경의
+통합 검증을 완료하기 전에는 무조건 배포 가능으로 판정하지 않는다. 이 서비스 판정과 아래의
+멀티에이전트 비교 판정은 서로 독립적이다.
 
 배포 전 안전성 관점에서 **차단 사유는 발견되지 않았다.** 1·2차 모두 안전 준수율 1.000,
 critical/unsafe plan 0건이고 모든 실패는 결정적 gate와 fallback에서 fail-closed로 종료했다.

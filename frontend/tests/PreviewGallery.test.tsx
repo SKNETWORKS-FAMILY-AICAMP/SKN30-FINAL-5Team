@@ -1136,11 +1136,8 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('radio', { name: '시간이 부족해요.' }));
     fireEvent.press(canvas.getByRole('button', { name: '이 사유로 중단하기' }));
 
-    // Stopping asks how it went instead of ending the session outright.
-    expect(await canvas.findByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
-    fireEvent.press(canvas.getByRole('radio', { name: '적당했어요' }));
-    fireEvent.press(canvas.getByTestId('session-feedback-save'));
-
+    // A zero-block general stop stays resumable and returns Home without
+    // closing the session or asking post-session feedback.
     await waitFor(() =>
       expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked(),
     );
