@@ -485,7 +485,7 @@ class RecordingNarrationAgent:
     def interpret(self, report: WeeklyReportNarrationInput) -> WeeklyReportNarration:
         self.inputs.append(report)
         return WeeklyReportNarration(
-            summary="주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요.",
+            summary="이번 주 흐름을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!",
             decision_summary="조정된 루틴의 수행 결과와 미완료 사유를 함께 반영했습니다.",
             next_action="다음 주에는 가능한 시간에 맞춰 한 번의 운동부터 시작해 보세요.",
             source_code="LLM",
@@ -496,7 +496,7 @@ class RecordingNarrationAgent:
                 "pain_response": "통증 신호에는 안전 기준을 우선할게요.",
             },
             model_code="test-model",
-            prompt_version="weekly-report-narration-prompt-v2",
+            prompt_version="weekly-report-narration-prompt-v3",
         )
 
 
@@ -545,7 +545,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
         "primary_miss_reason_code": "TIME_SHORTAGE",
         "adjustment_direction_code": "MIXED",
     }
-    assert response.summary == "주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요."
+    assert response.summary == "이번 주 흐름을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!"
     assert response.counts.model_dump() == {
         "completed": 1,
         "partial": 1,
@@ -560,7 +560,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "agent_type_code": "WEEKLY_REPORT_INTERPRETER",
             "source_code": "LLM",
             "model_code": "test-model",
-            "prompt_version": "weekly-report-narration-prompt-v2",
+            "prompt_version": "weekly-report-narration-prompt-v3",
             "fallback_reason_code": None,
             "input_schema_version": "weekly-report-input-v4",
             "input_hash": repository.last_report_values.input_hash,

@@ -65,6 +65,11 @@ describe('RewardsScreen', () => {
 
     expect(screen.getByLabelText('보유 바나나 42개')).toBeTruthy();
     expect(screen.getByText('바나나 15개 받기')).toBeTruthy();
+    expect(
+      screen.getByText(
+        '운동 바나나는 목표 시간의 50% 이상 운동했을 때 받을 수 있어요.',
+      ),
+    ).toBeTruthy();
   });
 
   it('claims the daily reward through the API and shows the new balance', async () => {

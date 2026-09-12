@@ -26,7 +26,7 @@ from backend.app.modules.weekly_reports.ports import (
 )
 
 WEEKLY_REPORT_INTERPRETER_CODE: Final = "WEEKLY_REPORT_INTERPRETER"
-WEEKLY_REPORT_NARRATION_PROMPT_VERSION: Final = "weekly-report-narration-prompt-v2"
+WEEKLY_REPORT_NARRATION_PROMPT_VERSION: Final = "weekly-report-narration-prompt-v3"
 _SLOT_CODES: Final = (
     "ADJUSTMENT_SUMMARY",
     "NEXT_WEEK_INTENSITY",
@@ -36,7 +36,9 @@ _SLOT_CODES: Final = (
     "COACH_MESSAGE",
 )
 _MAX_SENTENCE_LENGTH: Final = 180
+_MAX_COACH_MESSAGE_LENGTH: Final = 70
 _DIGIT_PATTERN: Final = re.compile(r"\d")
+_SENTENCE_END_PATTERN: Final = re.compile(r"[.!?。！？]")
 _MACHINE_CODE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _BANNED_TERMS: Final = (
     "diagnos",
@@ -59,8 +61,10 @@ _INSTRUCTION: Final = (
     "treat, prescribe, pressure, or shame. A safety stop or pain signal requires serious, "
     "non-playful wording. Low completion alone must not imply lower intensity or shorter "
     "duration. Preserve the requested duration unless the aggregate explicitly records a "
-    "time or schedule reason. COACH_MESSAGE must combine one observed strength, a neutral "
-    "weekly summary, and encouragement for next week in one or two sentences. Return exactly "
+    "time or schedule reason. COACH_MESSAGE is the user's friendly one-line takeaway: write "
+    "exactly one short Korean sentence, at most seventy characters, that naturally combines "
+    "one observed strength or neutral record with gentle encouragement. Avoid report jargon, "
+    "enumeration, and repeating the aggregate. Return exactly "
     "a JSON object with a sentences object containing every supplied slot code; each value "
     "must be a single line."
 )
@@ -99,6 +103,17 @@ def _sentence_is_acceptable(value: object) -> bool:
     return not any(term in lowered for term in _BANNED_TERMS)
 
 
+def _coach_message_is_acceptable(value: object) -> bool:
+    if not _sentence_is_acceptable(value) or not isinstance(value, str):
+        return False
+    sentence = value.strip()
+    return (
+        len(sentence) <= _MAX_COACH_MESSAGE_LENGTH
+        and len(_SENTENCE_END_PATTERN.findall(sentence)) == 1
+        and bool(_SENTENCE_END_PATTERN.search(sentence[-1]))
+    )
+
+
 def _llm_narration_is_acceptable(narration: WeeklyReportNarration) -> bool:
     return (
         narration.source_code == "LLM"
@@ -106,6 +121,7 @@ def _llm_narration_is_acceptable(narration: WeeklyReportNarration) -> bool:
         and isinstance(narration.model_code, str)
         and bool(_MACHINE_CODE_PATTERN.fullmatch(narration.model_code))
         and narration.fallback_reason_code is None
+        and _coach_message_is_acceptable(narration.summary)
         and set(narration.next_week_recommendation)
         == {"intensity", "volume", "duration", "pain_response"}
         and all(
@@ -175,6 +191,8 @@ class WeeklyReportNarrationAgent:
             return _template(report, "LLM_OUTPUT_REJECTED")
         sentences = {code: completion.sentences[code].strip() for code in _SLOT_CODES}
         if not all(_sentence_is_acceptable(sentence) for sentence in sentences.values()):
+            return _template(report, "LLM_OUTPUT_REJECTED")
+        if not _coach_message_is_acceptable(sentences["COACH_MESSAGE"]):
             return _template(report, "LLM_OUTPUT_REJECTED")
         return WeeklyReportNarration(
             summary=sentences["COACH_MESSAGE"],

@@ -826,7 +826,11 @@ function WorkoutScreenContent({
         reasonCode,
       );
       setExecutionState('PAUSED');
-      apiConfig.onOutcome({ kind: 'stopped', result });
+      apiConfig.onOutcome({
+        kind: 'stopped',
+        result,
+        completedItemCount: completedCount,
+      });
     } catch (error) {
       setApiError(messageForError(error));
     } finally {
@@ -1118,6 +1122,9 @@ function WorkoutScreenContent({
               </Pressable>
             </View>
           </View>
+          <Text style={styles.rewardEligibilityNote}>
+            목표 시간의 50% 이상 운동하면 바나나 리워드를 받아요.
+          </Text>
           <View
             accessibilityLabel="운동 블록 진행률"
             style={styles.progressRow}
@@ -2745,6 +2752,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  rewardEligibilityNote: {
+    marginTop: 8,
+    color: '#FFF8E5',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   timerCopy: {
     minWidth: 0,

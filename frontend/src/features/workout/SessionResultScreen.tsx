@@ -55,6 +55,8 @@ type HardDifficultyDetailCode =
  * safety stop with no completed block straight home and skipped the only place
  * the user is asked how the session went -- the exact case where the answer
  * matters most. Home is still told the day is rest; the question is asked first.
+ * A resumable general stop is not rest. Its zero-block case only skips this
+ * feedback screen and keeps the session available on Home.
  */
 export function isRestOutcome(outcome: SessionOutcome): boolean {
   if (outcome.kind === 'safetyStop') return false;
@@ -74,10 +76,12 @@ export function SessionResultScreen({
   onDone: () => void;
 }) {
   const resting = isRestOutcome(outcome);
+  const skipFeedback =
+    resting || (outcome.kind === 'stopped' && outcome.completedItemCount === 0);
   useEffect(() => {
-    if (resting) onDone();
-  }, [resting, onDone]);
-  if (resting) return null;
+    if (skipFeedback) onDone();
+  }, [skipFeedback, onDone]);
+  if (skipFeedback) return null;
   if (outcome.kind === 'stopped') {
     return (
       <ScreenShell>

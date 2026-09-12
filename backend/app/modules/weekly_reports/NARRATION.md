@@ -21,3 +21,7 @@ does not receive pain areas, scores, free text, or raw check-ins. Provider timeo
 provider failure, bad JSON, invalid slots, or unsafe output falls back to reviewed
 deterministic templates. The report API therefore remains available when LLM
 narration is disabled or unavailable.
+
+The coach message is validated separately as one friendly Korean sentence of at
+most 70 characters. It summarizes a recorded strength or neutral signal and a
+gentle next-week encouragement instead of repeating the report's numeric tally.

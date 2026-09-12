@@ -85,8 +85,12 @@ rather than clamped. The user-local date is the idempotency key, so a retry with
 the original transaction while a second, different score that day is refused as `INVALID_BANANA_SPEND`.
 A round earning nothing returns `400 INVALID_MINI_GAME_SCORE`. Transactions use type `MINI_GAME`.
 
-Canonical workout rewards are 30 for `COMPLETED`, 15 for `PARTIAL` and `STOPPED_FOR_SAFETY`, plus the
-existing once-per-local-day 10 completed-workout house quest. `NOT_COMPLETED` never deducts bananas.
+Canonical workout rewards require
+`accumulated_progress_seconds * 2 >= requested_duration_minutes * 60`, that is, at least 50% of the
+session's requested duration. Eligible outcomes pay 30 for `COMPLETED`
+and 15 for `PARTIAL` and `STOPPED_FOR_SAFETY`, plus the existing once-per-local-day 10
+completed-workout house quest. A shorter session and `NOT_COMPLETED` pay no workout reward and never
+deduct bananas.
 `GET /api/v1/me` adds top-level integer `banana_balance` (default 0); clients use `/rewards` for
 claimability and a reconciled balance.
 
@@ -2201,6 +2205,8 @@ UUID `Idempotency-Key` header가 필수다. 서로 다른 키를 사용하더라
 - `recommendation_action_counts`: 이번 주 실제 최종 추천의 action code별 횟수다.
 - `adjustment_summary`, `next_week_recommendation`, `coach_message`: 4~6번 화면용 OpenAI narration
   결과다. 각각 실제 추천 반영 설명, 강도·운동량·시간·통증 대응 방향, 한 줄 코치에 해당한다.
+  `coach_message`는 집계 수치를 반복하지 않는 친숙한 한국어 한 문장(70자 이하)이며, 관찰된
+  흐름이나 남긴 기록 하나와 부담 없는 다음 주 응원을 자연스럽게 잇는다.
   OpenAI에는 위의 비식별·정규화 집계만 전달하며 수치·코드·판정 변경 권한은 없다. 비활성화,
   timeout, 잘못된 JSON 또는 안전하지 않은 문구에는 결정적 템플릿을 사용한다. 기존 리포트에서는
   이 additive 필드가 `null`일 수 있으며 클라이언트는 기존 `decision_summary`, `next_action`,

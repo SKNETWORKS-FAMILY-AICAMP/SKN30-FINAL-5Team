@@ -755,6 +755,10 @@ structured output validation 또는 required Agent가 최종 실패하면 부분
 
 공식 운동 수행 상태는 앱의 운동 블록 완료 체크로만 확정한다. 전체 경과 타이머와 웨어러블 요약은 참고 신호이며 공식 상태를 변경할 수 없다. 수동 외부 운동 기록은 MVP에 포함하지 않는다.
 
+바나나 운동 보상은 공식 수행 상태와 별도로 실제 누적 운동 시간이 요청 시간의 50% 이상인
+세션에만 지급한다. 이 시간 조건은 완료 상태를 바꾸지 않으며, 미달·미수행·중단으로 바나나를
+차감하지 않는다. `PARTIAL`과 `STOPPED_FOR_SAFETY`는 조건을 충족하면 같은 금액을 지급한다.
+
 신규 write의 실행 상태 전이:
 
 ~~~text
@@ -816,7 +820,8 @@ GET 자체는 상태를 변경하지 않으며, 서버의 `ACKNOWLEDGED` 응답�
 - 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
 - 이번 주 목표·수행·체감 난이도·컨디션·통증·사유는 결정적으로 집계한다. OpenAI narration은
   실제 추천 반영 설명, 다음 주 강도·운동량·시간·통증 대응 문구, 한 줄 코치만 작성할 수 있으며
-  집계값이나 안전 판정은 바꿀 수 없다. provider 장애나 검증 실패 시 같은 집계의 템플릿 문구를 쓴다.
+  집계값이나 안전 판정은 바꿀 수 없다. 한 줄 코치는 집계 숫자를 나열하지 않는 70자 이하의
+  친숙한 한국어 한 문장으로 제한한다. provider 장애나 검증 실패 시 같은 집계의 템플릿 문구를 쓴다.
 - 신규 `pain_report_count`의 canonical 원천은 해당 주의 `workout_safety_event_discomforts`가 존재하는
   distinct workout session 수다. 동일 세션의 여러 event/부위는 한 번만 센다. 호환 기간의 legacy
   `workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 한 번 포함하고

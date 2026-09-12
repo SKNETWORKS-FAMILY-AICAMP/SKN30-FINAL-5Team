@@ -221,6 +221,10 @@ function WalletContent({
         </View>
       </Card>
 
+      <Text style={styles.workoutRewardNote}>
+        운동 바나나는 목표 시간의 50% 이상 운동했을 때 받을 수 있어요.
+      </Text>
+
       <Card style={styles.dailyCard} testID="daily-reward-card">
         <View style={styles.sectionHeadingRow}>
           <View style={styles.sectionHeadingCopy}>
@@ -371,6 +375,11 @@ const styles = StyleSheet.create({
   },
   walletSections: {
     gap: spacing.lg,
+  },
+  workoutRewardNote: {
+    color: colors.textSub,
+    fontSize: 13,
+    lineHeight: 19,
   },
   balanceCard: {
     minHeight: 166,

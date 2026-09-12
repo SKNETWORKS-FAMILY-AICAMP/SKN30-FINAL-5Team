@@ -596,6 +596,9 @@ describe('WorkoutScreen', () => {
       fontWeight: '700',
     });
     expect(screen.queryByText('ELAPSED TIME')).toBeNull();
+    expect(
+      screen.getByText('목표 시간의 50% 이상 운동하면 바나나 리워드를 받아요.'),
+    ).toBeOnTheScreen();
   });
 
   it('counts elapsed time without changing block completion', async () => {
@@ -2262,6 +2265,7 @@ describe('WorkoutScreen API mode', () => {
     expect(onOutcome).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'stopped',
+        completedItemCount: 0,
         result: expect.objectContaining({ is_resumable: true }),
       }),
     );

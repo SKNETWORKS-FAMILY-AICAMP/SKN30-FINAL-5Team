@@ -6,7 +6,7 @@
  * plays no part in routine decisions — it is presentation only.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 import {
   Modal,
   Pressable,
@@ -81,15 +81,21 @@ export function ExerciseCatalogScreen({
   const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
     null,
   );
+  const listScrollRef = useRef<ScrollView>(null);
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
     (signal) => loadEntireCatalog(api, signal),
     [api],
   );
 
-  const selectBodyFocus = useCallback((code: string | undefined) => {
-    setBodyFocus(code);
-  }, []);
+  const selectBodyFocus = useCallback(
+    (code: string | undefined) => {
+      if (code === bodyFocus) return;
+      listScrollRef.current?.scrollTo({ y: 0, animated: false });
+      setBodyFocus(code);
+    },
+    [bodyFocus],
+  );
 
   return (
     <>
@@ -145,6 +151,7 @@ export function ExerciseCatalogScreen({
           <CatalogList
             items={filterCatalogItems(state.data.items, searchQuery, bodyFocus)}
             searchActive={searchQuery.trim().length > 0}
+            scrollRef={listScrollRef}
             onOpen={setOpenExercise}
           />
         )}
@@ -258,10 +265,12 @@ function FilterRow<Code extends string | undefined>({
 function CatalogList({
   items,
   searchActive,
+  scrollRef,
   onOpen,
 }: {
   items: ExerciseListItem[];
   searchActive: boolean;
+  scrollRef: RefObject<ScrollView | null>;
   onOpen: (exercise: ExerciseListItem) => void;
 }) {
   if (items.length === 0) {
@@ -278,6 +287,7 @@ function CatalogList({
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.catalogScroll}
       contentContainerStyle={styles.list}
       testID="exercise-catalog-list-scroll"

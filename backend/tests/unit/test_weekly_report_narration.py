@@ -57,7 +57,7 @@ def test_valid_provider_result_is_used_without_an_external_call() -> None:
                 "NEXT_WEEK_VOLUME": "완료 가능한 운동량을 우선할게요.",
                 "NEXT_WEEK_DURATION": "가능한 일정에 맞춰 운동 시간을 구성할게요.",
                 "NEXT_WEEK_PAIN_RESPONSE": "통증 신호에는 안전 기준을 우선할게요.",
-                "COACH_MESSAGE": "이번 주 기록을 잘 남겼어요. 다음 주에도 무리 없이 이어가요.",
+                "COACH_MESSAGE": "이번 주 기록을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!",
             },
         )
     )
@@ -66,7 +66,7 @@ def test_valid_provider_result_is_used_without_an_external_call() -> None:
 
     assert result.source_code == "LLM"
     assert result.model_code == "test-model"
-    assert result.summary == "이번 주 기록을 잘 남겼어요. 다음 주에도 무리 없이 이어가요."
+    assert result.summary == "이번 주 기록을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!"
     assert result.next_week_recommendation["volume"] == "완료 가능한 운동량을 우선할게요."
     assert len(provider.prompts) == 1
     assert provider.prompts[0].payload == {
@@ -96,6 +96,27 @@ def test_numeric_or_incomplete_provider_output_uses_template_fallback() -> None:
     assert result.source_code == "TEMPLATE"
     assert result.fallback_reason_code == "LLM_OUTPUT_REJECTED"
     assert result.summary == "template summary"
+
+
+def test_multi_sentence_coach_message_uses_template_fallback() -> None:
+    provider = RecordingProvider(
+        NarrationCompletion(
+            model_code="test-model",
+            sentences={
+                "ADJUSTMENT_SUMMARY": "조정 결과를 실제 추천에 반영했어요.",
+                "NEXT_WEEK_INTENSITY": "잘 맞았던 강도를 이어갈게요.",
+                "NEXT_WEEK_VOLUME": "완료 가능한 운동량을 우선할게요.",
+                "NEXT_WEEK_DURATION": "요청한 운동 시간을 유지할게요.",
+                "NEXT_WEEK_PAIN_RESPONSE": "몸의 신호를 우선해서 살필게요.",
+                "COACH_MESSAGE": "이번 주 기록을 잘 남겼어요. 다음 주에도 이어가요.",
+            },
+        )
+    )
+
+    result = WeeklyReportNarrationAgent(provider).interpret(_report())
+
+    assert result.source_code == "TEMPLATE"
+    assert result.fallback_reason_code == "LLM_OUTPUT_REJECTED"
 
 
 def test_medicalized_korean_provider_output_uses_template_fallback() -> None:

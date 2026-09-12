@@ -257,7 +257,7 @@ function apiWithRoutes(routes: Record<string, unknown>) {
 
 describe('MainFlow restart recovery', () => {
   it.each([0, 1])(
-    'stops a session with %i completed blocks without ending it, then asks how it went',
+    'stops a session with %i completed blocks without ending it and routes feedback correctly',
     async (completedCount) => {
       const storedPlan = plan();
       storedPlan.items.push({
@@ -365,11 +365,7 @@ describe('MainFlow restart recovery', () => {
       fireEvent.press(
         screen.getByRole('button', { name: '이 사유로 중단하기' }),
       );
-      // How many blocks were checked no longer decides the path: both go
-      // through the resumable stop, and neither closes the session.
-      const save = await screen.findByRole('button', {
-        name: '피드백 저장하고 홈으로',
-      });
+      await waitFor(() => expect(stopSession).toHaveBeenCalledTimes(1));
       expect(stopSession).toHaveBeenCalledTimes(1);
       expect(stopSession).toHaveBeenCalledWith(
         'session-1',
@@ -378,6 +374,20 @@ describe('MainFlow restart recovery', () => {
       );
       expect(markNotCompleted).not.toHaveBeenCalled();
       expect(finishSession).not.toHaveBeenCalled();
+
+      if (completedCount === 0) {
+        expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+        expect(screen.queryByText('오늘 운동은 어땠나요?')).toBeNull();
+        expect(submitFeedback).not.toHaveBeenCalled();
+        expect(
+          await screen.findByRole('button', { name: '이어하기' }),
+        ).toBeOnTheScreen();
+        return;
+      }
+
+      const save = await screen.findByRole('button', {
+        name: '피드백 저장하고 홈으로',
+      });
       expect(save).toBeDisabled();
 
       fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
@@ -762,8 +772,9 @@ describe('MainFlow restart recovery', () => {
     fireEvent.press(screen.getByRole('radio', { name: '시간이 부족해요.' }));
     fireEvent.press(screen.getByRole('button', { name: '이 사유로 중단하기' }));
 
-    // Asked how it went, and the session was never closed to ask.
-    await screen.findByRole('button', { name: '피드백 저장하고 홈으로' });
+    // With no completed block, return home without asking for workout feedback.
+    expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+    expect(screen.queryByText('오늘 운동은 어땠나요?')).toBeNull();
     await waitFor(() =>
       expect(calls.some((path) => path.includes('/stop'))).toBe(true),
     );
@@ -974,8 +985,11 @@ describe('MainFlow restart recovery', () => {
       expect(markNotificationRead).toHaveBeenCalledWith('notification-1');
       expect(claimDailyReward).toHaveBeenCalledTimes(1);
     });
+    expect(claimDailyReward.mock.invocationCallOrder[0]).toBeLessThan(
+      markNotificationRead.mock.invocationCallOrder[0]!,
+    );
     expect(
-      await screen.findByText('바나나 15개를 받았어요.'),
+      await screen.findByText('오늘의 바나나 15개가 지갑에 담겼어요.'),
     ).toBeOnTheScreen();
     expect(screen.getByTestId('notification-popover')).toBeOnTheScreen();
     expect(getRewards).not.toHaveBeenCalled();
@@ -1035,6 +1049,7 @@ describe('MainFlow restart recovery', () => {
     );
 
     await waitFor(() => expect(claimDailyReward).toHaveBeenCalledTimes(1));
+    expect(markNotificationRead).not.toHaveBeenCalled();
     expect(
       await screen.findByRole('button', { name: '다시 불러오기' }),
     ).toBeOnTheScreen();
