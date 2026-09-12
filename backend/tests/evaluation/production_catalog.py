@@ -109,7 +109,9 @@ class CatalogCoverage:
         }
 
 
-def _fitt_context(*, stable_code: str, experience_level_code: str, timing_mode_code: str):
+def _fitt_context(
+    *, stable_code: str, experience_level_code: str, timing_mode_code: str
+) -> ExerciseFittContext:
     """Adapt the reviewed FITT reference the way `v3_application` adapts it."""
 
     context = context_for_exercise(

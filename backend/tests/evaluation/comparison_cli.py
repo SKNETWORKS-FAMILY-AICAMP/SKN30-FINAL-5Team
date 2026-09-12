@@ -96,6 +96,21 @@ def dataset_cases(name: str | None) -> tuple[EvaluationCase, ...]:
     return tuple(case for case in loaded.cases if case.expected_scenario_build_error is None)
 
 
+def select_case_ids(
+    cases: tuple[EvaluationCase, ...], case_ids: Sequence[str] | None
+) -> tuple[EvaluationCase, ...]:
+    """Select an explicit paid-run subset while preserving dataset order."""
+
+    if not case_ids:
+        return cases
+    requested = set(case_ids)
+    selected = tuple(case for case in cases if case.case_id in requested)
+    missing = sorted(requested - {case.case_id for case in selected})
+    if missing:
+        raise ValueError(f"unknown case IDs: {', '.join(missing)}")
+    return selected
+
+
 _REPORT_NOTES: tuple[str, ...] = (
     "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
     "The baselines get no repair round; the multi-agent path does. Every paid "
@@ -233,11 +248,12 @@ async def _execute(
     offline: bool,
     judge_enabled: bool,
     dataset: str | None = None,
+    case_ids: Sequence[str] | None = None,
 ) -> ComparisonReport:
     _register_baseline_prompts()
     provider = None if offline else build_provider()
     model_label = provider.label if provider is not None else "eval-scripted-model-v1"
-    cases = planning_cases(dataset_cases(dataset))
+    cases = planning_cases(select_case_ids(dataset_cases(dataset), case_ids))
     budget = _Budget(max_calls=max_calls)
 
     judge_model: JudgeModel | None = None
@@ -252,7 +268,12 @@ async def _execute(
             # Offline scores move the pipeline; they are not an opinion.
             judge_model = StructuralMockJudge()
 
-    report = ComparisonReport(repeats=repeats, judge_blind=True, notes=_REPORT_NOTES)
+    report = ComparisonReport(
+        dataset_name=dataset or "smoke",
+        repeats=repeats,
+        judge_blind=True,
+        notes=_REPORT_NOTES,
+    )
     for architecture_code in architectures:
         print(f"\n{architecture_code}")
         report.results.append(
@@ -382,10 +403,21 @@ def main() -> int:
         default=None,
         help="dataset base name; default is the tuning smoke set",
     )
+    parser.add_argument(
+        "--case-ids",
+        nargs="+",
+        default=None,
+        help="run only these case IDs from the selected dataset",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     arguments = parser.parse_args()
 
-    cases = planning_cases(dataset_cases(arguments.dataset))
+    try:
+        cases = planning_cases(
+            select_case_ids(dataset_cases(arguments.dataset), arguments.case_ids)
+        )
+    except ValueError as error:
+        parser.error(str(error))
     print(_forecast(arguments.architectures, len(cases), arguments.repeats))
     print(f"hard stop at --max-calls {arguments.max_calls}")
     print(
@@ -406,6 +438,7 @@ def main() -> int:
                 offline=arguments.offline,
                 judge_enabled=not arguments.no_judge,
                 dataset=arguments.dataset,
+                case_ids=arguments.case_ids,
             )
         )
     except ProviderUnavailableError as error:

@@ -80,6 +80,8 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentInput,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    TrainingNeedsInputReasonCode,
+    TrainingPlanFeasibilityCode,
     V3ProposalStatusCode,
 )
 from backend.app.domain.agents.v3_contracts import (
@@ -174,6 +176,8 @@ __all__ = [
     "SpecialistAgentInput",
     "SpecialistAgentProposal",
     "SpecialistAgentTypeCode",
+    "TrainingNeedsInputReasonCode",
+    "TrainingPlanFeasibilityCode",
     "V3ProposalStatusCode",
     "coordinate",
     "exercise_pool_hash",

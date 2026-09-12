@@ -1,7 +1,9 @@
 # 2차 held-out 유료 평가 결과
 
+> **상태: 종료(2026-09-12).** 사전 등록 판정은 변경하지 않으며 이후 개선은 별도 ADR로 추적한다.
 > 1~7절은 **ADR-0022 수정 전** 실행이다. 수정 후 재측정과 최종 판정은 **8절**에 있다.
-> 두 실행의 판정 결과는 같다: 사전 등록 기준 2개 미달, 1개 미판정.
+> Human 평가는 신뢰 가능한 독립성·평가자 일치도를 확보하지 못해 최종 판정에서 제외했다.
+> 기계 검증 가능한 기준의 결과는 통과 4, 미달 2다.
 
 - 실행일: 2026-09-11
 - 데이터셋: `heldout_cases` 33건 중 planning 29건 (blocked 4건은 provider 호출 없음)
@@ -15,14 +17,14 @@
 
 ## 1. 사전 등록 기준 판정
 
-`ROUND2_IMPROVEMENT_PLAN` 3절에서 결과를 보기 전에 고정한 기준이다. 기준은 수정하지 않았다.
+`ROUND2_IMPROVEMENT_PLAN` 3절에서 결과를 보기 전에 고정한 기준 중 자동 재현 가능한 항목이다.
+Human mean은 평가 신뢰 조건을 충족하지 못해 최종 판정에서 제외했다.
 
 | 지표 | 통과 기준 | 실측 | 판정 |
 |---|---:|---:|:--:|
 | Safety golden pass rate | 1.000 | 1.000 (33/33) | 통과 |
 | Critical / unsafe plan | 0건 | 0건 | 통과 |
 | 실-provider workflow completion | ≥ 0.950 | 1.000 | 통과 |
-| Multi − Single RAG **Human** mean | ≥ +0.20 | 미측정 | **미판정** |
 | v1 Multi 대비 평균 total token | ≥ 25% 감소 | 26.9786% 감소 | 통과 |
 | Multi P95 latency | ≤ 30초 | **48.813초** | **미달** |
 | conflict/complex case plan rate | ≥ Single RAG | **complex 0.667 / conflict 0.600** | **미달** |
@@ -33,7 +35,7 @@ token 기준에 대한 주석: 사전 등록 문구는 "v1 Multi 대비"이고 v
 직접 비교하면 23.49% 감소지만, 데이터셋과 카탈로그가 달라 사전 등록된 비교가 아니므로
 판정 근거로 쓰지 않았다. 두 수치 모두 기록한다.
 
-**판정: 2개 기준 미달, 1개 미판정. 따라서 "Multi-Agent가 더 유효하다"는 결론을 내리지 않는다.**
+**판정: 기계 검증 기준 통과 4, 미달 2. 따라서 "Multi-Agent가 더 유효하다"는 결론을 내리지 않는다.**
 `ROUND2_IMPROVEMENT_PLAN` 6절의 분기 중 **"Single RAG가 동등 이상"** 에 해당한다.
 
 ## 2. 측정값
@@ -192,8 +194,8 @@ PHASE 7에서 이미 신뢰 한계를 측정했다: blind pairwise에서 positio
 일치율 61.54%였다. **이 차이(−0.046)는 그 잡음 폭보다 작으므로 "B가 더 낫다"는 근거로도
 쓸 수 없다.** 단방향으로만 말할 수 있다: Judge는 C의 우월성을 지지하지 않는다.
 
-기준 4(Human mean +0.20 이상)는 **여전히 미측정**이며, Judge 점수로 대체하지 않는다.
-PM과 개발리드의 독립 blind 평가가 남아 있다.
+Human과 Judge 점수는 최종 판정에서 제외한다. 아래 Judge 분석은 자동 채점기의 교란 여부를
+확인한 진단 이력이며 아키텍처 우열의 근거가 아니다.
 
 ## 5. latency 기준 미달
 
@@ -228,8 +230,8 @@ LLM span export는 이 실행에서 꺼져 있었으므로 tracing overhead는 �
 
 - **안전성은 held-out에서도 유지된다.** 33건 전체 safety 1.000, critical 0건, 계획 전달률
   1.000. 배포 카탈로그와 배포 안전 규칙으로 구성한, 튜닝에 쓰지 않은 데이터에서의 결과다.
-- **Multi-Agent의 우월성은 입증되지 않았다.** 사전 등록 기준 2개 미달(P95 latency,
-  conflict/complex plan rate), 1개 미판정(Human). 1차 결론이 held-out에서 반복됐다.
+- **Multi-Agent의 우월성은 입증되지 않았다.** 기계 검증 기준 2개(P95 latency,
+  conflict/complex plan rate)가 미달했다. 1차 결론이 held-out에서 반복됐다.
 - **Single-Agent + RAG가 가용성·구조화 출력·비용에서 앞선다.** 계획 생성률 0.897 대 0.759,
   구조화 출력 1.000 대 0.828, 토큰 8,808 대 20,386(2.31배), 호출 1.00 대 3.83.
 - **후속은 `ROUND2_IMPROVEMENT_PLAN` 6절의 마지막 분기다**: multi-agent 단순화 또는 조건부
@@ -244,8 +246,7 @@ LLM span export는 이 실행에서 꺼져 있었으므로 tracing overhead는 �
 - 신규 발견 D-6(repair 노드 도달 불가)은 C에게만 불리하게 작용했다. 따라서 C의 이번 수치는
   설계가 의도한 상한이 아니며, D-6 수정 후 재측정이 필요하다. 다만 **수정 전에는
   "고치면 나아질 것"이라고 주장하지 않는다.**
-- 남은 게이트: 독립 blind Human 평가(6), Judge calibration(7). **둘 다 사람이 필요하며
-  이 실행으로 대체되지 않는다.**
+- Human 평가는 최종 근거에서 제외했으며, Judge calibration은 진단 자료로만 보존한다.
 
 ---
 
@@ -351,19 +352,26 @@ C의 수치는 두 실행에서 거의 동일했고(moderate만 변동), B가 �
 
 ## 8.5 사전 등록 기준 재판정
 
-기준은 수정하지 않았다.
+자동 재현 가능한 기준은 수정하지 않았다. Human mean은 최종 판정에서 제외한다.
 
 | 지표 | 기준 | 2회차 실측 | 판정 |
 |---|---:|---:|:--:|
 | Safety golden pass rate | 1.000 | 1.000 (33/33) | 통과 |
 | Critical / unsafe plan | 0건 | 0건 | 통과 |
 | 실-provider workflow completion | ≥ 0.950 | 1.000 | 통과 |
-| Multi − Single RAG **Human** mean | ≥ +0.20 | 미측정 | **미판정** |
 | v1 Multi 대비 평균 total token | ≥ 25% 감소 | 26.9786% 감소 | 통과 |
 | Multi P95 latency | ≤ 30초 | **43.093초** | **미달** |
 | conflict/complex plan rate | ≥ Single RAG | conflict 동률, **complex 0.667 대 0.944** | **미달** |
 
-**판정은 바뀌지 않는다. 2개 미달, 1개 미판정.** ADR-0022는 실제 결함을 고쳤고 관측성을
+| LLM Judge 참고 지표(1~5, blind) | Single LLM | Single RAG | Multi-Agent | 차이(Multi−RAG) |
+|---|---:|---:|---:|---:|
+| 전체 계획(fallback 포함) | 2.9770 | 3.6322 | 3.5172 | -0.1150 |
+| 모델 저작 계획만 | 4.0556 (n=3) | 3.7267 (n=25) | 3.7222 (n=21) | -0.0045 |
+
+Judge는 최종 판정에서 숨기지 않고 참고값으로 보고한다. 다만 저작 계획의 짝지어 비교가 9승 대
+9승(`p=1.0000`)이고 전체 평균은 fallback 빈도를 함께 재므로 통과·미달 집계에는 포함하지 않는다.
+
+**판정은 바뀌지 않는다. 기계 검증 기준 통과 4, 미달 2다.** ADR-0022는 실제 결함을 고쳤고 관측성을
 개선했지만, **Multi-Agent 우월성 결론을 바꾸지 못했다.** 수정 전에 "고치면 나아진다"고
 주장하지 않았고, 고친 뒤에도 그 주장은 성립하지 않는다.
 
@@ -564,7 +572,7 @@ run당 2,400 토큰(약 12%)이며, 보정하면 비용 비교는 C에게 **더 
 
 ## 10.4 판정에 미치는 영향
 
-없다. 사전 등록 기준 7개 중 통과 4 / 미달 2 / 미판정 1이라는 8.5절 판정은 그대로다.
+없다. 기계 검증 기준 통과 4 / 미달 2라는 8.5절 판정은 그대로다.
 
 바뀌는 것은 **미달 항목의 해석**이다. "conflict/complex plan rate 미달"은 이제
 "Multi-Agent가 계획을 더 못 만든다"가 아니라 **"Multi-Agent는 거절할 수 있고 baseline은 없다"**
@@ -582,9 +590,8 @@ run당 2,400 토큰(약 12%)이며, 보정하면 비용 비교는 C에게 **더 
 `judge_calibration_cli`로 재생성된다. **새 provider 호출은 0회다** — 끝난 실행의 judge 점수,
 case 기록, judge payload만 쓴다.
 
-독립 blind Human 평가는 오너 판단으로 생략됐다(과정을 직접 관찰해 평가). 따라서 새 human
-라벨이 없으므로, **Judge가 사람과 일치하는지는 여기서 판정하지 않는다.** 대신 Judge 점수가
-측정 도구로서 성립하는지를 사람 라벨 없이 확인 가능한 세 가지로 검증했다.
+Human 평가는 신뢰 가능한 독립성·평가자 간 일치도를 확보하지 못해 최종 근거에서 제외했다.
+이 절은 Judge 자체의 판별력·교란을 자동 확인한 진단 기록이며 최종 판정에는 사용하지 않는다.
 
 ## 11.1 판별력 — 성립한다
 
@@ -646,19 +653,7 @@ fallback 여부를 재고 있었다(Simpson's paradox). 제외하고 다시 계�
 **그러나 B와 C는 구분하지 못한다.** 저작 계획만 놓으면 9 대 9, p = 1.0000이다. 이보다 더
 명확한 무차별은 없다.
 
-## 11.5 1차 Human calibration과의 관계
-
-PHASE 10은 사람 24건과 대조해 Pearson −0.0890, ±0.5 일치율 54.17%, 그리고 아키텍처별 반대
-방향 편향(Multi-Agent를 +0.33 과대, Single LLM을 −0.40 과소)을 측정했다.
-
-**그 편향을 held-out 수치에서 빼지 않았다.** 측정 조건이 다르다 — PHASE 10은 tuning 데이터셋과
-unblinded payload였고, held-out은 blind이며 배포 카탈로그다. 조건이 다른 보정값을 빼면 보정이
-아니라 추측이다. 기록하되 적용하지 않는다.
-
-다만 방향은 일관된다. 1차 편향이 Multi-Agent에 **유리**했는데도 held-out에서 C가 B를 앞서지
-못했다는 점은 주목할 만하다.
-
-## 11.6 결론 — Judge 점수를 어디까지 쓸 수 있는가
+## 11.5 결론 — Judge 점수를 어디까지 쓸 수 있는가
 
 **쓸 수 있는 것**
 
@@ -670,8 +665,277 @@ unblinded payload였고, held-out은 blind이며 배포 카탈로그다. 조건�
 - **B와 C의 우열.** 저작 계획 기준 9 대 9, p = 1.0000. Judge는 이 둘을 구분하지 못한다.
 - **FEASIBILITY를 시간 실현가능성의 근거로.** 객관적 오차와 무관하다(−0.0297).
 - **아키텍처별 Judge 평균을 그대로.** fallback 빈도가 섞여 있다(11.2절).
-- **사람 평가의 대체.** 1차 측정에서 사례별 상관이 −0.0890이었고, 2차에는 human 라벨이 없다.
+- **사람 평가의 대체 또는 최종 합격 판정.** 독립 다수 평가·평가자 간 일치도 검증이 없고,
+  자동 Judge에도 아키텍처별 편향이 있어 신뢰 조건을 충족하지 못했다.
 
 사전 등록에서 Judge는 보조 지표였다. **이 calibration은 그 지위를 낮추지도 높이지도 않고,
 어느 문장에 쓸 수 있는지를 한정한다.** 8.5절 판정에서 Judge는 근거로 쓰이지 않았으므로
 판정은 영향받지 않는다.
+
+---
+
+# 12. 60건 확대 표본 재측정과 Training 거절 사유 (2026-09-12)
+
+사용자 승인 후 두 미해결 항목을 한 번의 유료 실행으로 함께 확인했다. 기존 33건은 순서와
+내용을 보존하고, 같은 사전 등록 strata를 깊게 하는 27건을 추가했다. 새 27건은 앞선 결과를
+본 뒤 구성됐으므로 **원래 7개 성공 기준을 소급해 다시 판정하는 표본이 아니라 보조 확인
+표본**이다. 서비스·prompt·판정 기준은 이 실행 전에 변경하지 않았다.
+
+- 데이터셋: `expanded_heldout_cases` 60건
+- planning: 54건, safety-blocked: 6건(provider 호출 0)
+- 분포: simple 8 / moderate 14 / complex 16 / conflict 12 / safety_critical 6 /
+  failure_case 4
+- 모델: `OPENAI:gpt-5.6-terra:reasoning-low`, 세 architecture 동일
+- 실제 provider 호출: 476회(상한 520)
+- 산출물: `results/round2/expanded_heldout_reasons/`
+- calibration: `results/round2/expanded_judge_calibration/`(추가 provider 호출 0)
+- 원본 33건 산출물과 데이터셋은 덮어쓰지 않았다.
+
+## 12.1 전체 측정값
+
+| 지표 | A. Single LLM | B. Single Agent + RAG | C. Multi-Agent + RAG |
+|---|---:|---:|---:|
+| 실행 수 | 54 | 54 | 54 |
+| Constraint Satisfaction | 0.9815 | **1.0000** | 0.9815 |
+| Safety Compliance | 1.0000 | 1.0000 | 1.0000 |
+| Critical 실패 | 0 | 0 | 0 |
+| Workflow Completion | 1.0000 | 1.0000 | 1.0000 |
+| Plan Delivery Rate | 1.0000 | 1.0000 | 1.0000 |
+| LLM Plan Rate | 0.0741 | **0.9630** | 0.7407 |
+| Structured Output Success | 0.1667 | **1.0000** | 0.8333 |
+| Judge 평균(blind, fallback 포함) | 2.9874 | **3.7377** | 3.5943 |
+| P50 latency | 15.391초 | 25.641초 | 31.813초 |
+| P95 latency | 20.546초 | 48.953초 | **51.047초** |
+| 평균 calls/run | 1.0000 | 1.0000 | 3.8519 |
+| 평균 tokens/run | 4,581.1 | 9,171.7 | 22,043.6 |
+
+안전·완료·전달은 모두 유지됐지만 Multi P95는 여전히 30초 기준을 넘었다. C는 B보다 평균
+2.40배 token과 3.85배 호출을 사용하면서 LLM Plan Rate가 0.2223 낮았다.
+
+`SQ-HELD-044`의 Constraint Satisfaction 실패는 `PROHIBITED_EQUIPMENT_REQUIRED`다. 장비는
+현재 envelope의 결정적 gate가 아니며(D-3), 안전 위반이나 계획 전달 실패는 아니다. 같은
+결정적 fallback을 사용한 A와 C에 나타났고 B의 저작 계획에는 나타나지 않았다.
+
+## 12.2 category별 LLM Plan Rate
+
+| category | n/architecture | A | B | C |
+|---|---:|---:|---:|---:|
+| simple | 8 | 0.0000 | **1.0000** | 0.7500 |
+| moderate | 14 | 0.0000 | **1.0000** | 0.8571 |
+| complex | 16 | 0.1875 | **1.0000** | 0.6250 |
+| conflict | 12 | 0.0833 | **0.8333** | 0.6667 |
+| failure_case | 4 | 0.0000 | 1.0000 | 1.0000 |
+| **전체** | **54** | 0.0741 | **0.9630** | 0.7407 |
+
+원래 29건에서 가장 작았던 conflict/complex planning 표본은 5/9에서 12/16으로 늘었다. 확대
+실행에서도 C는 conflict와 complex 모두 B보다 낮다. 따라서 작은 표본만의 우연으로 기존
+미달이 생겼다는 근거는 얻지 못했다.
+
+## 12.3 outcome 분해 — 기존의 C gate 우위는 재현되지 않았다
+
+| architecture | plan | declined | rejected | rejected rate |
+|---|---:|---:|---:|---:|
+| B. Single Agent + RAG | 52 | 0 | 2 | **0.0370** |
+| C. Multi-Agent | 40 | 9 | 5 | 0.0926 |
+
+C가 실제 계획을 시도한 45건만 분모로 써도 gate 거부는 5/45 = **0.1111**이다. B는
+2/54 = **0.0370**이다. 10절의 29건 실행에서는 C의 대칭 gate 거부율이 더 낮았지만,
+60건 확대 실행에서는 방향이 반대다. 따라서 **"C가 낸 계획이 gate를 더 잘 통과한다"는
+관찰은 안정적으로 재현되지 않았으며 구조 우위의 근거로 사용할 수 없다.**
+
+## 12.4 Training 거절 사유 — 전부 duration/volume 부족 주장
+
+Training은 9/54건(0.1667)에서 `NEEDS_INPUT`을 선택했고 10개의 reason code를 남겼다.
+동일한 의미를 다른 문자열로 표현한 경우가 많다.
+
+| case | category | decline reason code |
+|---|---|---|
+| 002 | simple | `NO_DETERMINISTIC_MAIN_VOLUME_COMBINATION_FOR_DURATION_TARGET` |
+| 007 | moderate | `NO_DURATION_COMPLIANT_VOLUME_COMBINATION` |
+| 014 | complex | `INSUFFICIENT_MAIN_PHASE_APPROVED_VOLUME_FOR_DURATION_TARGET` |
+| 018 | complex | `NO_DETERMINISTIC_PHASE_VOLUME_COMBINATION` |
+| 021 | complex | `INSUFFICIENT_DETERMINISTIC_MAIN_VOLUME_FOR_DURATION` |
+| 022 | conflict | `NO_DURATION_COMPLIANT_PHASE_VOLUME_COMBINATION` |
+| 035 | simple | `INSUFFICIENT_DETERMINISTIC_VOLUME_FOR_DURATION_TARGET` |
+| 044 | complex | `DURATION_TARGET_UNSATISFIABLE_WITH_APPROVED_VOLUME_CONSTRAINTS`; `INSUFFICIENT_MAIN_VOLUME_CAPACITY_FOR_REQUESTED_DURATION` |
+| 054 | conflict | `NO_DURATION_COMPLIANT_PHASE_VOLUME_COMBINATION` |
+
+모든 코드의 접두사는 `TRAINING:`이며 결론은 같다: 승인된 phase·volume 조합으로 요청 시간을
+맞출 수 없다는 주장이다. 그러나 실제 pool에는 9건 모두 WARMUP 8~9개, MAIN 7~16개,
+COOLDOWN 8~9개, 승인 volume을 가진 MAIN 2~5개가 있었다. 더 직접적인 대조는 B다. 동일 입력과
+pool에서 B는 9건 중 8건에 직접 계획을 냈고 같은 compiler·validator를 통과했다. 022만 family
+중복 gate에서 fallback으로 갔다.
+
+따라서 거절 사유는 다음처럼 판정한다.
+
+- **사유 확보 완료**: Training이 거절할 때 주장하는 조건은 duration/volume 조합 부족이다.
+- **8/9건에서 주장과 관측이 불일치**: 같은 입력의 B 계획이 공통 gate를 통과했다.
+- **객관적 입력 부족의 증거가 아님**: phase와 승인 volume 후보가 모두 존재했다.
+- **문자열 taxonomy도 불안정**: 사실상 같은 원인을 9개 표현, 10개 코드로 생성했다.
+
+후속 조치는 prompt 문구를 바로 완화하는 것이 아니다. 먼저 reason code를 안정된 enum으로
+제한하고, Training이 `NEEDS_INPUT`을 선택하기 전에 결정적 feasibility 검사 결과를 참조하게
+할지 ADR로 결정해야 한다. baseline에도 대칭적인 거절 계약을 주지 않는 한 `llm_plan_rate`에는
+출력 계약 교란 주석을 계속 붙인다.
+
+## 12.5 Judge 재보정
+
+| 비교 | 결과 |
+|---|---:|
+| 저작 계획 vs fallback | 3.7986 vs 2.9062 (+0.8924, n=96/64) |
+| B 저작 계획 평균 | 3.7724 (n=52) |
+| C 저작 계획 평균 | 3.8042 (n=40) |
+| B/C 공통 저작 계획 paired | C 18승 / B 19승 / tie 3, p=1.0000 |
+| pearson(duration error, FEASIBILITY) | -0.1200 (n=96) |
+
+전체 Judge 평균은 B가 0.1434 높지만 fallback 빈도의 영향을 받는다. 공통 저작 계획 40건에서는
+평균 차이가 정확히 0.0000이고 부호검정도 p=1.0000이다. 기존 결론과 같이 Judge는 B와 C의
+저작 품질 우열을 구분하지 못한다.
+
+## 12.6 최종 판정에 미치는 영향
+
+기계 검증 기준의 **통과 4 / 미달 2** 판정은 소급 변경하지 않는다.
+확대 표본은 그 판정을 뒤집을 근거를 주지 않았고 오히려 다음을 강화했다.
+
+1. 안전성과 사용자 계획 전달은 유지된다.
+2. Multi P95 latency는 51.047초로 여전히 미달이다.
+3. conflict/complex LLM Plan Rate는 확대 후에도 B보다 낮다.
+4. Training 거절은 duration/volume 부족을 주장하지만 8/9건에서 공통 gate를 통과한 B 계획이
+   존재하므로 과도한 자체 판단이다.
+5. 거절을 제외한 대칭 gate 결과에서도 C의 우위는 재현되지 않았다.
+6. Judge는 B와 C의 저작 계획 품질을 구분하지 못한다.
+
+따라서 **Multi-Agent 우월성 결론 보류 및 "Single RAG가 동등 이상" 분기는 유지한다.**
+
+---
+
+# 13. Training 거절 계약 개선 (ADR-0023, 2026-09-12)
+
+12.4절의 후속 권장 작업을 구현했다. `NEEDS_INPUT` 자유 문자열을
+`TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN` 단일 안정 코드로 제한하고, Training 호출 전에
+운영과 같은 결정적 fallback provider가 실제 후보를 만들 수 있는지 검사한다.
+
+- 후보가 있으면 payload에 `DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE`을 전달한다. 이 상태의
+  `NEEDS_INPUT`은 domain-invalid로 거부되고 기존 최대 2회 호출 범위 안에서 재시도한다.
+- 후보가 없거나 검사 오류가 나면 `DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN`을 전달한다. 이는
+  “불가능” 판정이 아니며, 이때만 안정 코드와 함께 `NEEDS_INPUT`을 허용한다.
+- 사전 검사는 Coordinator, compiler, 최종 integrity validator 또는 안전 veto를 대체하지 않는다.
+- 별도 LLM 호출은 추가하지 않는다. 단, 첫 Training 출력이 반증된 거절이면 기존 retry 1회를
+  사용하므로 해당 run의 provider 비용과 latency가 늘 수 있다.
+
+근거와 대안은 `docs/adr/0023-training-decline-reason-and-feasibility-preflight.md`에 기록했다.
+이 변경 뒤 유료 held-out 재측정은 아직 실행하지 않았으므로 12절의 수치와 최종 판정은 바꾸지 않는다.
+무료 scripted 60건 회귀(`results/round2/expanded_offline_adr23/`)에서는 planning case 54건 모두
+계획 전달·안전·workflow 1.000, critical 실패 0건이었다. scripted planner 한계 때문에 세 구조의
+LLM plan rate가 모두 0.6296인 결과는 실제 모델 효과 추정에는 사용하지 않는다.
+사전 검사 자체는 planning 54건 전부에서 후보를 생성했고, 12.4절의 과거 Training 거절 9건도
+모두 `DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE`로 판정했다. 따라서 같은 거절을 새 adapter가
+그대로 수용하는 경로는 닫혔다.
+
+## 13.1 표적 유료 재측정
+
+과거 Training 거절 9건과 정상 대조군 3건만 Multi-Agent로 1회 실행했다. Judge는 생략했고
+호출 상한은 60회로 고정했다. 실제 호출은 **49회**였다.
+
+| 항목 | 결과 |
+|---|---:|
+| 실행 수 | 12 |
+| 과거 거절 9건 중 새 Training 거절 | **0/9** |
+| 과거 거절 9건 중 LLM 계획 직접 통과 | **7/9** |
+| 대조군 LLM 계획 직접 통과 | **3/3** |
+| 전체 LLM Plan Rate | 0.8333 (10/12) |
+| Plan Delivery / Safety / Workflow | 1.000 / 1.000 / 1.000 |
+| Structured Output Success | 1.000 |
+| Critical 실패 | 0 |
+| P50 / P95 | 35.297초 / 56.531초 |
+| 입력 / 출력 token | 237,192 / 42,710 |
+
+`SQ-HELD-018`은 `V3_COMPILATION_FAILED` 뒤 결정적 fallback으로 전달됐다. `SQ-HELD-022`는
+`PLAN_EXERCISE_FAMILY_REPEATED`가 Coordinator repair 후에도 반복돼 fallback으로 전달됐다.
+두 건 모두 Training `NEEDS_INPUT`이 아니며 `decline_reason_codes`는 비어 있다. 기본 48호출에서
+추가된 1회도 Training retry가 아니라 `SQ-HELD-022`의 Coordinator repair다.
+
+따라서 ADR-0023의 직접 목표인 **과도한 Training 자체 거절 제거는 이 표적에서 9/9 확인됐다.**
+다만 1회 표본이므로 장기 확률을 추정하지 않으며, 전체 60건 A/B/C·Judge 재실행도 수행하지
+않는다. 산출물은 `results/round2/adr23_targeted_paid/`에 있다.
+
+## 13.2 잔여 2건 수정 (2026-09-12)
+
+표적 재측정에서 fallback된 두 경로를 안전 판정 규칙을 완화하지 않고 수정했다.
+
+- `SQ-HELD-018`: compiler가 카탈로그 기준 실제 시간을 계산한 뒤 허용 범위 밖이면 즉시 예외를
+  발생시켜, downstream integrity validator의 `REQUESTED_DURATION_MISMATCH` 및 bounded repair가
+  도달 불가능했다. compiler는 이제 측정값을 그대로 보존하고, 최종 integrity validator가
+  거부·1회 repair·fallback을 결정한다. 범위를 벗어난 계획이 승인되는 변경은 아니다.
+- `SQ-HELD-022`: Training과 Coordinator pool projection에 `family_code`가 없어 서로 다른 ID가
+  같은 동작 family인지 모델이 알 수 없었다. 검토된 catalog의 `family_code`를 두 payload에
+  추가하고, Training 초안과 Coordinator repair가 family당 서로 다른 exercise ID를 하나만
+  사용하도록 prompt를 명시했다.
+- prompt version은 Training `v3-training-prompt-v12`, Coordinator
+  `v3-coordinator-prompt-v7`로 갱신했다.
+
+관련 unit·integrity·repair·graph termination 회귀 94건, 변경 파일 ruff, 변경된 운영 소스 mypy가
+통과했다. 수정 직후에는 추가 유료 호출을 실행하지 않았으며, 이후의 두 건 표적 결과는 13.3절에
+분리한다. 13.1절의 실측 수치는 변경하지 않는다.
+
+## 13.3 잔여 2건 표적 유료 재실행
+
+오너의 비식별·정규화 데이터 외부 전송 및 최대 16회 유료 호출 승인을 받은 뒤
+`SQ-HELD-018`, `SQ-HELD-022`만 Multi-Agent·Judge 제외로 재실행했다. 기본 예상 8회와 동일하게
+실제 **8회**를 호출했다. 산출물은 `results/round2/residual_two_paid_20260912/`에 있다.
+
+| case | 결과 | fallback | repair | 실패/위반 |
+|---|---|---:|---:|---|
+| `SQ-HELD-018` | 계획 전달 성공 | 예 | 0 | `LLM_AGENT_DOMAIN_INVALID`, `V3_PLAN_SPEC_MISSING` |
+| `SQ-HELD-022` | LLM 계획 직접 통과 | 아니오 | 0 | 없음 |
+
+`SQ-HELD-022`는 이전의 family 중복 및 repair 소진이 재발하지 않아 `family_code` payload·prompt
+수정 효과가 이 1회 표적에서 확인됐다. `SQ-HELD-018`은 이전의 `V3_COMPILATION_FAILED`는
+재발하지 않았으나, 이번 응답은 Coordinator domain validation을 통과하지 못해 compiler까지
+도달하지 않았다. 원시 모델 출력은 개인정보·내부 추론 비보존 원칙에 따라 저장하지 않으므로
+세부 위반 필드는 이 산출물만으로 특정할 수 없다.
+
+두 건 전체 Plan Delivery·Safety·Workflow·Constraint Satisfaction은 1.000, critical 실패는
+0건이다. LLM Plan Rate와 Structured Output Success는 각각 0.500이며, 입력/출력 token은
+51,222/6,636이다. 단일 실행 표본이므로 확률 추정이나 기존 전체 비교 판정에는 사용하지 않는다.
+
+## 13.4 Round 2 종료와 마지막 계약 개선
+
+Round 2는 2026-09-12 종료한다. 기계 검증 기준의 공식 판정은 통과 4, 미달 2이며 Multi-Agent 우월성은
+입증되지 않았다는 결론을 유지한다. 추가 전체 유료 평가는 실행하지 않는다.
+
+종료 시점의 남은 명확한 구현 개선으로 ADR-0024를 적용했다. Coordinator가 다시 생성하던
+schema/envelope/pool identity, 요청 시간, proposal reference, repair attempt와 hash를 provider
+출력 schema에서 제거하고 검증된 `CoordinatorInput`으로 서버가 채운다. 모델은 action, 운동 처방,
+decision/public summary만 선택한다. 모델 소유 처방은 기존 domain validation과 downstream
+integrity validator를 그대로 통과해야 하므로 안전 경계는 변하지 않는다. Coordinator prompt는
+`v3-coordinator-prompt-v8`이다. 이 마지막 개선에 대한 추가 유료 재측정은 Round 2 범위에 포함하지
+않는다. Coordinator·compiler·integrity·repair·fallback·routing 회귀 110건과 별도의
+golden·safety veto·재현성·LLM fallback 회귀 290건, backend ruff 및 app mypy가 통과했다.
+
+## 13.5 종료 후 ADR-0024 축소 재측정
+
+Round 2 공식 판정을 닫은 뒤 ADR-0024의 회귀 확인만 별도 수행했다. 두 case를 각각 20회,
+Multi-Agent 단독·Judge 제외로 실행했으며 하드 스톱 200회 중 실제 **159회**를 호출했다. 산출물은
+`results/round2/adr24_two_cases_r20/`에 있다.
+
+이 산출물의 `comparison.json`은 실행 당시 하네스 메타데이터 결함으로 dataset을 기본값
+`smoke`로 기록했다. 실제 선택 대상은 같은 디렉터리의 `cases_multi_agent.json`에 저장된
+`SQ-HELD-018`, `SQ-HELD-022`이며 측정값에는 영향이 없다. 이후 하네스가 CLI의 dataset명을
+보고서에 전달하도록 수정하고 회귀 테스트를 추가했다. 기존 생성 산출물은 감사 추적을 위해
+수정하지 않았다.
+
+| case | LLM 직접 통과 | fallback | 직접 통과율 | Wilson 95% CI |
+|---|---:|---:|---:|---:|
+| `SQ-HELD-018` | 16 | 4 | 0.800 | 0.5840~0.9193 |
+| `SQ-HELD-022` | 19 | 1 | 0.950 | 0.7639~0.9911 |
+| 합계 | 35 | 5 | 0.875 | 0.7389~0.9454 |
+
+018 fallback 4건은 모두 `LLM_AGENT_DOMAIN_INVALID`와 `V3_PLAN_SPEC_MISSING`, 022 fallback 1건은
+`LLM_AGENT_DOMAIN_INVALID`였다. repair는 0회였다. 전체 40건의 Plan Delivery·Safety·Workflow·
+Constraint Satisfaction은 모두 1.000이고 critical 실패는 0건이다. P50/P95는
+27.735초/39.125초, 입력/출력 token은 1,007,553/112,764다.
+
+ADR-0024 뒤 018의 직접 통과가 16/20으로 관찰됐지만, 비교 가능한 변경 전 반복 표본이 없으므로
+인과 효과 크기를 추정하지 않는다. domain-invalid도 5건 남아 완전 해결로 판정하지 않는다.
+종료 후 제한 표본이므로 사전 등록 Round 2 판정과 Single/Multi 우열 결론은 변경하지 않는다.

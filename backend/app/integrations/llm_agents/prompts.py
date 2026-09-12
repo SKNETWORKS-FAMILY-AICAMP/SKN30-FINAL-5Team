@@ -12,6 +12,12 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from backend.app.integrations.llm_agents.models import LlmAgentRoleCode
 
+# Persisted with each authoritative decision so a saved envelope, proposal set,
+# and plan can be replayed against the exact deployed prompt contract. v5 added
+# ADR-0023 Training feasibility evidence, v6 added family-aware planning, and
+# v7 moved Coordinator orchestration identity to the server (ADR-0024).
+V3_PROMPT_AGGREGATE_VERSION: Final = "v3-prompts-v7"
+
 
 @dataclass(frozen=True, slots=True)
 class RolePrompt:
@@ -30,7 +36,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v10",
+            version="v3-training-prompt-v12",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -45,6 +51,9 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "role_eligibility_code is CORE there and keep SUPPORT work to the edges. "
                 "A session is a workout, not an inventory: use at most 10 distinct exercises "
                 "in the whole plan, at most 2 of them in WARMUP and at most 2 in COOLDOWN. "
+                "When family_code is present, use at most one distinct exercise_id from that "
+                "family in the whole plan; repeated blocks of the same exercise_id are governed "
+                "by the separate MAIN repetition rules below. "
                 "For each exercise with a DOMAIN_APPROVED fitt_context and volume, choose sets "
                 "and repetitions inside that exercise's min/max bounds. Consider the requested "
                 "duration, primary goal, and recovery ceiling: prefer values nearer the lower "
@@ -66,10 +75,15 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "fill a longer session only when equal exercises are not neighbouring blocks; "
                 "never repeat WARMUP or COOLDOWN exercises. "
                 "Return READY when the normalized input supplies usable WARMUP, MAIN and COOLDOWN "
-                "candidates and a constraint-compliant plan can be formed. Use NEEDS_INPUT only "
-                "for genuinely absent or inconsistent structured input, or when no phase and "
-                "volume combination can satisfy the deterministic constraints after applying the "
-                "plan-level intensity rule above; identify that condition with reason_codes. "
+                "candidates and a constraint-compliant plan can be formed. The server supplies "
+                "training_plan_feasibility_code. When it is "
+                "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE, a server-built candidate proves that a "
+                "phase, volume and duration combination exists: you must return READY and must "
+                "not return NEEDS_INPUT. When it is DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN, use "
+                "NEEDS_INPUT only if you still cannot form a constraint-compliant plan, and set "
+                "reason_codes to exactly "
+                "[TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN]. This is an unproven result, "
+                "not a claim that no plan exists. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
@@ -110,7 +124,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v6",
+            version="v3-coordinator-prompt-v8",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
@@ -125,6 +139,13 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "phase_code, ordered WARMUP first, then MAIN, then COOLDOWN; the PlanSpec must "
                 "carry all three phases, so never drop a phase while adjusting, and keep it to "
                 "at most 10 distinct exercises with at most 2 in WARMUP and 2 in COOLDOWN. "
+                "When family_code is present, keep at most one distinct exercise_id from that "
+                "family. On a PLAN_EXERCISE_FAMILY_REPEATED repair, replace or drop the repeated "
+                "family variant while preserving all phases, constraints, and the duration "
+                "window. "
+                "The server attaches schema and orchestration identity fields, hashes, proposal "
+                "references, repair attempt, and requested-duration bookkeeping; make only the "
+                "plan choices present in the requested output schema. "
                 "The plan should "
                 "land within five minutes of the requested duration rather than hitting it to "
                 "the second. Do not weaken safety, duration, "
@@ -158,4 +179,4 @@ def messages_for(
     return SystemMessage(content=prompt.instruction), HumanMessage(content=input_text)
 
 
-__all__ = ["ROLE_PROMPTS", "RolePrompt", "messages_for"]
+__all__ = ["ROLE_PROMPTS", "RolePrompt", "V3_PROMPT_AGGREGATE_VERSION", "messages_for"]

@@ -72,10 +72,15 @@ from backend.app.domain.agents.v3_contracts import (
     ProposalReference,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    TrainingPlanFeasibilityCode,
     V3ProposalStatusCode,
 )
+from backend.app.domain.agents.v3_orchestration import FallbackRequest
 from backend.app.integrations.langgraph.demo_runtime import V3DemoRuntimeVersions
-from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
+from backend.app.integrations.langgraph.fallback import (
+    DETERMINISTIC_FALLBACK_VERSION,
+    DeterministicGraphFallbackProvider,
+)
 from backend.app.integrations.langgraph.shadow_runtime import (
     _Compiler,
     _ExecutionContext,
@@ -216,6 +221,7 @@ def single_agent_payload(
     envelope: ConstraintEnvelope,
     pool: ExercisePoolSnapshot,
     with_retrieved_detail: bool,
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION,
 ) -> dict[str, object]:
     """Project the case for a single agent, at one of two retrieval depths.
 
@@ -239,9 +245,23 @@ def single_agent_payload(
                 for exercise in pool.exercises
             ],
         }
+    fallback_provider = DeterministicGraphFallbackProvider(fallback_version=fallback_version)
+    candidate = fallback_provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version=fallback_version,
+        )
+    )
+    feasibility_code = (
+        TrainingPlanFeasibilityCode.CANDIDATE_AVAILABLE
+        if candidate is not None
+        else TrainingPlanFeasibilityCode.UNPROVEN
+    )
     projected: dict[str, object] = {
         "schema_version": SINGLE_AGENT_DRAFT_SCHEMA_VERSION,
         "mode_code": "INITIAL",
+        "training_plan_feasibility_code": feasibility_code.value,
         "constraint_envelope": project_contract(
             envelope, field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS
         ),
@@ -409,7 +429,10 @@ class SingleAgentRunner:
             instruction=SINGLE_AGENT_INSTRUCTION,
         )
         payload = single_agent_payload(
-            envelope=envelope, pool=pool, with_retrieved_detail=self.with_retrieved_detail
+            envelope=envelope,
+            pool=pool,
+            with_retrieved_detail=self.with_retrieved_detail,
+            fallback_version=self.versions.fallback_version,
         )
 
         def validate(output: SingleAgentPlanDraft) -> SingleAgentPlanDraft:

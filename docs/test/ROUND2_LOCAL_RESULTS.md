@@ -14,7 +14,9 @@
 - Coordinator input schema는 `v3-coordinator-input-v2`로 올렸다.
 - Recovery/Feasibility/Coordinator prompt는 각각 v4/v4/v6으로 올렸다.
 - 실행 단위 prompt version은 최초 `v3-prompts-v2`, Training 보정 후 `v3-prompts-v3`,
-  Coordinator payload 축약 후 `v3-prompts-v4`이며 Multi-Agent LangSmith experiment는
+  Coordinator payload 축약 후 `v3-prompts-v4`였다. 이후 ADR-0023, family-aware 계획,
+  ADR-0024를 authoritative 배포 런타임에 반영한 최종 aggregate version은 `v3-prompts-v7`이며
+  Multi-Agent LangSmith experiment는
   `multi-agent-v2`로 분리했다.
 - Recovery는 pool identity만, Feasibility는 실행 가능성에 필요한 catalog 필드만 받는다.
 - Coordinator는 운동 선택 metadata를 중복 수신하지 않고 Training 초안의 시간·phase·FITT volume
@@ -108,7 +110,8 @@ P95는 Training 18.720초, Coordinator 15.267초로 두 직렬 단계가 병목�
 구조화 호출의 provider-default 추론량 변동을 없애기 위해 `reasoning_effort=low`를 명시했다.
 5건 smoke에서 5/5 성공을 유지하며 P95가 25.578초로 낮아졌다. 이어 Coordinator가 새 운동을
 선택하지 않는 계약에 맞춰 선택용 catalog metadata를 제거하고, 시간 산정·phase·FITT volume
-필드만 유지했다. 최종 prompt aggregate version은 `v3-prompts-v4`다.
+필드만 유지했다. 이 Round 2 로컬 실행 시점의 prompt aggregate version은 `v3-prompts-v4`였고,
+후속 검증된 계약을 배포 런타임에 반영한 현재 version은 `v3-prompts-v7`이다.
 
 최종 14개 provider pilot 결과:
 
@@ -124,5 +127,6 @@ P95는 Training 18.720초, Coordinator 15.267초로 두 직렬 단계가 병목�
 | token 감소율 | 26.9786% | 25% 이상 | 통과 |
 
 최종 산출물은 `results/round2/paid_pilot_final/`에 저장했다. 이 결과는 기존 tuning dataset에
-대한 gate 판정이며, Multi-Agent가 Single-Agent RAG보다 우수하다는 결론은 최소 30개 held-out
-실행과 독립 blind Human 평가 전에는 내리지 않는다.
+대한 gate 판정이다. 이후 33건 held-out과 60건 확대 평가를 완료했으나 latency와
+conflict/complex plan rate 기준이 미달해 Multi-Agent가 Single-Agent RAG보다 우수하다는 결론은
+내리지 않는다. Human/Judge 평가는 신뢰 조건 부족으로 최종 판정에서 제외했다.

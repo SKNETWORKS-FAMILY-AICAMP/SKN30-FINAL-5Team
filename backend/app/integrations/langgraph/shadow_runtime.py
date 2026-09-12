@@ -257,7 +257,12 @@ class V3ShadowRuntime:
             snapshot_is_fresh=request.snapshot_is_fresh,
             specialists={
                 SpecialistAgentTypeCode.TRAINING: cast(
-                    SpecialistPort, TrainingAgentAdapter(invoker=self.invoker)
+                    SpecialistPort,
+                    TrainingAgentAdapter(
+                        invoker=self.invoker,
+                        feasibility_provider=self.fallback_provider,
+                        fallback_version=self.versions.fallback_version,
+                    ),
                 ),
                 SpecialistAgentTypeCode.RECOVERY: cast(
                     SpecialistPort, RecoveryAgentAdapter(invoker=self.invoker)

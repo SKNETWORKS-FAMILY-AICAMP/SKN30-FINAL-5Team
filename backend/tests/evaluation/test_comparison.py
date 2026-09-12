@@ -30,6 +30,7 @@ from backend.tests.evaluation.architectures import (
     COMPARED_ARCHITECTURES,
 )
 from backend.tests.evaluation.comparison import ArchitectureResult, ComparisonReport
+from backend.tests.evaluation.comparison_cli import _execute, select_case_ids
 from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.evaluators import evaluate_case
 from backend.tests.evaluation.evaluators.agent_metrics import build_report as build_agent_report
@@ -55,6 +56,32 @@ from backend.tests.evaluation.runners.single_agent import (
     synthesize_proposals,
 )
 from backend.tests.evaluation.scenario import build_scenario
+
+
+def test_paid_subset_selection_preserves_dataset_order_and_rejects_unknown_ids() -> None:
+    cases = tuple(GRAPH_CASES[:3])
+    selected = select_case_ids(cases, (cases[2].case_id, cases[0].case_id))
+
+    assert tuple(case.case_id for case in selected) == (cases[0].case_id, cases[2].case_id)
+    with pytest.raises(ValueError, match="unknown case IDs"):
+        select_case_ids(cases, ("UNKNOWN-CASE",))
+
+
+def test_report_records_the_selected_dataset() -> None:
+    report = asyncio.run(
+        _execute(
+            architectures=(),
+            repeats=1,
+            max_calls=0,
+            offline=True,
+            judge_enabled=False,
+            dataset="expanded_heldout_cases",
+        )
+    )
+
+    assert report.dataset_name == "expanded_heldout_cases"
+    assert report.to_json()["dataset"] == "expanded_heldout_cases"
+
 
 # Fields `PlanSpec` carries that describe an orchestration a baseline does not
 # have. Any growth in this set is a fairness regression and must be argued for.

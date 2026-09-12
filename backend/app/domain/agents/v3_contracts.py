@@ -79,6 +79,27 @@ class V3ProposalStatusCode(StrEnum):
     FAILED = "FAILED"
 
 
+class TrainingNeedsInputReasonCode(StrEnum):
+    """Stable explanation allowed when Training cannot author a plan.
+
+    A validated specialist input has already ruled out absent or inconsistent
+    shared contracts.  The remaining honest result is therefore deliberately
+    narrow: the deterministic planner could not prove that a valid candidate
+    exists.  ``UNPROVEN`` is not an assertion that no plan exists.
+    """
+
+    DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN = (
+        "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
+    )
+
+
+class TrainingPlanFeasibilityCode(StrEnum):
+    """Conservative preflight evidence supplied to the Training adapter."""
+
+    CANDIDATE_AVAILABLE = "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
+    UNPROVEN = "DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
+
+
 class PlanActionCode(StrEnum):
     KEEP = "KEEP"
     DOWNSHIFT = "DOWNSHIFT"
@@ -880,5 +901,7 @@ __all__ = [
     "SpecialistAgentInput",
     "SpecialistAgentProposal",
     "SpecialistAgentTypeCode",
+    "TrainingNeedsInputReasonCode",
+    "TrainingPlanFeasibilityCode",
     "V3ProposalStatusCode",
 ]

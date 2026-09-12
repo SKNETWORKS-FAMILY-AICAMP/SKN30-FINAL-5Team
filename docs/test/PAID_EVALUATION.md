@@ -152,6 +152,16 @@ uv run python -m backend.tests.evaluation.paid_run_cli --confirm-spend --max-cal
 uv run python -m backend.tests.evaluation.paid_run_cli --confirm-spend --max-calls 300 --repeats 3
 ```
 
+특정 회귀 케이스만 재측정할 때는 비교 CLI의 `--case-ids`를 사용한다. 선택 순서와 관계없이
+원본 dataset 순서를 보존하며, 존재하지 않는 ID가 하나라도 있으면 호출 전에 실패한다.
+
+```bash
+uv run python -m backend.tests.evaluation.comparison_cli \
+  --confirm-spend --dataset expanded_heldout_cases \
+  --architectures MULTI_AGENT --no-judge --max-calls 60 \
+  --case-ids SQ-HELD-002 SQ-HELD-007
+```
+
 `--max-calls`는 각 실행 직전에 확인하는 **하드 스톱**이다. 설정 오류로 전체
 dataset이 소진되는 사고를 막는다.
 

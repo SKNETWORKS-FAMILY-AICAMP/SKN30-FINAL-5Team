@@ -188,6 +188,18 @@ flowchart TD
   Safety veto가 아니다. 누락·명시적 `FAILED`·provider/timeout/schema/domain 실패·proposal identity
   불일치는 기존대로 결정적 fallback 또는 계획 없는 종료로 간다. 역할별 LLM payload는 최소화하되
   envelope/hash/승인 allowlist 경계는 유지한다.
+- ADR-0023에 따라 운영 런타임은 Training 호출 전에 동일한 결정적 fallback provider로 계획 후보
+  존재 여부를 사전 확인한다. 후보가 있으면 Training의 `NEEDS_INPUT`을 허용하지 않으며, 후보를
+  찾지 못한 경우에도 불가능으로 단정하지 않고 안정 코드
+  `TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN`만 허용한다. 이 사전 확인은 Safety나 최종
+  integrity validation을 대체하지 않는다.
+- ADR-0024에 따라 Coordinator가 선택하지 않는 schema/envelope/pool identity, 요청 시간,
+  proposal reference, repair attempt와 hash는 검증된 서버 입력에서 조립한다. 모델이 선택하는
+  action과 운동 처방은 기존 domain validation, compiler와 downstream integrity validator를 모두
+  통과해야 한다. compiler는 catalog 측정 시간이 허용 범위를 벗어나도 정보를 보존해 validator의
+  최대 1회 repair 분기로 전달한다.
+- 이 계약을 사용하는 authoritative `DEMO`·`PRODUCTION` 결정에는 aggregate prompt version
+  `v3-prompts-v7`을 저장한다. 기존 저장 레코드는 읽기 호환하며 공개 API·DB schema는 바뀌지 않는다.
 - 필수 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존한다. Qdrant 장애·stale/version
   mismatch는 결정적 pool fallback으로 처리하며 Safety 결과를 바꾸지 않는다.
 - Agent와 Coordinator는 DB·repository·ORM·raw SQL·Qdrant Tool을 갖지 않는다.

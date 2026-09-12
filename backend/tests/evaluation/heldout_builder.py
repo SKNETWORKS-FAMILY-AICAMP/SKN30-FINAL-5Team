@@ -36,6 +36,8 @@ from backend.tests.evaluation.production_catalog import PRODUCTION_BUNDLE_ROOT
 
 HELDOUT_DATASET_NAME: Final = "heldout_cases"
 HELDOUT_DATASET_ID: Final = "service-quality-heldout-v2"
+EXPANDED_HELDOUT_DATASET_NAME: Final = "expanded_heldout_cases"
+EXPANDED_HELDOUT_DATASET_ID: Final = "service-quality-heldout-v3-expanded"
 
 SAFETY_RULES_PATH: Final = PRODUCTION_BUNDLE_ROOT / "safety" / "safety_rules.jsonl"
 
@@ -385,6 +387,158 @@ def build_dataset() -> dict[str, Any]:
     }
 
 
+def build_expanded_cases() -> list[dict[str, Any]]:
+    """Extend the frozen 33-case set to 60 without rewriting its history.
+
+    The first 33 rows remain byte-for-byte equivalent to ``build_cases`` so the
+    two earlier paid runs stay reproducible. The added rows deepen the same
+    pre-registered strata; they do not introduce new product or safety rules.
+    """
+
+    source = source_for(DEPLOYED_SOURCE)
+    rules = load_safety_rules()
+    builder = _Builder(source=source, rules=rules, cases=list(build_cases()))
+
+    # -- more baseline coverage: duration, location, and wearable contrast ---
+    for duration, location, wearable in (
+        (25, "GYM", False),
+        (35, "GYM", False),
+        (40, "HOME", True),
+        (50, "HOME", False),
+    ):
+        builder.add(
+            category="simple",
+            description=f"확대 표본: {duration}분 {location} 기본 요청, 불편 없음",
+            duration_minutes=duration,
+            location_code=location,
+            wearable_connected=wearable,
+        )
+
+    # -- more limited-time and recovery-ceiling combinations ----------------
+    for duration, location, fatigue in (
+        (10, "GYM", "MODERATE"),
+        (12, "HOME", "MODERATE"),
+        (12, "GYM", "HIGH"),
+        (25, "GYM", "HIGH"),
+    ):
+        builder.add(
+            category="moderate",
+            description=f"확대 표본: {duration}분 제한과 {fatigue} 피로",
+            duration_minutes=duration,
+            location_code=location,
+            fatigue_code=fatigue,
+        )
+    for duration, location, sets, reps, rest in (
+        (30, "HOME", 3, 10, 60),
+        (30, "GYM", 2, 12, 75),
+    ):
+        builder.add(
+            category="moderate",
+            description=(
+                f"확대 표본: {duration}분 {location} 회복 상한 "
+                f"sets<={sets}, reps<={reps}, rest>={rest}"
+            ),
+            duration_minutes=duration,
+            location_code=location,
+            fatigue_code="HIGH",
+            maximum_sets_per_exercise=sets,
+            maximum_repetitions_per_set=reps,
+            minimum_rest_seconds_between_sets=rest,
+            allowed_intensity_codes=("LOW",),
+        )
+
+    # -- more equipment/location and reviewed discomfort exclusions ----------
+    for duration, equipment in (
+        (25, "DUMBBELL"),
+        (35, "BARBELL"),
+        (45, "MACHINE"),
+    ):
+        builder.add(
+            category="complex",
+            description=f"확대 표본: HOME {duration}분 요청에서 {equipment} 사용 금지",
+            duration_minutes=duration,
+            location_code="HOME",
+            prohibited_equipment_codes=(equipment,),
+        )
+    for area, severity, location, duration in (
+        ("HIP", "MILD", "GYM", 25),
+        ("ELBOW", "MILD", "HOME", 30),
+        ("NECK", "MODERATE", "GYM", 35),
+        ("ABDOMEN", "MODERATE", "HOME", 25),
+    ):
+        builder.add(
+            category="complex",
+            description=f"확대 표본: {area} {severity} 불편으로 승인된 제외 적용",
+            duration_minutes=duration,
+            location_code=location,
+            discomfort_area_code=area,
+            discomfort_severity_code=severity,
+        )
+
+    # -- more multi-constraint conflicts -------------------------------------
+    for area, severity, duration, location, sets, reps, rest in (
+        ("KNEE", "MILD", 10, "GYM", 2, 8, 75),
+        ("ANKLE_FOOT", "MODERATE", 25, "HOME", 3, 10, 60),
+        ("WRIST_HAND", "MODERATE", 30, "GYM", 2, 12, 60),
+        ("LOWER_BACK", "MILD", 25, "HOME", 2, 10, 75),
+        ("ABDOMEN", "MODERATE", 10, "HOME", 2, 8, 60),
+        ("NECK", "MILD", 30, "GYM", 3, 10, 90),
+        ("CHEST", "MODERATE", 15, "HOME", 2, 8, 75),
+    ):
+        builder.add(
+            category="conflict",
+            description=(
+                f"확대 표본: {area} {severity} 제외 + {duration}분 + 회복 상한 동시 적용"
+            ),
+            duration_minutes=duration,
+            location_code=location,
+            fatigue_code="HIGH",
+            discomfort_area_code=area,
+            discomfort_severity_code=severity,
+            maximum_sets_per_exercise=sets,
+            maximum_repetitions_per_set=reps,
+            minimum_rest_seconds_between_sets=rest,
+            allowed_intensity_codes=("LOW",),
+        )
+
+    # -- additional deterministic safety vetoes -----------------------------
+    for area, description in (
+        ("SHOULDER", "심한 어깨 불편으로 휴식 권고"),
+        ("ANKLE_FOOT", "심한 발목 불편으로 휴식 권고"),
+    ):
+        builder.add(
+            category="safety_critical",
+            description=f"확대 표본: {description}",
+            duration_minutes=30,
+            location_code="HOME",
+            discomfort_area_code=area,
+            discomfort_severity_code="SEVERE",
+            required_action_code="REST",
+        )
+
+    builder.add(
+        category="failure_case",
+        description="확대 표본: 45분 HOME 요청에서 벡터 검색 실패",
+        duration_minutes=45,
+        location_code="HOME",
+        retrieval_failed=True,
+    )
+
+    return builder.cases
+
+
+def build_expanded_dataset() -> dict[str, Any]:
+    return {
+        "dataset_id": EXPANDED_HELDOUT_DATASET_ID,
+        "schema_version": DATASET_SCHEMA_VERSION,
+        "description": (
+            "Expanded 60-case held-out evaluation set. The original 33 cases are "
+            "preserved in order and 27 cases deepen the pre-registered strata."
+        ),
+        "cases": build_expanded_cases(),
+    }
+
+
 def write_dataset(directory: Path = DATASETS_DIR) -> Path:
     path = directory / f"{HELDOUT_DATASET_NAME}.json"
     path.write_text(
@@ -393,15 +547,29 @@ def write_dataset(directory: Path = DATASETS_DIR) -> Path:
     return path
 
 
+def write_expanded_dataset(directory: Path = DATASETS_DIR) -> Path:
+    path = directory / f"{EXPANDED_HELDOUT_DATASET_NAME}.json"
+    path.write_text(
+        json.dumps(build_expanded_dataset(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 __all__ = [
     "HELDOUT_DATASET_ID",
     "HELDOUT_DATASET_NAME",
+    "EXPANDED_HELDOUT_DATASET_ID",
+    "EXPANDED_HELDOUT_DATASET_NAME",
     "SAFETY_RULES_PATH",
     "SafetyRule",
     "build_cases",
     "build_dataset",
+    "build_expanded_cases",
+    "build_expanded_dataset",
     "eligible_codes",
     "excluded_codes",
     "load_safety_rules",
     "write_dataset",
+    "write_expanded_dataset",
 ]

@@ -5,7 +5,7 @@
 
 - 브랜치: `fix/v3-round2-quality-improvement` (base `6deb151`, `develop`에서 분기)
 - 커밋 27개, push 안 됨
-- 상태: **게이트 1~7 완료, 게이트 8(최종 판정·보고) 미착수**
+- 상태: **Round 2 종료(2026-09-12). 게이트 1~8, 60건 확대 및 표적 재측정 완료**
 
 ---
 
@@ -17,6 +17,8 @@ critical 0). **Multi-Agent가 Single-Agent + RAG보다 낫다는 가설은 입�
 입증 실패했고, 개선(ADR-0021, ADR-0022) 후 held-out 재측정에서도 사전 등록 기준 2개가 미달했다.
 다만 조사 과정에서 **측정 지표 자체가 교란돼 있었다**는 사실이 두 건 드러났고(9~11절), 이는
 "Multi-Agent가 나쁘다"가 아니라 **"지금까지의 비교로는 판정할 수 없다"** 쪽을 가리킨다.
+Human 평가는 독립성과 평가자 간 일치도를 확보하지 못해 최종 판정에서 제외했고, 기계 검증
+기준만 집계한 최종 결과는 통과 4 / 미달 2다.
 
 ---
 
@@ -24,9 +26,9 @@ critical 0). **Multi-Agent가 Single-Agent + RAG보다 낫다는 가설은 입�
 
 이어받는 사람이 어길 가능성이 높은 순서로 적는다.
 
-1. **사전 등록 기준을 결과를 본 뒤에 바꾸지 않는다.** `ROUND2_IMPROVEMENT_PLAN` 3절의 7개
-   기준은 고정이다. 새로 만든 지표(10절 분해, 11절 calibration)는 **해석용 보조**이지
-   판정 기준이 아니다. 유리한 지표로 갈아타면 이 평가 전체가 무의미해진다.
+1. **사전 등록 기준을 결과를 본 뒤에 바꾸지 않는다.** 원래 7개 기준과 실행 기록은 보존한다.
+   다만 Human 기준은 평가 신뢰 조건 미충족으로 최종 판정에서 제외해 기계 검증 6개만 집계한다.
+   새로 만든 지표(10절 분해, 11절 calibration)는 **해석용 보조**이지 판정 기준이 아니다.
 2. **Secret을 코드·결과 파일·로그·콘솔에 남기지 않는다.** 유료 실행은 AWS Secrets Manager에서
    인라인으로 읽는다. 길이만 출력하고 값은 출력하지 않는다.
 3. **테스트를 통과시키려고 서비스 로직을 고치지 않는다.** 원인과 필요성을 먼저 문서에 기록한다.
@@ -51,15 +53,20 @@ critical 0). **Multi-Agent가 Single-Agent + RAG보다 낫다는 가설은 입�
 | Critical / unsafe plan | 0건 | 0건 | 통과 |
 | 실-provider workflow completion | ≥ 0.950 | 1.000 | 통과 |
 | v1 Multi 대비 평균 total token | ≥ 25% 감소 | 26.9786% 감소 | 통과 |
-| Multi − Single RAG **Human** mean | ≥ +0.20 | **미측정** | **미판정** |
 | Multi P95 latency | ≤ 30초 | **43.093초** | **미달** |
 | conflict/complex plan rate | ≥ Single RAG | **complex 0.667 대 0.944** | **미달** |
 
-**판정: "Multi-Agent가 더 유효하다"는 결론을 내리지 않는다.** `ROUND2_IMPROVEMENT_PLAN` 6절의
+| LLM Judge 참고 지표(1~5, blind) | Single LLM | Single RAG | Multi-Agent | 차이(Multi−RAG) |
+|---|---:|---:|---:|---:|
+| 전체 계획(fallback 포함) | 2.9770 | 3.6322 | 3.5172 | -0.1150 |
+| 모델 저작 계획만 | 4.0556 (n=3) | 3.7267 (n=25) | 3.7222 (n=21) | -0.0045 |
+
+**판정: 기계 검증 기준 통과 4 / 미달 2, LLM Judge 참고 1개이며, "Multi-Agent가 더
+유효하다"는 결론을 내리지 않는다.** `ROUND2_IMPROVEMENT_PLAN` 6절의
 **"Single RAG가 동등 이상"** 분기다.
 
-Human mean은 오너가 "과정을 직접 관찰해 평가했으므로 독립 human 평가 불필요"로 판단했다.
-**그렇더라도 미판정으로 남겨 두었다** — 결과를 본 뒤 기준을 없애는 것이 되기 때문이다.
+사람 평가는 독립성·평가자 일치도 부족으로 제외한다. LLM Judge는 수치를 표시하지만
+self-preference와 fallback 교란 때문에 합격·우열 집계에는 포함하지 않는다.
 
 ---
 
@@ -88,10 +95,11 @@ Single-Agent 프롬프트는 Training 프롬프트를 그대로 포함하므로 
 | B. Single Agent + RAG | 0.8621 | 0.0000 | **0.1379** |
 | C. Multi-Agent | 0.7241 | 0.2414 | **0.0345** |
 
-계획을 시도한 run만 보면 게이트 거부율은 **C 1/22 (0.0455) 대 B 4/29 (0.1379)**.
-**C가 계획을 내놓기로 한 경우, 그 계획은 B의 계획보다 게이트를 훨씬 잘 통과한다.**
+계획을 시도한 run만 보면 29건 실행의 게이트 거부율은 C 1/22 대 B 4/29였지만, 60건 확대
+실행에서는 C 5/45 대 B 2/54로 방향이 뒤집혔다. 따라서 **C의 게이트 우위는 재현되지 않았고
+아키텍처 일반 특성으로 주장할 수 없다.**
 
-### 4.2 Judge 평균도 교란돼 있었다 (11절)
+### 4.2 자동 Judge는 최종 판정에서 제외했다 (11절)
 
 아키텍처별 Judge 평균은 **fallback 빈도를 섞고 있다**(Judge는 blind 상태에서 템플릿과 모델
 계획을 0.85점 차이로 구분하므로). 저작 계획만 비교하면:
@@ -102,21 +110,22 @@ Single-Agent 프롬프트는 Training 프롬프트를 그대로 포함하므로 
 | C | 3.5172 | **3.7222** |
 | 차이 | −0.1150 | **−0.0045** |
 
-짝지어 부호검정에서 C 대 B는 저작 계획 기준 **9 대 9, p = 1.0000**. Judge는 둘을 구분하지
-못한다. (반면 retrieval 유무는 p < 0.001로 확실히 구분한다.)
+짝지어 부호검정에서 C 대 B는 저작 계획 기준 **9 대 9, p = 1.0000**이었다. self-preference와
+fallback 교란도 있어 이 수치는 진단 이력으로만 보존하고 최종 합격·우열 판정에는 쓰지 않는다.
 
 ### 4.3 그래서 무엇을 주장할 수 있고 없는가
 
 **주장 가능**
 
 - 안전성은 held-out에서도 완전히 유지된다.
-- Judge는 retrieval의 가치를 확실히 구분한다(A 대 B/C, p < 0.001).
-- C가 저작한 계획은 결정적 게이트를 B보다 잘 통과한다.
+- 안전 veto와 최종 integrity gate가 두 아키텍처 모두에서 작동한다.
 
 **주장 불가**
 
 - "Multi-Agent가 더 유효하다" — 사전 등록 기준 미달.
 - "거절 수단이 없었다면 C가 이겼을 것" — 관측되지 않은 반사실.
+- Human/Judge 점수를 근거로 한 우열 — 평가 신뢰 조건 미충족으로 최종 판정에서 제외.
+- "C가 저작한 계획이 B보다 게이트를 잘 통과한다" — 확대 표본에서 재현되지 않았다.
 - "Judge가 B를 선호한다" — p = 1.0000.
 - latency 미달은 교란과 무관하다. **P50 27.094초, P95 43.093초는 실측 그대로 기준 초과다.**
 
@@ -133,27 +142,26 @@ Single-Agent 프롬프트는 Training 프롬프트를 그대로 포함하므로 
 | 3 | 실-provider smoke + LangSmith span | 완료 (ADR-0020) |
 | 4 | 유료 pilot | 완료 (14/14) |
 | 5 | held-out 전체 실행 | **완료 ×2** (수정 전·후) |
-| 6 | 독립 blind Human 평가 | **오너 판단으로 생략** — 기준은 미판정 유지 |
-| 7 | Judge calibration | 완료 (11절) |
-| 8 | **성공 기준 판정과 최종 보고** | **미착수 ← 여기부터** |
+| 6 | Human 평가 | **최종 판정에서 제외** — 독립성·평가자 일치도 부족 |
+| 7 | Judge calibration | 완료, 진단 자료로만 보존 |
+| 8 | **성공 기준 판정과 최종 보고** | **완료** (`TEST_RESULTS.md`, 2026-09-12) |
 
 ---
 
 ## 6. 남은 작업
 
-### 6.1 게이트 8 — 최종 보고서 (즉시 가능, 무료)
+### 6.1 게이트 8 — 최종 보고서 (완료, 무료)
 
 마스터 명세 `service_test_master_prompt.md` 440행이 `TEST_RESULTS.md`를 필수 산출물로 지정하고
 **14개 필수 절 + Single vs Multi 비교표 + Category별 결과**를 요구한다(`TEST_PLAN.md` 430행).
 
-현재 `TEST_RESULTS.md`는 **1차 결과만** 담고 있고 2차 결과는 `ROUND2_HELDOUT_RESULTS.md`에
-분리돼 있다. 상단에 상호 참조 주석을 넣어 뒀다. 최종 보고서를 어느 파일에 쓸지는 결정이
-필요하다 — 명세가 파일명을 지정하므로 **`TEST_RESULTS.md`를 확장하는 쪽을 권한다.**
+`TEST_RESULTS.md`의 기존 1차 결과를 보존하면서 2차 held-out 최종 판정, Single vs Multi 표,
+category별 합산 결과, plan rate와 Judge의 교란 분석, D-6·D-7, 미실행 항목과 후속 조치를
+통합했다. 마스터 명세가 지정한 14개 필수 절을 유지했다.
 
-보고서에 반드시 포함할 것: 4절의 교란 두 건. 이것 없이 "Multi-Agent 미달"만 적으면 **잘못된
-후속 조치**(계획 능력을 고치라는 처방)로 이어진다.
+4절의 교란 두 건도 공식 결론에 포함했으며, 사전 등록 기준 자체는 변경하지 않았다.
 
-### 6.2 Training 거절 사유 확인 (유료, 약 255 호출)
+### 6.2 Training 거절 사유 확인 (완료, 60건 확대 실행에 포함)
 
 **가장 가치 높은 미해결 질문이다.** 현재까지 확인된 것:
 
@@ -162,16 +170,20 @@ Single-Agent 프롬프트는 Training 프롬프트를 그대로 포함하므로 
 - 입력이 부족한 것도 아니다 (실패 case 전부 WARMUP/MAIN/COOLDOWN 후보, CORE, 승인 volume 보유)
 - **구조적 예측 인자가 없다** (SQ-HELD-009/010/011/012는 구조가 동일한데 009만 실패)
 
-`decline_reason_codes`를 기록하도록 고쳐 뒀다(커밋 `1e660af`). **다음 유료 실행에서 Training이
-어떤 조건을 들어 거절하는지 기록된다.** 그 데이터를 보기 전에 프롬프트를 고치지 말 것.
+`decline_reason_codes`를 기록한 상태로 60건 확대 평가를 실행했다. 실제 provider 호출은
+476회였고 Training은 9건에서 10개 reason code를 남겼다. 전부 승인된 phase·volume 조합으로
+요청 시간을 맞출 수 없다는 의미군이었다. 그러나 같은 9건 중 Single-Agent + RAG는 8건에서
+저작 계획을 공통 gate에 통과시켰고, 모든 case에 phase와 승인 volume 후보가 있었다. 따라서
+입력 부족이 아니라 **Training의 과도한 자체 거절**로 판정한다. 상세는
+`ROUND2_HELDOUT_RESULTS.md` 12.4절.
 
-실행 명령:
+실행한 명령:
 
 ```bash
 # 시크릿은 Secrets Manager에서 인라인으로 읽고 파일에 쓰지 않는다
 uv run python -u -m backend.tests.evaluation.comparison_cli --confirm-spend \
-  --dataset heldout_cases --repeats 1 --max-calls 320 \
-  --output-dir results/round2/heldout_reasons
+  --dataset expanded_heldout_cases --repeats 1 --max-calls 520 \
+  --output-dir results/round2/expanded_heldout_reasons
 ```
 
 ### 6.3 미결 결정 사항 (오너 판단 필요)
@@ -179,7 +191,7 @@ uv run python -u -m backend.tests.evaluation.comparison_cli --confirm-spend \
 | 항목 | 내용 |
 |---|---|
 | `approved_safe_alternative_ids` | 누가 산출하는가(Qdrant snapshot loader / 안전 규칙). 정해지기 전까지 `SAFETY_EXCLUDED_EXERCISE_INCLUDED`는 복구 불가(안전한 동작) |
-| 표본 크기 | category당 n이 3~9라 기준 판정에 부족하다. `ROUND2_IMPROVEMENT_PLAN` 4절 권장값은 50~100 case |
+| 표본 크기 | **60건으로 확대 완료**. 원래 33건은 사전 판정용, 추가 27건은 보조 확인용으로 구분 |
 | D-1 재현성 | "동일 입력 → 동일 출력"을 제품 요건으로 확정할지. 2차 범위 밖으로 보류 |
 | PlanSpec 비중립성 | 출력 계약을 architecture-neutral하게 만들지. 4.1절 교란의 근본 원인 |
 
@@ -258,6 +270,8 @@ uv run python -u -m backend.tests.evaluation.comparison_cli --confirm-spend \
 | `heldout/` | 1차 held-out 유료 (256 호출). **실패 코드 없음** |
 | `heldout_adr22/` | 2차 held-out 유료 (255 호출). **실패 코드 포함, 분석의 기준** |
 | `judge_calibration/` | Judge calibration 산출물 |
+| `expanded_heldout_reasons/` | 60건 확대 유료 (476 호출). Training 거절 사유 포함 |
+| `expanded_judge_calibration/` | 60건 확대 Judge calibration(추가 호출 0) |
 | `offline/`, `offline_adr22/` | 무료 배관 점검 |
 
 ### ADR
@@ -296,9 +310,58 @@ validator로 재검증되므로 "repair 없이도 통과했을 계획"만 통과
 
 ## 11. 다음 담당자에게 권하는 순서
 
-1. `ROUND2_HELDOUT_RESULTS.md` 8~11절을 읽는다. 여기에 결론과 교란이 다 있다.
-2. 게이트 8 최종 보고서를 쓴다(6.1절). **4절의 교란 두 건을 반드시 포함한다.**
-3. 오너에게 6.3절 미결 사항을 올린다.
-4. 예산이 허락하면 6.2절 유료 실행으로 Training 거절 사유를 확보한다. 이것이 "multi-agent
-   단순화 또는 조건부 호출"(`ROUND2_IMPROVEMENT_PLAN` 6절)을 후속 ADR로 올릴지 판단하는
-   마지막 근거다.
+1. `TEST_RESULTS.md`를 공식 최종 판정으로 사용하고, 상세 근거가 필요하면
+   `ROUND2_HELDOUT_RESULTS.md` 8~11절을 본다.
+2. 오너에게 6.3절의 남은 미결 사항을 올린다.
+3. ADR-0023과 12.4절 결과를 근거로 Multi-agent 단순화 또는 조건부 호출을 별도 ADR에서 검토한다.
+   Training 거절 계약과 표적 실행 잔여 2건의 코드 수정은 완료됐다.
+
+### 11.1 위 권장 작업 진행 결과 (2026-09-12)
+
+- ADR-0023을 승인 상태로 추가했다.
+- Training `NEEDS_INPUT` 사유를
+  `TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN` 단일 코드로 제한했다.
+- 운영·shadow·평가 Multi-Agent 경로가 Training 호출 전에 동일한 결정적 fallback provider로
+  후보 존재를 확인한다.
+- 후보가 존재하는데 Training이 거절하면 domain-invalid로 처리하고 기존 bounded retry를 사용한다.
+- 후보 미생성은 불가능이 아니라 `UNPROVEN`이며 기존 fail-closed fallback 경로를 유지한다.
+- Training prompt version은 `v3-training-prompt-v12`, Coordinator prompt version은
+  ADR-0024 적용 후 `v3-coordinator-prompt-v8`이다.
+- 무료 60건 회귀 결과는 `results/round2/expanded_offline_adr23/`에 있다. planning case 54건의
+  계획 전달·안전·workflow 1.000, critical 실패 0건이다.
+- 결정적 사전 검사는 planning 54건과 과거 Training 거절 9건 모두에서 후보 존재를 확인했다.
+- 표적 유료 재측정을 완료했다. 과거 Training 거절 9건 + 대조군 3건, Multi-Agent 단독,
+  Judge 제외, 호출 상한 60회 중 실제 49회를 사용했다.
+- 과거 거절 9건의 새 Training 거절은 0건이고 7건은 LLM 계획으로 직접 통과했다. 나머지는
+  `SQ-HELD-018` compilation 실패와 `SQ-HELD-022` family 중복 repair 소진으로 fallback됐다.
+- 12건 전체 계획 전달·안전·workflow 1.000, critical 실패 0건이다. 결과는
+  `results/round2/adr23_targeted_paid/`에 있다.
+- ADR-0023 및 표적 선택 CLI 관련 agent·runtime·golden·safety·fallback 회귀는 155건 통과했고,
+  `ruff check backend`, `mypy backend/app`(219 files), 변경된 평가 파일 mypy,
+  `git diff --check`도 통과했다.
+- backend 전체 실행에서는 2,249건 통과·91건 skip 후 86건이 Windows pytest 임시 디렉터리 ACL
+  오류로 setup 단계에서 중단됐다. 테스트 assertion 실패는 관측되지 않았으며 ACL 임시 폴더는
+  정리했다.
+- 표적 실행의 잔여 2건도 수정했다. 컴파일된 실제 시간이 허용 범위를 벗어나면 compile 예외로
+  소실하지 않고 downstream integrity validator의 bounded repair로 전달한다. Training과
+  Coordinator에는 catalog `family_code`를 제공해 같은 family의 서로 다른 운동 ID를 초안과
+  repair에서 중복하지 않도록 했다. 관련 회귀 94건, ruff, 운영 소스 mypy가 통과했다.
+- 잔여 2건 수정 뒤 두 case만 유료 재실행했다. 실제 호출은 8회였다. `SQ-HELD-022`는 family
+  중복 없이 LLM 계획으로 직접 통과했다. `SQ-HELD-018`은 기존 compilation 실패는 재발하지
+  않았지만 Coordinator `LLM_AGENT_DOMAIN_INVALID` 후 fallback됐다. 산출물은
+  `results/round2/residual_two_paid_20260912/`에 있다. 전체 60건 재실행은 하지 않았다.
+- Round 2 종료 시 ADR-0024를 적용했다. Coordinator의 hash·proposal reference·repair attempt 등
+  불변 identity는 검증된 input으로 서버가 채우고, 모델에는 action·운동 처방·decision/public
+  summary만 맡긴다. 모델 소유 처방 검증과 downstream integrity validator는 그대로다. 종료
+  시점에는 관련 회귀 110건과 별도의 golden·safety·재현성·fallback 회귀 290건, backend ruff 및
+  app mypy로 검증했고, 이후 오너 승인으로 아래 축소 유료 재측정을 수행했다.
+- 이후 오너 승인으로 ADR-0024 축소 재측정을 별도 수행했다. 018·022 각 20회, 실제 159호출이며
+  LLM 직접 통과는 16/20·19/20이다. fallback 포함 전달·안전·workflow는 모두 1.000, critical
+  실패는 0건이다. 5건의 domain-invalid가 남았고 결과는 `results/round2/adr24_two_cases_r20/`에
+  있다. 종료 후 표본이라 공식 Round 2 판정에는 합산하지 않는다.
+- 검증된 ADR-0023·0024, family-aware payload와 duration repair 연결은 `PRODUCTION` 프로필이
+  사용하는 authoritative V3 런타임에 반영했다. 새 결정의 aggregate prompt version은
+  `v3-prompts-v7`이며 기존 저장 레코드, 공개 API와 DB schema는 그대로다.
+- 배포 경로 회귀는 91건, decision API·golden·safety·replay는 107건 통과했다. PostgreSQL
+  원자 저장 통합 테스트 1건은 `TEST_DATABASE_URL` 미설정으로 skip됐으므로 배포 전 CI에서
+  남은 필수 확인이다.

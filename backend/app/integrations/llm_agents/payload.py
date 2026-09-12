@@ -9,7 +9,11 @@ from typing import Final
 from pydantic import BaseModel
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
-from backend.app.domain.agents.v3_contracts import CoordinatorInput, SpecialistAgentInput
+from backend.app.domain.agents.v3_contracts import (
+    CoordinatorInput,
+    SpecialistAgentInput,
+    TrainingPlanFeasibilityCode,
+)
 from backend.app.domain.rules.safety import BodyAreaCode
 
 _MACHINE_VALUE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$")
@@ -116,6 +120,9 @@ _POOL_EXERCISE_FIELDS: Final = (
     "training_type_code",
     "body_focus_code",
     "movement_pattern_codes",
+    # Near-identical catalog variants share a family. Training needs this to
+    # avoid padding its draft with several names for the same movement.
+    "family_code",
     "difficulty_code",
     "timing_mode_code",
     # Agents cannot fit a plan to the requested duration without the approved
@@ -154,6 +161,8 @@ _FEASIBILITY_POOL_EXERCISE_FIELDS: Final = (
 )
 _COORDINATOR_POOL_EXERCISE_FIELDS: Final = (
     "exercise_id",
+    # Required to interpret and repair PLAN_EXERCISE_FAMILY_REPEATED.
+    "family_code",
     "timing_mode_code",
     "default_seconds_per_rep",
     "default_work_seconds",
@@ -317,7 +326,11 @@ def _project_coordinator_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
     return projected
 
 
-def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
+def specialist_payload(
+    agent_input: SpecialistAgentInput,
+    *,
+    training_plan_feasibility_code: TrainingPlanFeasibilityCode | None = None,
+) -> dict[str, object]:
     if agent_input.agent_type_code.value == "TRAINING":
         pool_payload = project_exercise_pool(agent_input.exercise_pool)
     elif agent_input.agent_type_code.value == "RECOVERY":
@@ -335,6 +348,12 @@ def specialist_payload(agent_input: SpecialistAgentInput) -> dict[str, object]:
         ),
         "exercise_pool": pool_payload,
     }
+    if agent_input.agent_type_code.value == "TRAINING":
+        projected["training_plan_feasibility_code"] = (
+            training_plan_feasibility_code or TrainingPlanFeasibilityCode.UNPROVEN
+        ).value
+    elif training_plan_feasibility_code is not None:
+        raise ValueError("training feasibility evidence is valid only for TRAINING")
     if agent_input.regeneration_context is not None:
         projected["regeneration_context"] = project_contract(
             agent_input.regeneration_context,

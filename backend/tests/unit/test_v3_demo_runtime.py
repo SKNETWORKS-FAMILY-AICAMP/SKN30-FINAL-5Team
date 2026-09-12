@@ -216,7 +216,27 @@ def test_initial_create_returns_complete_persistence_bundle() -> None:
     )
     assert runtime.metadata.execution_profile == "DEMO"
     assert runtime.metadata.graph_version == "v3-langgraph-demo-v2"
+    assert runtime.metadata.prompt_version == "v3-prompts-v7"
     assert runtime.metadata.provider_code == "OPENAI"
+    assert bundle.prompt_version == "v3-prompts-v7"
+    assert bundle.coordinator_attempts[0].prompt_version == "v3-prompts-v7"
+
+
+def test_approved_production_runtime_uses_the_current_prompt_contract() -> None:
+    root_snapshot = make_bundle().root_snapshot
+    runtime = build_v3_demo_runtime(
+        _settings(
+            app_env="production",
+            v3_execution_profile="PRODUCTION",
+            v3_production_promotion_approved=True,
+        ),
+        execution_profile="PRODUCTION",
+        chat_model=_successful_model(root_snapshot),
+    )
+
+    assert runtime is not None
+    assert runtime.execution_profile == "PRODUCTION"
+    assert runtime.metadata.prompt_version == "v3-prompts-v7"
 
 
 def test_runtime_matches_initial_and_regeneration_structural_contracts() -> None:
@@ -304,7 +324,9 @@ def test_required_specialist_provider_failure_uses_validated_fallback() -> None:
     assert bundle.agent_proposals == ()
     assert bundle.coordinator_attempts[0].plan_spec is None
     assert bundle.validations[0].integrity_validation.status_code.value == "PASS"
-    assert fallback_provider.calls == 1
+    # One deterministic call supplies Training's feasibility preflight; the
+    # second builds the actual fallback after the provider failure.
+    assert fallback_provider.calls == 2
     assert "provider-secret-response-sentinel" not in repr(bundle)
 
 

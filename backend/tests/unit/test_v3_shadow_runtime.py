@@ -247,7 +247,9 @@ def test_provider_failure_uses_validated_deterministic_fallback_without_coordina
     assert result.terminal_status_code is GraphTerminalStatusCode.COMPLETED
     assert result.fallback_used
     assert result.plan is not None
-    assert fallback_provider.calls == 1
+    # One deterministic call supplies Training's feasibility preflight; the
+    # second builds the actual fallback after the provider failure.
+    assert fallback_provider.calls == 2
     assert all(metric.role_code.value != "COORDINATOR" for metric in result.invocation_metrics)
     assert "provider-secret-response-sentinel" not in repr(result)
 

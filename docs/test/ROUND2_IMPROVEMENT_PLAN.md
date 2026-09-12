@@ -1,11 +1,16 @@
 # 2차 멀티에이전트 품질 개선·평가 계획
 
+> **상태: CLOSED (2026-09-12).** 사전 등록 판정과 실행 결과는 보존하며 추가 전체 유료 평가는 없다.
+> Human 평가는 독립성·평가자 간 일치도 부족으로 최종 근거에서 제외했다. 최종 판정은 기계 검증
+> 가능한 6개 기준의 통과 4 / 미달 2다. LLM Judge 점수는 표시하되 합격·우열 집계에는 넣지 않는
+> 참고 지표로 사용한다.
+
 ## 1. 기준선과 목적
 
 - 1차 기준선: commit `3b78731`, tag `evaluation-v1-baseline`
 - 1차 결론: 안전성은 확인했지만 Multi-Agent의 비용 대비 우월성은 입증하지 못했다.
 - 2차 목적: Safety 불변식을 유지하면서 D-5 가용성, advisory 반영, token/latency를 개선하고
-  held-out Human 평가로 Single-Agent RAG 대비 실질적 품질 차이를 검증한다.
+  held-out 기계 검증으로 Single-Agent RAG 대비 실질적 차이를 확인한다.
 - 1차 산출물은 수정하지 않는다. 2차 산출물은 `results/round2/`와 별도 Phase 문서에 저장한다.
 
 ## 2. 개선 항목
@@ -53,13 +58,12 @@
 | Safety golden pass rate | 1.000 |
 | Critical / unsafe plan | 0건 |
 | 실-provider workflow completion | 0.950 이상 |
-| Multi - Single RAG Human mean | +0.20 이상 |
 | v1 Multi 대비 평균 total token | 25% 이상 감소 |
 | Multi P95 latency | 30초 이하 |
 | conflict/complex case plan rate | Single RAG 이상 |
 
-한 기준이라도 미달하면 “Multi-Agent가 더 유효하다”는 결론을 내리지 않는다. Judge 점수는 보조
-지표이며 Human 결과를 대체하지 않는다.
+한 기준이라도 미달하면 “Multi-Agent가 더 유효하다”는 결론을 내리지 않는다. Human/Judge 점수는
+평가 신뢰 조건을 충족하지 못해 최종 판정에서 제외하고 진단 이력으로만 보존한다.
 
 ## 4. 데이터와 비교 통제
 
@@ -69,8 +73,7 @@
   층화한다.
 - Multi-Agent와 Single-Agent RAG는 같은 model version, catalog, policy, 요청 snapshot,
   compiler, validator를 사용한다.
-- 표시 순서를 무작위화하고 architecture label을 숨긴다.
-- PM과 개발리드는 합의 전 독립 점수를 각각 남긴다.
+- 자동 Judge 입력은 표시 순서를 무작위화하고 architecture label을 숨기되 최종 판정에는 쓰지 않는다.
 
 ## 5. 실행 게이트
 
@@ -79,9 +82,8 @@
 3. 실-provider 5~10 case smoke 및 LangSmith span 확인
 4. 10~20 case 유료 pilot, 실패·token·latency 검토
 5. held-out 전체 실행
-6. 독립 blind Human 평가
-7. Judge calibration을 별도 산출
-8. 성공 기준 판정과 최종 보고
+6. Judge calibration을 별도 산출(진단 전용)
+7. 성공 기준 판정과 최종 보고
 
 유료 단계마다 실제 run 수, 예상 최대 호출 수, 사용 model을 manifest에 기록한다. smoke 또는 pilot에서
 unsafe plan, critical failure, privacy 위반이 1건이라도 나오면 전체 실행을 중단한다.
@@ -146,7 +148,7 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
   - 통과: safety 1.000(33/33), critical 0건, workflow completion 1.000, token −26.9786%
   - 미달: Multi P95 48.813초(기준 30초), conflict/complex plan rate 0.600/0.667
     (Single RAG 0.800/0.889)
-  - 미판정: Human mean(+0.20) — 독립 blind 평가 미실시
+  - Human/Judge: 최종 판정 제외
   - 판정: 6절의 **"Single RAG가 동등 이상"** 분기. Multi-Agent 우월성 결론 보류
   - Multi fallback 7건 중 5건이 Training agent 단독 실패(`V3_TRAINING_NOT_READY` 4,
     `LLM_AGENT_DOMAIN_INVALID` 1). advisory 차단은 0건이므로 D-5 재발이 아니다
@@ -176,8 +178,7 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
 - **D-7 수정**: 실패·거절 분기가 telemetry를 버려 과금된 호출이 0 토큰으로 집계됐다.
   Multi-Agent 토큰이 run당 약 12% 과소 보고됐고, 보정하면 비용 비교는 C에게 더 불리하다
 - **Judge calibration 완료(2026-09-11)**: 11절, `results/round2/judge_calibration/`.
-  provider 호출 0회. 독립 blind Human 평가는 오너 판단으로 생략됐으므로 사람 일치는 판정하지
-  않고, 사람 라벨 없이 확인 가능한 세 가지로 Judge의 사용 범위를 한정했다.
+  provider 호출 0회. 판별력·fallback 교란·시간 오차 상관만 진단했으며 최종 판정에서는 제외했다.
   - **판별력 성립**: blind 상태에서 모델 계획 3.7449 대 결정적 fallback 2.8991(+0.8458),
     세 아키텍처 모두 같은 방향. Judge는 잡음이 아니다
   - **아키텍처 평균이 교란돼 있었다**: fallback 빈도가 섞인다. 저작 계획만 비교하면
@@ -187,7 +188,16 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
   - **짝지어 부호검정**: C 대 B는 저작 계획 기준 9 대 9, **p = 1.0000** — Judge는 둘을 구분하지
     못한다. 반면 B 대 A는 p = 0.0009, C 대 A는 p = 0.0003으로 retrieval 가치는 명확히 구분한다
   - 1차 편향(Multi-Agent +0.33)은 조건이 달라 **빼지 않고 기록만** 한다
-- 다음 게이트: 8단계 성공 기준 판정과 최종 보고
+- **최종 보고 완료(2026-09-12)**: 기계 검증 기준 판정과 1·2차 통합 최종 보고를
+  `docs/test/TEST_RESULTS.md`에 반영했다. 최종 판정은 통과 4 / 미달 2이며,
+  **"Single RAG가 동등 이상"** 분기와 Multi-Agent 우월성 결론 보류를 유지한다.
+- **60건 확대 확인 완료(2026-09-12)**: 기존 33건을 보존하고 27건을 추가한
+  `expanded_heldout_cases`로 476회 유료 호출을 실행했다. category별 n은 4~16으로 늘었다.
+  - B/C LLM Plan Rate 0.9630 / 0.7407, P95 48.953 / 51.047초
+  - C Training 거절 9건의 10개 reason code는 전부 duration/volume 부족 주장
+  - 같은 9건에서 B는 8건의 저작 계획을 공통 gate에 통과시켜 과도한 거절임을 확인
+  - 대칭 rejected rate도 B 0.0370 / C 0.0926으로, 기존 소표본의 C 우위는 재현되지 않음
+  - 원래 성공 기준 판정은 소급 변경하지 않으며 결론도 유지
 
 ### 하네스 한계 (held-out 해석 시 유의)
 
@@ -197,3 +207,42 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
 실제 모델은 MAIN 반복으로 시간을 채우며 2차 pilot 14/14에서 fallback 0건이었다.
 세 architecture에 동일하게 적용되므로 비교 속성도 유지된다.
 - 상세: `docs/test/ROUND2_LOCAL_RESULTS.md`
+
+## Training 거절 계약 후속 구현 (ADR-0023, 2026-09-12)
+
+- `NEEDS_INPUT` reason code를
+  `TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN`으로 고정했다.
+- 동일한 결정적 fallback provider의 후보 생성 성공을 `CANDIDATE_AVAILABLE` 증거로 Training에
+  전달하고, 이 증거와 모순되는 거절은 기존 bounded retry 대상으로 처리한다.
+- 후보 미생성은 `INFEASIBLE`이 아니라 `UNPROVEN`으로 취급해 거짓 불가능 판정을 방지한다.
+- 안전 veto, Coordinator, compiler, 최종 integrity validation은 변경하지 않았다.
+- 구현 후 유료 재측정은 미실행이며 기존 최종 판정은 유지한다.
+
+표적 유료 재측정은 이후 최소 범위로 실행했다. 과거 거절 9건과 대조군 3건을 Multi-Agent
+단독·Judge 제외로 실행해 49회를 호출했다. 과거 거절 9건의 새 Training 거절은 0건, 직접 계획
+통과는 7건이었다. 나머지 2건은 각각 compilation 실패와 Coordinator family 중복 repair 소진
+후 fallback이며 Training 거절 재발이 아니다. 전체 12건의 계획 전달·안전·workflow는 1.000,
+critical 실패는 0건이다. 전체 A/B/C 재실행은 하지 않았고 기존 최종 판정도 유지한다.
+
+### 표적 잔여 2건 수정
+
+- compilation 단계의 시간 오차 즉시 예외를 제거해, 카탈로그 측정값을 downstream integrity
+  validator가 `REQUESTED_DURATION_MISMATCH`로 판정하고 기존 1회 repair로 보낼 수 있게 했다.
+- Training·Coordinator pool payload에 catalog `family_code`를 추가하고, family당 서로 다른
+  exercise ID 하나만 선택하도록 두 prompt를 갱신했다.
+- 안전 및 최종 무결성 규칙은 그대로이며, repair 실패 시 deterministic fallback도 유지한다.
+- 관련 회귀 94건 통과. 수정 직후에는 유료 검증을 수행하지 않았으며 이후 두 case만 재실행했다.
+
+두 case 표적 유료 재실행도 완료했다. 실제 호출은 8회였다. `SQ-HELD-022`는 family 중복 없이
+LLM 계획으로 직접 통과했다. `SQ-HELD-018`은 이전 compilation 실패 대신 Coordinator
+`LLM_AGENT_DOMAIN_INVALID`가 발생해 fallback됐으며, 계획 전달과 안전은 유지됐다. 단일 표본이므로
+추가 프롬프트 변경이나 전체 비교 판정 변경의 근거로 확대 해석하지 않는다.
+
+Round 2 종료 시 ADR-0024로 Coordinator의 불변 orchestration identity를 서버 소유로 전환했다.
+모델은 계획 선택 필드만 반환하며 pool 밖 운동 등 처방 위반은 계속 domain-invalid다. 종료
+시점에는 unit·golden·safety·fallback 회귀로 마감했고, 이후 오너 승인으로 아래 축소 재측정을
+별도 수행했다.
+
+종료 후 오너 승인으로 ADR-0024만 축소 재측정했다. 018·022를 각각 20회 실행해 159회를 호출했고,
+직접 통과율은 0.800·0.950, 전체 0.875였다. fallback을 포함한 전달·안전·workflow는 1.000이다.
+domain-invalid가 5/40 남았으므로 완전 해결로 보지 않으며, 공식 Round 2 판정은 닫힌 상태를 유지한다.

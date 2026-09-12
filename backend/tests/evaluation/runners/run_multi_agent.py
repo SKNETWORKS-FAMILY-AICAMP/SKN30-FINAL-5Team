@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 from backend.app.domain.agents.v3_compiler import CompiledPlan
 from backend.app.domain.agents.v3_contracts import PlanSpec, SpecialistAgentTypeCode
@@ -202,7 +202,7 @@ class MultiAgentRunner:
         pool = scenario.exercise_pool
         scripted: ScriptedChatModel | None = None
         if self.provider is not None:
-            chat_model: object = self.provider.chat_model
+            chat_model: Any = self.provider.chat_model
             model_code = self.provider.model_code
             max_attempts = self.provider.max_attempts
             # Production binds the provider's native JSON-schema mode
@@ -222,7 +222,7 @@ class MultiAgentRunner:
             # The scripted stand-in implements the plain binding only.
             native_json_schema = False
         invoker = StructuredChatInvoker(
-            chat_model=chat_model,  # type: ignore[arg-type]
+            chat_model=chat_model,
             model_code=model_code,
             max_attempts=max_attempts,
             use_native_json_schema=native_json_schema,
@@ -241,7 +241,14 @@ class MultiAgentRunner:
             snapshot_is_fresh=True,
             specialists={
                 SpecialistAgentTypeCode.TRAINING: cast(
-                    SpecialistPort, TrainingAgentAdapter(invoker=invoker)
+                    SpecialistPort,
+                    TrainingAgentAdapter(
+                        invoker=invoker,
+                        feasibility_provider=DeterministicGraphFallbackProvider(
+                            fallback_version=self.versions.fallback_version
+                        ),
+                        fallback_version=self.versions.fallback_version,
+                    ),
                 ),
                 SpecialistAgentTypeCode.RECOVERY: cast(
                     SpecialistPort, RecoveryAgentAdapter(invoker=invoker)

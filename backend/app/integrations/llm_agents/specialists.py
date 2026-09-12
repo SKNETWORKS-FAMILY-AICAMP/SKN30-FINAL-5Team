@@ -12,6 +12,13 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentInput,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    TrainingNeedsInputReasonCode,
+    TrainingPlanFeasibilityCode,
+    V3ProposalStatusCode,
+)
+from backend.app.domain.agents.v3_orchestration import (
+    DeterministicFallbackProvider,
+    FallbackRequest,
 )
 from backend.app.integrations.llm_agents.canonicalization import canonical_proposal_values
 from backend.app.integrations.llm_agents.models import (
@@ -32,6 +39,8 @@ class LangChainSpecialistAdapter:
         *,
         role_code: LlmAgentRoleCode,
         invoker: StructuredChatInvoker,
+        feasibility_provider: DeterministicFallbackProvider | None = None,
+        fallback_version: str | None = None,
     ) -> None:
         if role_code not in {
             LlmAgentRoleCode.TRAINING,
@@ -42,6 +51,57 @@ class LangChainSpecialistAdapter:
         self.role_code = role_code
         self.agent_type_code = SpecialistAgentTypeCode(role_code.value)
         self._invoker = invoker
+        self._feasibility_provider = feasibility_provider
+        self._fallback_version = fallback_version
+
+    def _training_feasibility_code(
+        self,
+        *,
+        constraint_envelope: ConstraintEnvelope,
+        exercise_pool: ExercisePoolSnapshot,
+    ) -> TrainingPlanFeasibilityCode | None:
+        if self.role_code is not LlmAgentRoleCode.TRAINING:
+            return None
+        if self._feasibility_provider is None or self._fallback_version is None:
+            return TrainingPlanFeasibilityCode.UNPROVEN
+        try:
+            request = FallbackRequest.create(
+                constraint_envelope=constraint_envelope,
+                exercise_pool=exercise_pool,
+                fallback_version=self._fallback_version,
+            )
+            candidate = self._feasibility_provider.generate(request)
+        except Exception:
+            # Preflight is advisory evidence. Its failure must not suppress the
+            # normal provider path or be misreported as proof of infeasibility.
+            return TrainingPlanFeasibilityCode.UNPROVEN
+        if (
+            candidate is None
+            or candidate.fallback_version != self._fallback_version
+            or candidate.envelope_hash != constraint_envelope.envelope_hash
+            or candidate.pool_hash != exercise_pool.pool_hash
+        ):
+            return TrainingPlanFeasibilityCode.UNPROVEN
+        return TrainingPlanFeasibilityCode.CANDIDATE_AVAILABLE
+
+    @staticmethod
+    def _validate_training_decline(
+        output: SpecialistAgentProposal,
+        feasibility_code: TrainingPlanFeasibilityCode | None,
+    ) -> None:
+        if not (
+            output.agent_type_code is SpecialistAgentTypeCode.TRAINING
+            and output.proposal_status_code is V3ProposalStatusCode.NEEDS_INPUT
+        ):
+            return
+        if output.reason_codes != (
+            TrainingNeedsInputReasonCode.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN.value,
+        ):
+            raise ValueError("TRAINING NEEDS_INPUT requires the stable feasibility reason code")
+        if feasibility_code is TrainingPlanFeasibilityCode.CANDIDATE_AVAILABLE:
+            raise ValueError(
+                "TRAINING cannot return NEEDS_INPUT when a deterministic candidate is available"
+            )
 
     @property
     def prompt_version(self) -> str:
@@ -68,7 +128,14 @@ class LangChainSpecialistAdapter:
                 pool_hash=exercise_pool.pool_hash,
                 regeneration_context=regeneration_context,
             )
-            payload = specialist_payload(agent_input)
+            feasibility_code = self._training_feasibility_code(
+                constraint_envelope=constraint_envelope,
+                exercise_pool=exercise_pool,
+            )
+            payload = specialist_payload(
+                agent_input,
+                training_plan_feasibility_code=feasibility_code,
+            )
         except (ValidationError, ValueError):
             return self._invoker.failure(
                 code=LlmAgentFailureCode.DOMAIN_INVALID,
@@ -80,6 +147,7 @@ class LangChainSpecialistAdapter:
 
         def validate(output: SpecialistAgentProposal) -> SpecialistAgentProposal:
             agent_input.validate_proposal(output)
+            self._validate_training_decline(output, feasibility_code)
             return output
 
         return self._invoker.invoke(
@@ -120,7 +188,14 @@ class LangChainSpecialistAdapter:
                 pool_hash=exercise_pool.pool_hash,
                 regeneration_context=regeneration_context,
             )
-            payload = specialist_payload(agent_input)
+            feasibility_code = self._training_feasibility_code(
+                constraint_envelope=constraint_envelope,
+                exercise_pool=exercise_pool,
+            )
+            payload = specialist_payload(
+                agent_input,
+                training_plan_feasibility_code=feasibility_code,
+            )
         except (ValidationError, ValueError):
             return self._invoker.failure(
                 code=LlmAgentFailureCode.DOMAIN_INVALID,
@@ -132,6 +207,7 @@ class LangChainSpecialistAdapter:
 
         def validate(output: SpecialistAgentProposal) -> SpecialistAgentProposal:
             agent_input.validate_proposal(output)
+            self._validate_training_decline(output, feasibility_code)
             return output
 
         return await self._invoker.ainvoke(
@@ -157,8 +233,19 @@ class LangChainSpecialistAdapter:
 
 
 class TrainingAgentAdapter(LangChainSpecialistAdapter):
-    def __init__(self, *, invoker: StructuredChatInvoker) -> None:
-        super().__init__(role_code=LlmAgentRoleCode.TRAINING, invoker=invoker)
+    def __init__(
+        self,
+        *,
+        invoker: StructuredChatInvoker,
+        feasibility_provider: DeterministicFallbackProvider | None = None,
+        fallback_version: str | None = None,
+    ) -> None:
+        super().__init__(
+            role_code=LlmAgentRoleCode.TRAINING,
+            invoker=invoker,
+            feasibility_provider=feasibility_provider,
+            fallback_version=fallback_version,
+        )
 
 
 class RecoveryAgentAdapter(LangChainSpecialistAdapter):
