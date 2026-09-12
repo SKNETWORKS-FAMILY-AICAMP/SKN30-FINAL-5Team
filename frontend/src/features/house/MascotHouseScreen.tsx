@@ -34,7 +34,10 @@ import {
 import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
-import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import {
+  BananaCatchGameScreen,
+  type BananaCatchRewardState,
+} from '../bananaCatch/BananaCatchGameScreen';
 import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
 import { HelkkiPassScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
@@ -123,6 +126,8 @@ export function MascotHouseScreen({
   const [activeScreen, setActiveScreen] = useState<
     { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'pass' } | null
   >(null);
+  const [bananaCatchRewardState, setBananaCatchRewardState] =
+    useState<BananaCatchRewardState>({ status: 'idle' });
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -328,28 +333,42 @@ export function MascotHouseScreen({
           const base = liveState.current ?? houseState;
           if (base !== null)
             persist(recordGamePlay(base, 'banana_catch', localDate));
+          setBananaCatchRewardState({ status: 'pending' });
           // The payout, its cap and the once-a-day limit are the server's; the
           // client only reports what the round scored. A scoreless round is
           // refused there, which is not worth interrupting the player over, so
           // the wallet is left exactly as it was and no error is surfaced.
           void runWalletMutation(() => claimMiniGame.run(score)).then(
             (result) => {
-              if (!result) return;
+              if (!result) {
+                setBananaCatchRewardState({ status: 'unavailable' });
+                return;
+              }
               serverBalance.current = result.balance;
               // The house was loaded to get here, but this branch sits above
               // the ready guard, so narrow before reading the wallet.
-              if (remote.status !== 'ready') return;
-              setRemoteData({
-                ...remote.data,
-                wallet: {
-                  balance: result.balance,
-                  daily_reward: result.daily_reward,
-                },
-                walletError: null,
+              if (remote.status === 'ready') {
+                setRemoteData({
+                  ...remote.data,
+                  wallet: {
+                    balance: result.balance,
+                    daily_reward: result.daily_reward,
+                  },
+                  walletError: null,
+                });
+              }
+              persist({
+                ...(liveState.current ?? houseState ?? initialHouseState()),
+                bananas: result.balance,
+              });
+              setBananaCatchRewardState({
+                status: 'settled',
+                amount: result.transaction.amount,
               });
             },
           );
         }}
+        rewardState={bananaCatchRewardState}
       />
     );
   }
@@ -512,6 +531,9 @@ export function MascotHouseScreen({
         if (!view.canPlayGame[gameId]) return;
         // The play is counted when the round finishes, not here: spending it on
         // open meant backing out of the game still used up the day's only try.
+        if (gameId === 'banana_catch') {
+          setBananaCatchRewardState({ status: 'idle' });
+        }
         setActiveScreen({ kind: 'mini-game', gameId });
       }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {

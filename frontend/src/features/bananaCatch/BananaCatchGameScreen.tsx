@@ -34,6 +34,12 @@ const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
 const DEFAULT_CATCH_LINE_Y = 0.75;
 const GAME_HORIZONTAL_INSET = '4%' as const;
 
+export type BananaCatchRewardState =
+  | { status: 'idle' | 'pending' | 'unavailable' }
+  | { status: 'settled'; amount: number };
+
+const IDLE_REWARD_STATE: BananaCatchRewardState = { status: 'idle' };
+
 export function bananaCatchLayoutMetrics(width: number, height: number) {
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
@@ -75,6 +81,7 @@ const COLLECTING_MASCOT_ASSETS = [
 export function BananaCatchGameScreen({
   onBack,
   onPlayed,
+  rewardState = IDLE_REWARD_STATE,
 }: {
   onBack: () => void;
   /**
@@ -86,6 +93,7 @@ export function BananaCatchGameScreen({
    * round's reward; the payout itself is the server's to decide.
    */
   onPlayed?: (score: number) => void;
+  rewardState?: BananaCatchRewardState;
 }) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
@@ -272,10 +280,15 @@ export function BananaCatchGameScreen({
           {game.status === 'finished' ? (
             <GameCard
               actionLabel="확인"
+              actionPending={rewardState.status === 'pending'}
               onAction={onBack}
               title={`바나나 ${game.score}개를 모았어요!`}
             >
-              내일 또 끼끼와 도전해봐요!
+              {rewardState.status === 'pending'
+                ? '바나나 코인을 확인하고 있어요.'
+                : rewardState.status === 'settled'
+                  ? `바나나 코인 ${rewardState.amount}개를 받았어요!`
+                  : '내일 또 끼끼와 도전해봐요!'}
             </GameCard>
           ) : null}
 
@@ -296,11 +309,13 @@ export function BananaCatchGameScreen({
 
 function GameCard({
   actionLabel,
+  actionPending = false,
   children,
   onAction,
   title,
 }: {
   actionLabel: string;
+  actionPending?: boolean;
   children: string;
   onAction: () => void;
   title: string;
@@ -313,10 +328,16 @@ function GameCard({
         <Text style={styles.cardBody}>{children}</Text>
         <Pressable
           accessibilityRole="button"
+          disabled={actionPending}
           onPress={onAction}
-          style={styles.startButton}
+          style={[
+            styles.startButton,
+            actionPending && styles.startButtonPending,
+          ]}
         >
-          <Text style={styles.startButtonText}>{actionLabel}</Text>
+          <Text style={styles.startButtonText}>
+            {actionPending ? '확인 중' : actionLabel}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -471,6 +492,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 24,
   },
+  startButtonPending: { opacity: 0.56 },
   startButtonText: { color: colors.text, fontSize: 16, fontWeight: '900' },
   timerValue: { color: colors.textSub, fontSize: 12, fontWeight: '800' },
 });
