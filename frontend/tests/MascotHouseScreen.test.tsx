@@ -761,6 +761,16 @@ describe('MascotHouseScreen', () => {
       };
       expect(sent.score).toBeGreaterThan(0);
       expect(Object.keys(sent)).toEqual(['score']);
+
+      const amount = Math.min(Math.floor(sent.score / 2), 25);
+      expect(
+        await screen.findByText(`바나나 코인 ${amount}개를 받았어요!`),
+      ).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole('button', { name: '확인' }));
+      expect(await screen.findByTestId('house-scene')).toBeOnTheScreen();
+      expect(
+        screen.getByLabelText(`바나나 ${100 + amount}개 보유`),
+      ).toBeOnTheScreen();
     } finally {
       random.mockRestore();
       jest.useRealTimers();
