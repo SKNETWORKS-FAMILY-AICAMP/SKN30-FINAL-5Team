@@ -46,6 +46,7 @@ describe('SessionResultScreen feedback', () => {
     const api = { submitFeedback } as unknown as Api;
     const outcome = {
       kind: 'stopped' as const,
+      completedItemCount: 1,
       result: {
         session_id: 'session-result',
         execution_state_code: 'STOPPED_RESUMABLE' as const,
@@ -130,6 +131,7 @@ describe('SessionResultScreen feedback', () => {
         sessionId="session-result"
         outcome={{
           kind: 'stopped',
+          completedItemCount: 1,
           result: {
             session_id: 'session-result',
             completion_code: null,
@@ -510,6 +512,7 @@ describe('SessionResultScreen feedback', () => {
         sessionId="session-result"
         outcome={{
           kind: 'stopped',
+          completedItemCount: 1,
           result: {
             session_id: 'session-result',
             completion_code: null,
@@ -530,5 +533,33 @@ describe('SessionResultScreen feedback', () => {
     expect(
       screen.getByText('홈에서 이어하기를 누르면 남은 블록부터 계속돼요.'),
     ).toBeOnTheScreen();
+  });
+
+  it('returns home without feedback after a resumable stop with no completed block', () => {
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'stopped',
+          completedItemCount: 0,
+          result: {
+            session_id: 'session-result',
+            completion_code: null,
+            execution_state_code: 'STOPPED_RESUMABLE',
+            stop_reason_code: 'RESUME_LATER',
+            is_resumable: true,
+            accumulated_progress_seconds: 30,
+            accumulated_rest_seconds: 0,
+            accumulated_paused_seconds: 0,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(screen.queryByText('오늘 운동은 어땠나요?')).toBeNull();
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

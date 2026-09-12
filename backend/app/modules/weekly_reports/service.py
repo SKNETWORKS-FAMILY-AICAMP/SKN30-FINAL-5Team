@@ -512,11 +512,16 @@ class WeeklyReportService:
             if adjusted_total
             else "저장된 최종 루틴 수행 결과를 계획 블록 체크 기준으로 집계했습니다."
         )
-        summary = (
-            f"이번 주 목표 {target}회 중 {completed}회를 완료하고 "
-            f"{partial}회는 일부 수행했으며, 미수행 {not_completed}회와 "
-            f"안전 중단 {stopped}회를 기록했습니다."
-        )
+        if stopped:
+            summary = "몸의 신호를 살피며 멈춘 선택도 이번 주의 소중한 기록이에요."
+        elif completed >= target and target > 0:
+            summary = "이번 주 목표를 채운 흐름이 좋아요, 다음 주도 내 페이스로 이어가요!"
+        elif completed > 0 or partial > 0:
+            summary = "이번 주에 움직인 만큼 잘 쌓였어요, 다음 주도 내 페이스로 이어가요!"
+        elif not_completed > 0:
+            summary = "이번 주에 쉬어간 이유도 잘 남겼어요, 다음 주엔 부담 없이 다시 시작해요!"
+        else:
+            summary = "이번 주 기록은 비어 있어도 괜찮아요, 다음 주에 가볍게 시작해요!"
         next_week_recommendation = {
             "intensity": self._template_intensity_recommendation(routine_difficulty_code),
             "volume": self._template_volume_recommendation(partial, not_completed),

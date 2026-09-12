@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from backend.app.db.models.decision import DecisionRun
+from backend.app.db.models.decision import DecisionRun, PlanCandidate
 from backend.app.db.models.profile import UserProfile
 from backend.app.db.models.reward import BananaTransaction, BananaWallet
 from backend.app.db.models.workout import DecisionSelection, WorkoutSession
@@ -100,16 +100,23 @@ class RewardRepository:
         self, session: Session, user_id: UUID
     ) -> tuple[RewardEligibleWorkout, ...]:
         rows = session.execute(
-            select(WorkoutSession.id, WorkoutSession.status_code, DecisionRun.local_date)
+            select(
+                WorkoutSession.id,
+                WorkoutSession.status_code,
+                DecisionRun.local_date,
+                WorkoutSession.accumulated_progress_seconds,
+                PlanCandidate.requested_duration_minutes * 60,
+            )
             .join(DecisionSelection, DecisionSelection.id == WorkoutSession.decision_selection_id)
             .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+            .join(PlanCandidate, PlanCandidate.id == WorkoutSession.plan_candidate_id)
             .where(
                 WorkoutSession.user_id == user_id,
                 WorkoutSession.status_code.in_(("COMPLETED", "PARTIAL", "STOPPED_FOR_SAFETY")),
             )
             .order_by(DecisionRun.local_date, WorkoutSession.id)
         ).all()
-        return tuple(RewardEligibleWorkout(row[0], row[1], row[2]) for row in rows)
+        return tuple(RewardEligibleWorkout(*row) for row in rows)
 
     def get_daily_claim(
         self, session: Session, user_id: UUID, local_date: date

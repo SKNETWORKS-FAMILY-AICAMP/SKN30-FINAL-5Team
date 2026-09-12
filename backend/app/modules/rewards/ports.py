@@ -31,6 +31,8 @@ class RewardEligibleWorkout:
     workout_session_id: UUID
     status_code: str
     local_date: date
+    accumulated_progress_seconds: int
+    requested_duration_seconds: int
 
 
 class RewardRepositoryPort(Protocol):

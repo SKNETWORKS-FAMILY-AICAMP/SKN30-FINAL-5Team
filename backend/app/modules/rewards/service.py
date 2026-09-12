@@ -243,6 +243,8 @@ class RewardService:
     ) -> None:
         current_wallet = wallet
         for workout in self._repository.list_reward_eligible_workouts(session, user_id):
+            if workout.accumulated_progress_seconds * 2 < workout.requested_duration_seconds:
+                continue
             reward = {
                 "COMPLETED": (BananaTransactionType.WORKOUT_COMPLETED, WORKOUT_COMPLETED_BANANAS),
                 "PARTIAL": (BananaTransactionType.WORKOUT_PARTIAL, WORKOUT_PARTIAL_BANANAS),

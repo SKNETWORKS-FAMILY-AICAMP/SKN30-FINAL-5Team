@@ -767,6 +767,49 @@ describe('MascotHouseScreen', () => {
     }
   });
 
+  it('queues a mini-game payout behind another wallet mutation instead of dropping it', async () => {
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const api = houseApi({ rewardBalance: 100 });
+      const settleBonding = api.claimBondingQuest;
+      let releaseBonding!: () => void;
+      api.claimBondingQuest = jest.fn<Api['claimBondingQuest']>(
+        () =>
+          new Promise<Awaited<ReturnType<Api['claimBondingQuest']>>>(
+            (resolve) => {
+              releaseBonding = () => void settleBonding().then(resolve);
+            },
+          ),
+      );
+      renderHouse(api);
+      await screen.findByTestId('house-scene');
+
+      for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT; index += 1) {
+        fireEvent.press(screen.getByTestId('house-pet-action'));
+        await act(async () => Promise.resolve());
+      }
+      expect(api.claimBondingQuest).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+      fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
+      fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
+      act(() => jest.advanceTimersByTime(35_000));
+      await act(async () => Promise.resolve());
+
+      expect(api.claimMiniGameReward).not.toHaveBeenCalled();
+      await act(async () => {
+        releaseBonding();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(api.claimMiniGameReward).toHaveBeenCalledTimes(1);
+    } finally {
+      random.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('reflects the runner reward in the house after confirmation', async () => {
     jest.useFakeTimers();
     const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);

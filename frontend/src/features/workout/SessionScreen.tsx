@@ -54,7 +54,12 @@ export type SessionOutcome =
    * is asked how it went here, and answering again after resuming replaces the
    * earlier answer.
    */
-  | { kind: 'stopped'; result: SessionStopResponse }
+  | {
+      kind: 'stopped';
+      result: SessionStopResponse;
+      /** Server-confirmed blocks completed before this resumable stop. */
+      completedItemCount: number;
+    }
   | { kind: 'safetyStop'; event: SafetyEventResponse };
 
 export function SessionScreen({

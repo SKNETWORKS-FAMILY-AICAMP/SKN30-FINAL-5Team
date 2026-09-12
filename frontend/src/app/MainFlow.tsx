@@ -300,17 +300,20 @@ export function MainFlow({
       setNotificationNotice(null);
       void (async () => {
         try {
-          await api.markNotificationRead(notification.notification_id);
           if (notification.action_type === 'CLAIM_DAILY_REWARD') {
             // The reward is paid where it is offered: the sheet stays open and
             // reports the amount the server actually granted, so tapping the
-            // notification never drops the user into the wallet screen. The
-            // claim is idempotent per local day on the server side.
+            // notification never drops the user into the wallet screen. Claim
+            // before marking it read so a failed payout leaves a visible,
+            // retryable notification. A payout that succeeds before the read
+            // call fails is safe to retry because the server claim is
+            // idempotent per local day.
             const claimed = await api.claimDailyReward();
             setNotificationNotice(
-              `바나나 ${claimed.transaction.amount}개를 받았어요.`,
+              `오늘의 바나나 ${claimed.transaction.amount}개가 지갑에 담겼어요.`,
             );
           }
+          await api.markNotificationRead(notification.notification_id);
           await refreshNotifications();
           if (notification.action_type === 'OPEN_KIKKI_HOME') {
             setNotificationSheetOpen(false);

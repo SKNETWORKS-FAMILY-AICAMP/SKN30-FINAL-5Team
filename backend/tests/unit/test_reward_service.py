@@ -131,9 +131,9 @@ def test_daily_claim_is_timezone_scoped_and_idempotent() -> None:
 def test_canonical_workout_rewards_and_daily_quest_are_server_deduplicated() -> None:
     repository = FakeRewardRepository()
     repository.workouts = (
-        RewardEligibleWorkout(uuid4(), "COMPLETED", date(2026, 9, 4)),
-        RewardEligibleWorkout(uuid4(), "PARTIAL", date(2026, 9, 4)),
-        RewardEligibleWorkout(uuid4(), "STOPPED_FOR_SAFETY", date(2026, 9, 3)),
+        RewardEligibleWorkout(uuid4(), "COMPLETED", date(2026, 9, 4), 900, 1800),
+        RewardEligibleWorkout(uuid4(), "PARTIAL", date(2026, 9, 4), 1200, 1800),
+        RewardEligibleWorkout(uuid4(), "STOPPED_FOR_SAFETY", date(2026, 9, 3), 900, 1800),
     )
     user_id = uuid4()
 
@@ -143,6 +143,21 @@ def test_canonical_workout_rewards_and_daily_quest_are_server_deduplicated() -> 
     assert first.balance == 70  # 30 completed + 10 daily quest + 15 + 15
     assert repeated.balance == 70
     assert len(repository.transactions) == 4
+
+
+def test_workout_reward_requires_at_least_half_of_the_target_duration() -> None:
+    repository = FakeRewardRepository()
+    exact_half = uuid4()
+    repository.workouts = (
+        RewardEligibleWorkout(uuid4(), "COMPLETED", date(2026, 9, 4), 899, 1800),
+        RewardEligibleWorkout(exact_half, "PARTIAL", date(2026, 9, 4), 900, 1800),
+        RewardEligibleWorkout(uuid4(), "STOPPED_FOR_SAFETY", date(2026, 9, 4), 1799, 3600),
+    )
+
+    response = _service(repository).get_wallet(FakeSession(), uuid4())
+
+    assert response.balance == 15
+    assert [item.workout_session_id for item in repository.transactions] == [exact_half]
 
 
 def test_server_enforces_existing_feed_and_item_costs() -> None:

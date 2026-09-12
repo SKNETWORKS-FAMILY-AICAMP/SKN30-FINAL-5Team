@@ -130,7 +130,7 @@ export function MascotHouseScreen({
   const liveState = useRef<HouseState | null>(null);
   const serverBalance = useRef(0);
   /** Serializes wallet mutations so an older response cannot replace a newer balance. */
-  const walletMutationInFlight = useRef(false);
+  const walletMutationQueue = useRef<Promise<void>>(Promise.resolve());
 
   const { setData: setRemoteData, state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
@@ -239,18 +239,25 @@ export function MascotHouseScreen({
   const claimGiftRequest = useCallback(() => api.claimDailyReward(), [api]);
   const claimGift = useAsyncAction(claimGiftRequest);
   const walletMutationPending =
-    spend.pending || claimGift.pending || claimMiniGame.pending;
-  const runWalletMutation = async <T,>(
-    request: () => Promise<T | undefined>,
-  ) => {
-    if (walletMutationInFlight.current) return undefined;
-    walletMutationInFlight.current = true;
-    try {
-      return await request();
-    } finally {
-      walletMutationInFlight.current = false;
-    }
-  };
+    spend.pending ||
+    claimGift.pending ||
+    claimBonding.pending ||
+    claimMiniGame.pending;
+  const runWalletMutation = useCallback(
+    <T,>(request: () => Promise<T | undefined>): Promise<T | undefined> => {
+      // Dropping a request while another payout was in flight made a finished
+      // mini-game appear to pay nothing (most often while the automatic
+      // bonding quest was settling). Queue every wallet intent instead; each
+      // endpoint still owns its own idempotency rule.
+      const operation = walletMutationQueue.current.then(request);
+      walletMutationQueue.current = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
+    },
+    [],
+  );
 
   // The bonding quest is settled locally, but the wallet is the only balance the
   // app shows, so the payout has to come from the server. The house used to add

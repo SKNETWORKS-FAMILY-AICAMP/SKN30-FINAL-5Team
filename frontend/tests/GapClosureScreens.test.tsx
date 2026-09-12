@@ -12,7 +12,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import { bodyFocusLabel, equipmentLabel } from '../src/api/labels';
@@ -133,6 +133,29 @@ describe('ExerciseCatalogScreen', () => {
     expect(screen.getByText('푸시업')).toBeOnTheScreen();
     expect(queries).toEqual([{ cursor: undefined, limit: 100 }]);
   }, 15000);
+
+  it('returns the exercise list to the top when the focus filter changes', async () => {
+    const api = {
+      listExercises: async () => exercisePage(['스쿼트', '런지']),
+      getExercise: async () => {
+        throw new Error('not used');
+      },
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+
+    try {
+      render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+      await screen.findByText('스쿼트');
+      fireEvent.scroll(screen.getByTestId('exercise-catalog-list-scroll'), {
+        nativeEvent: { contentOffset: { x: 0, y: 480 } },
+      });
+      fireEvent.press(screen.getByRole('button', { name: '대퇴사두근' }));
+
+      expect(scrollTo).toHaveBeenCalledWith({ animated: false, y: 0 });
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
 
   it('offers only an exercise-focus filter and hides equipment when an exercise needs none', async () => {
     const page = exercisePage(['맨몸 스쿼트']);
