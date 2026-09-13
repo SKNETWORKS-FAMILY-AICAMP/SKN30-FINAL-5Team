@@ -2,7 +2,10 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   BANANA_CATCH_DURATION_MS,
+  BANANA_CATCH_TICK_MS,
   BANANA_HALF_WIDTH,
+  BANANA_ROUND_PACE_MAX,
+  BANANA_ROUND_PACE_MIN,
   BANANA_SPAWN_INTERVAL_MS,
   PLAYER_HALF_WIDTH,
   advanceBananaCatch,
@@ -18,6 +21,7 @@ describe('banana catch rules', () => {
     const state = startBananaCatch(() => 0.25);
 
     expect(state.status).toBe('playing');
+    expect(state.roundPace).toBeCloseTo(1.0625);
     expect(state.bananas).toEqual([
       {
         id: 1,
@@ -27,6 +31,19 @@ describe('banana catch rules', () => {
         rotationSpeedDegPerSecond: -17.5,
       },
     ]);
+  });
+
+  it('chooses a bounded pace once when each round starts', () => {
+    let randomCalls = 0;
+    const slow = startBananaCatch(() => {
+      randomCalls += 1;
+      return 0;
+    });
+    const fast = startBananaCatch(() => 1);
+
+    expect(slow.roundPace).toBe(BANANA_ROUND_PACE_MIN);
+    expect(fast.roundPace).toBe(BANANA_ROUND_PACE_MAX);
+    expect(randomCalls).toBe(4);
   });
 
   it('keeps the catcher inside the play area', () => {
@@ -57,6 +74,31 @@ describe('banana catch rules', () => {
       { id: 2, x: 0.75 },
       { id: 3, x: 0.75 },
     ]);
+  });
+
+  it('varies a flawless score with the pace selected for the round', () => {
+    const playRound = (paceRandom: number) => {
+      let firstCall = true;
+      const random = () => {
+        if (firstCall) {
+          firstCall = false;
+          return paceRandom;
+        }
+        return 0.5;
+      };
+      let state = startBananaCatch(random);
+
+      while (state.status === 'playing') {
+        state = advanceBananaCatch(state, BANANA_CATCH_TICK_MS, random);
+      }
+      return state.score;
+    };
+
+    const slowScore = playRound(0);
+    const fastScore = playRound(1);
+
+    expect(slowScore).toBeLessThan(fastScore);
+    expect(fastScore).not.toBe(41);
   });
 
   it('gives falling bananas a varied angle and a gentle rotation', () => {

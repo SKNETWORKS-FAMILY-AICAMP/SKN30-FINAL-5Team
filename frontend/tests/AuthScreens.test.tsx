@@ -276,4 +276,19 @@ describe('auth visual prototypes', () => {
       expect(signUp).toHaveBeenCalledWith('new@example.com', 'password1'),
     );
   });
+
+  it('shows the baseline password policy while Firebase policy is loading', () => {
+    const auth = authAdapter({
+      describePasswordPolicy: jest.fn(
+        () => new Promise<string | null>(() => undefined),
+      ),
+    });
+
+    render(<SignUpScreen auth={auth} />);
+
+    expect(screen.getByText('비밀번호 조건: 6자 이상')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('Firebase 비밀번호 정책을 확인해요.'),
+    ).not.toBeOnTheScreen();
+  });
 });

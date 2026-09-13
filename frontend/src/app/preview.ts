@@ -9,6 +9,7 @@ export type PreviewMode =
   | 'gallery'
   | 'home'
   | 'home-map'
+  | 'kikki-merge'
   | 'kikki-runner'
   | 'login'
   | 'loading'

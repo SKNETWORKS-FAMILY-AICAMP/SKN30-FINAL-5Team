@@ -66,11 +66,25 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeOnTheScreen();
   });
 
-  it('shows API routine focus, type, and duration without a duplicate name', () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
+  it('shows the server-owned API routine name and duration', () => {
+    const props = homePreviewProps('routine');
+    render(
+      <HomeScreen
+        {...props}
+        decision={{
+          ...props.decision!,
+          final_plan: {
+            ...props.decision!.final_plan!,
+            body_focus_code: 'MOBILITY',
+            training_type_code: 'MOBILITY',
+            routine_name: '삼두근 근력 루틴',
+          },
+        }}
+      />,
+    );
 
-    expect(screen.getByText('상체 · 근력 · 40분')).toBeOnTheScreen();
-    expect(screen.queryByText('상체 근력 루틴')).toBeNull();
+    expect(screen.getByText('삼두근 근력 루틴 · 40분')).toBeOnTheScreen();
+    expect(screen.queryByText('가동성 · 스트레칭 · 40분')).toBeNull();
   });
 
   it('shows routine generation in the exercise-list slot for API requests', () => {

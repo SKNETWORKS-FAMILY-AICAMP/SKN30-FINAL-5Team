@@ -292,7 +292,7 @@ export function MainFlow({
   }, [notificationSheetOpen, refreshNotifications]);
   const selectNotification = useCallback(
     (notification: NotificationResponse) => {
-      if (pendingNotificationId !== null) {
+      if (notification.is_read || pendingNotificationId !== null) {
         return;
       }
       setPendingNotificationId(notification.notification_id);

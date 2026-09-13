@@ -94,7 +94,11 @@ describe('BananaCatchGameScreen', () => {
 
       act(() => jest.advanceTimersByTime(30_000));
       expect(screen.getByText(/바나나 \d+개를 모았어요!/)).toBeTruthy();
-      expect(screen.getByText('내일 또 끼끼와 도전해봐요!')).toBeTruthy();
+      expect(
+        screen.getByText(
+          '오늘 처음 완료한 게임에서 바나나 보너스를 받을 수 있어요!',
+        ),
+      ).toBeTruthy();
       expect(screen.queryByText('한 번 더')).toBeNull();
       fireEvent.press(screen.getByRole('button', { name: '확인' }));
       expect(onBack).toHaveBeenCalledTimes(1);

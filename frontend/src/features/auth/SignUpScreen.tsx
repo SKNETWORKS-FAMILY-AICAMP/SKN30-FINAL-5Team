@@ -43,6 +43,7 @@ type SignUpFixture = {
 };
 
 const MIN_PASSWORD_LENGTH = 6;
+const DEFAULT_PASSWORD_POLICY_HINT = `${MIN_PASSWORD_LENGTH}자 이상`;
 const MIN_PASSWORD_ERROR = `${MIN_PASSWORD_LENGTH}자 이상 입력해주세요.`;
 
 const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
@@ -154,7 +155,9 @@ function SignUpScreenContent({
   );
   const [showPassword, setShowPassword] = useState(false);
   const [validation, setValidation] = useState<string | null>(null);
-  const [policyHint, setPolicyHint] = useState<string | null>(null);
+  const [policyHint, setPolicyHint] = useState<string | null>(
+    DEFAULT_PASSWORD_POLICY_HINT,
+  );
   const isApiFlow = auth !== undefined;
 
   useEffect(() => {

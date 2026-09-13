@@ -181,6 +181,7 @@ export function App({
     activePreview === 'background_test' ||
     activePreview === 'banana-catch' ||
     activePreview === 'exercise-catalog' ||
+    activePreview === 'kikki-merge' ||
     activePreview === 'kikki-runner' ||
     activePreview === 'loading' ||
     activePreview === 'mascot-house' ||
@@ -218,6 +219,8 @@ export function App({
             <PreviewGallery initialScreenId="banana-catch" />
           ) : activePreview === 'exercise-catalog' ? (
             <PreviewGallery initialScreenId="exercise-catalog" />
+          ) : activePreview === 'kikki-merge' ? (
+            <PreviewGallery initialScreenId="kikki-merge" />
           ) : activePreview === 'kikki-runner' ? (
             <PreviewGallery initialScreenId="kikki-runner" />
           ) : activePreview === 'loading' ? (

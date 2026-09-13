@@ -138,7 +138,12 @@ describe('App boot navigation', () => {
     {
       mode: 'kikki-runner' as const,
       label: 'Kkikki runner (prototype)',
-      readyText: '끼끼와 바나나 섬을 달려요!',
+      readyText: '끼끼와 바나나 도시를 달려요!',
+    },
+    {
+      mode: 'kikki-merge' as const,
+      label: 'Kkikki merge (prototype)',
+      readyText: '아기 끼끼를 챔피언 끼끼로!',
     },
     {
       mode: 'account' as const,
