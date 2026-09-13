@@ -15,10 +15,11 @@ import {
   createHouseState,
   feedMascot,
   grantWorkoutRewards,
+  miniGameRewardClaimedToday,
   parseHouseState,
   petMascot,
   placeHouseItem,
-  recordGamePlay,
+  recordMiniGameReward,
   registerVisit,
   restingPose,
   selectBackground,
@@ -242,46 +243,36 @@ describe('intimacy', () => {
 });
 
 describe('the mini games', () => {
-  it('opens each game once a day and reopens when the day turns', () => {
-    const played = recordGamePlay(createHouseState(), 'banana_catch', TODAY);
+  it('keeps every game open after the shared daily reward is recorded', () => {
+    const rewarded = recordMiniGameReward(
+      createHouseState(),
+      'banana_catch',
+      TODAY,
+    );
 
     const todayView = buildHouseView({
-      state: played,
+      state: rewarded,
       week: OPEN_WEEK,
       sessions: [],
       weekStart: WEEK_START,
       today: TODAY,
     });
-    expect(todayView.gamePlayedToday.banana_catch).toBe(true);
-    expect(todayView.canPlayGame.banana_catch).toBe(false);
-    // Each game carries its own daily play, so one does not spend the other.
-    expect(todayView.gamePlayedToday.kikki_runner).toBe(false);
-    expect(todayView.canPlayGame.kikki_runner).toBe(true);
+    expect(todayView.miniGameRewardClaimedToday).toBe(true);
+    expect(miniGameRewardClaimedToday(rewarded, TODAY)).toBe(true);
 
-    const bothPlayed = recordGamePlay(played, 'kikki_runner', TODAY);
-    const bothView = buildHouseView({
-      state: bothPlayed,
-      week: OPEN_WEEK,
-      sessions: [],
-      weekStart: WEEK_START,
-      today: TODAY,
-    });
-    expect(bothView.canPlayGame).toEqual({
-      banana_catch: false,
-      kikki_runner: false,
-    });
+    // A second game never creates a second daily reward marker.
+    expect(recordMiniGameReward(rewarded, 'kikki_runner', TODAY)).toBe(
+      rewarded,
+    );
 
     const tomorrowView = buildHouseView({
-      state: bothPlayed,
+      state: rewarded,
       week: OPEN_WEEK,
       sessions: [],
       weekStart: WEEK_START,
       today: '2026-08-23',
     });
-    expect(tomorrowView.canPlayGame).toEqual({
-      banana_catch: true,
-      kikki_runner: true,
-    });
+    expect(tomorrowView.miniGameRewardClaimedToday).toBe(false);
   });
 
   it('keeps a stored payload from when the banana game was the only one', () => {
@@ -294,7 +285,11 @@ describe('the mini games', () => {
     expect(legacy?.playedGameLocalDates).toEqual({
       banana_catch: TODAY,
       kikki_runner: null,
+      kikki_merge: null,
     });
+    expect(
+      legacy === null ? false : miniGameRewardClaimedToday(legacy, TODAY),
+    ).toBe(true);
   });
 });
 

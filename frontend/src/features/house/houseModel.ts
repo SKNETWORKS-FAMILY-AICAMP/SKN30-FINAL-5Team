@@ -63,12 +63,13 @@ export const INTIMACY_DAILY_EARN_LIMIT = 5;
 export const INTIMACY_POINTS_PER_LEVEL = 10;
 
 /** Every mini game the house can open. Titles and art live in the screen. */
-export const HOUSE_MINI_GAME_IDS = ['banana_catch', 'kikki_runner'] as const;
+export const HOUSE_MINI_GAME_IDS = [
+  'banana_catch',
+  'kikki_runner',
+  'kikki_merge',
+] as const;
 
 export type HouseMiniGameId = (typeof HOUSE_MINI_GAME_IDS)[number];
-
-/** Each mini game opens this many times a local day, counted per game. */
-export const HOUSE_GAME_DAILY_PLAYS = 1;
 
 export type HouseQuestId = 'visit' | 'pet' | 'workout';
 
@@ -223,7 +224,7 @@ export type HouseState = {
   /** The day `intimacyEarnedToday` belongs to. */
   intimacyLocalDate: string | null;
   intimacyEarnedToday: number;
-  /** The day each mini game was last opened, counted per game. */
+  /** The last reward day by source game; legacy per-game plays migrate here. */
   playedGameLocalDates: Record<HouseMiniGameId, string | null>;
   /** The day `paidQuestIds` belongs to. */
   questLocalDate: string | null;
@@ -457,13 +458,23 @@ export function petMascot(state: HouseState, today: string): HouseState {
   );
 }
 
-/** Records that one mini-game round finished today. Each game counts on its own. */
-export function recordGamePlay(
+/** Whether any mini-game has already paid today's shared bonus. */
+export function miniGameRewardClaimedToday(
+  state: HouseState,
+  today: string,
+): boolean {
+  return HOUSE_MINI_GAME_IDS.some(
+    (gameId) => state.playedGameLocalDates[gameId] === today,
+  );
+}
+
+/** Records the source game only after the shared daily bonus settles. */
+export function recordMiniGameReward(
   state: HouseState,
   gameId: HouseMiniGameId,
   today: string,
 ): HouseState {
-  if (state.playedGameLocalDates[gameId] === today) return state;
+  if (miniGameRewardClaimedToday(state, today)) return state;
   return {
     ...state,
     playedGameLocalDates: { ...state.playedGameLocalDates, [gameId]: today },
@@ -615,9 +626,8 @@ export type HouseView = {
   questsCompletedCount: number;
   questCount: number;
   weeklyQuests: readonly HouseWeeklyQuest[];
-  /** Whether each mini game has used up today's play. */
-  gamePlayedToday: Record<HouseMiniGameId, boolean>;
-  canPlayGame: Record<HouseMiniGameId, boolean>;
+  /** All games share one daily banana bonus; play itself is unlimited. */
+  miniGameRewardClaimedToday: boolean;
   ownedItems: readonly HouseItem[];
   itemPlacements: Record<HouseItemId, HouseItemPlacement>;
   lockedItems: readonly HouseItem[];
@@ -690,16 +700,6 @@ export function buildHouseView({
     state.intimacyEarnedToday,
     today,
   );
-  const gamePlayedToday = HOUSE_MINI_GAME_IDS.reduce<
-    Record<HouseMiniGameId, boolean>
-  >(
-    (played, gameId) => {
-      played[gameId] = state.playedGameLocalDates[gameId] === today;
-      return played;
-    },
-    {} as Record<HouseMiniGameId, boolean>,
-  );
-
   return {
     bananas: state.bananas,
     dailyGiftAmount: dailyGift?.amount ?? DAILY_GIFT_BANANAS,
@@ -730,14 +730,7 @@ export function buildHouseView({
     ).length,
     questCount: HOUSE_DAILY_QUESTS.length,
     weeklyQuests,
-    gamePlayedToday,
-    canPlayGame: HOUSE_MINI_GAME_IDS.reduce<Record<HouseMiniGameId, boolean>>(
-      (canPlay, gameId) => {
-        canPlay[gameId] = !gamePlayedToday[gameId];
-        return canPlay;
-      },
-      {} as Record<HouseMiniGameId, boolean>,
-    ),
+    miniGameRewardClaimedToday: miniGameRewardClaimedToday(state, today),
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),
     itemPlacements: HOUSE_ITEMS.reduce<Record<HouseItemId, HouseItemPlacement>>(
       (placements, item) => {
@@ -900,11 +893,11 @@ function emptyGamePlays(): Record<HouseMiniGameId, string | null> {
 }
 
 /**
- * Reads the per-game play days back.
+ * Reads the historical per-game dates back as evidence of the shared reward.
  *
  * `legacy` is the single `playedGameLocalDate` written while 바나나 받아라 was
  * the only game. It still counts for that game so a stored payload keeps its
- * meaning, and every other game simply starts unplayed.
+ * meaning. Any matching date now means that day's shared bonus was claimed.
  */
 function parseGamePlays(
   raw: unknown,

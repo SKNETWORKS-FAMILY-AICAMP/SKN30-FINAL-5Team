@@ -8,7 +8,7 @@ import type {
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
-import { moveArrayItem } from '../../api/workoutPlan';
+import { moveArrayItem, routineTitleFromPlan } from '../../api/workoutPlan';
 import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
@@ -31,7 +31,6 @@ import {
   homeCheckinDraftsEqual,
   deriveTodayRoutineViewState,
   routineItemOverrides,
-  routineFocusFromPlan,
   routineItemsFromPlan,
   weekDaysFromSessions,
   weeklyCompletionPercentage,
@@ -295,7 +294,7 @@ export function HomeScreenContent({
   const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
   const routineFocus =
-    serverPlan === null ? variant.focus : routineFocusFromPlan(serverPlan);
+    serverPlan === null ? variant.focus : routineTitleFromPlan(serverPlan);
   const routineMinutes =
     serverPlan === null
       ? displayedCheckin.workoutMinutes

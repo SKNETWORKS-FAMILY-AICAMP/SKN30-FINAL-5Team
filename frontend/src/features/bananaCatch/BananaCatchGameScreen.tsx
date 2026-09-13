@@ -14,6 +14,11 @@ import { imageAssets } from '../../assets';
 import { colors, shadows, spacing } from '../../components/theme';
 import { BananaGlyph } from '../house/HouseArt';
 import {
+  IDLE_MINI_GAME_REWARD_STATE,
+  miniGameRewardMessage,
+  type MiniGameRewardState,
+} from '../house/miniGameReward';
+import {
   BANANA_HALF_WIDTH,
   BANANA_CATCH_TICK_MS,
   PLAYER_HALF_WIDTH,
@@ -33,12 +38,6 @@ const BASKET_LIP_RATIO_IN_ASSET = 0.56;
 const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
 const DEFAULT_CATCH_LINE_Y = 0.75;
 const GAME_HORIZONTAL_INSET = '4%' as const;
-
-export type BananaCatchRewardState =
-  | { status: 'idle' | 'pending' | 'unavailable' }
-  | { status: 'settled'; amount: number };
-
-const IDLE_REWARD_STATE: BananaCatchRewardState = { status: 'idle' };
 
 export function bananaCatchLayoutMetrics(width: number, height: number) {
   const safeWidth = Math.max(1, width);
@@ -81,19 +80,17 @@ const COLLECTING_MASCOT_ASSETS = [
 export function BananaCatchGameScreen({
   onBack,
   onPlayed,
-  rewardState = IDLE_REWARD_STATE,
+  rewardState = IDLE_MINI_GAME_REWARD_STATE,
 }: {
   onBack: () => void;
   /**
    * Fired once the round actually finishes, with the score it reached.
    *
-   * The daily play used to be spent the moment the screen opened, so backing
-   * out before pressing start still consumed it and the game could not be
-   * played again that day. The score rides along so the house can claim the
-   * round's reward; the payout itself is the server's to decide.
+   * The score rides along so the house can claim the shared daily bonus; the
+   * payout and once-a-day limit are the server's to decide.
    */
   onPlayed?: (score: number) => void;
-  rewardState?: BananaCatchRewardState;
+  rewardState?: MiniGameRewardState;
 }) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
@@ -284,11 +281,7 @@ export function BananaCatchGameScreen({
               onAction={onBack}
               title={`바나나 ${game.score}개를 모았어요!`}
             >
-              {rewardState.status === 'pending'
-                ? '바나나 코인을 확인하고 있어요.'
-                : rewardState.status === 'settled'
-                  ? `바나나 코인 ${rewardState.amount}개를 받았어요!`
-                  : '내일 또 끼끼와 도전해봐요!'}
+              {miniGameRewardMessage(rewardState)}
             </GameCard>
           ) : null}
 

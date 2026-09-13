@@ -597,8 +597,49 @@ describe('WorkoutScreen', () => {
     });
     expect(screen.queryByText('ELAPSED TIME')).toBeNull();
     expect(
-      screen.getByText('목표 시간의 50% 이상 운동하면 바나나 리워드를 받아요.'),
+      screen.getByLabelText('목표 시간 50% 달성 시, 바나나 획득!'),
     ).toBeOnTheScreen();
+    expect(
+      within(screen.getByTestId('workout-timer-card')).queryByLabelText(
+        '목표 시간 50% 달성 시, 바나나 획득!',
+      ),
+    ).toBeNull();
+    expect(
+      within(screen.getByTestId('workout-header-badge-row')).getByText(
+        '1 / 5 블록',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      within(screen.getByTestId('workout-header-badge-row')).getByLabelText(
+        '목표 시간 50% 달성 시, 바나나 획득!',
+      ),
+    ).toBeOnTheScreen();
+    const rewardEligibilityStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-reward-eligibility-surface').props.style,
+    );
+    expect(rewardEligibilityStyle).toMatchObject({
+      borderBottomLeftRadius: 13.2,
+      borderColor: 'rgba(255,255,255,.84)',
+      borderWidth: 1,
+      borderTopRightRadius: 13.2,
+      minHeight: 36,
+      shadowOpacity: 0.09,
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-block-position-badge').props.style,
+      ).minHeight,
+    ).toBe(rewardEligibilityStyle.minHeight);
+    expect(
+      screen.getByTestId('workout-reward-shimmer', {
+        includeHiddenElements: true,
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-reward-eligibility-badge').props.style,
+      ),
+    ).toMatchObject({ flexShrink: 1, maxWidth: '100%' });
   });
 
   it('counts elapsed time without changing block completion', async () => {
@@ -1255,7 +1296,7 @@ describe('WorkoutScreen', () => {
 });
 
 describe('WorkoutScreen API mode', () => {
-  it('shows the server-owned routine name', () => {
+  it('hides the routine name but keeps the block position in the status card', () => {
     const api = workoutApi({
       getWorkoutSession: jest.fn(() => new Promise<never>(() => undefined)),
     });
@@ -1269,7 +1310,23 @@ describe('WorkoutScreen API mode', () => {
       />,
     );
 
-    expect(screen.getByText('전신 근력 시작하기')).toBeOnTheScreen();
+    expect(screen.queryByText('전신 근력 시작하기')).toBeNull();
+    expect(screen.getByText('1 / 1 블록')).toBeOnTheScreen();
+    expect(
+      within(screen.getByTestId('workout-header-badge-row')).getByText(
+        '1 / 1 블록',
+      ),
+    ).toBeOnTheScreen();
+    const blockPositionBadgeStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-block-position-badge').props.style,
+    );
+    expect(blockPositionBadgeStyle).toMatchObject({
+      backgroundColor: 'rgba(255,255,255,.28)',
+      borderWidth: 1,
+    });
+    expect(blockPositionBadgeStyle).toMatchObject({ minHeight: 36 });
+    expect(blockPositionBadgeStyle.borderRadius).toBeCloseTo(9.6);
+    expect(screen.queryByLabelText('운동 블록 진행률')).toBeNull();
   });
 
   it('does not record rest as a pause and resumes API mode after leaving stop reasons', async () => {

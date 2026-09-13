@@ -68,7 +68,6 @@ import {
   HOUSE_ACTION_COST,
   INTIMACY_DAILY_EARN_LIMIT,
   HOUSE_BONDING_COPY,
-  HOUSE_GAME_DAILY_PLAYS,
 } from '../src/features/house/houseModel';
 import { createMemoryHouseStore } from '../src/features/house/houseStorage';
 
@@ -141,6 +140,11 @@ function houseApi({
   weekError?: boolean;
 } = {}) {
   let giftClaimed = false;
+  let miniGameClaim: {
+    amount: number;
+    balanceAfter: number;
+    score: number;
+  } | null = null;
   let balance =
     rewardBalance ??
     DAILY_GIFT_BANANAS +
@@ -248,8 +252,36 @@ function houseApi({
     }),
     claimMiniGameReward: jest.fn(async ({ score }: { score: number }) => {
       // Mirrors the server: the payout is derived from the score, not sent.
+      if (miniGameClaim !== null) {
+        if (miniGameClaim.score !== score) {
+          throw new ApiError({
+            kind: 'conflict',
+            code: 'INVALID_BANANA_SPEND',
+            status: 409,
+            message: '이미 오늘의 미니게임 보상을 받았습니다.',
+          });
+        }
+        return {
+          balance: miniGameClaim.balanceAfter,
+          daily_reward: {
+            local_date: '2026-08-18',
+            reward_amount: 15,
+            is_claimable: true,
+            is_claimed: false,
+            claimed_at: null,
+          },
+          transaction: {
+            transaction_id: 'transaction-MINI_GAME',
+            transaction_type: 'MINI_GAME',
+            amount: miniGameClaim.amount,
+            balance_after: miniGameClaim.balanceAfter,
+            created_at: '2026-08-18T10:00:00+09:00',
+          },
+        };
+      }
       const amount = Math.min(Math.floor(score / 2), 25);
       balance += amount;
+      miniGameClaim = { amount, balanceAfter: balance, score };
       return {
         balance,
         daily_reward: {
@@ -608,7 +640,7 @@ describe('MascotHouseScreen', () => {
     });
   });
 
-  it('lists both games in a panel the size of the quest panel', async () => {
+  it('lists all games in a panel the size of the quest panel', async () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
@@ -632,6 +664,7 @@ describe('MascotHouseScreen', () => {
     });
     expect(screen.getByText('바나나 받아라')).toBeTruthy();
     expect(screen.getByText('끼끼 달리기')).toBeTruthy();
+    expect(screen.getByText('끼끼 합치기')).toBeTruthy();
     const runnerMascot = screen.getByTestId(
       'house-mini-game-mascot-kikki_runner',
       { includeHiddenElements: true },
@@ -653,7 +686,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-scene')).toBeTruthy();
   });
 
-  it('shows the daily play status of each game on its own row', async () => {
+  it('shows one shared daily bonus status while every game stays enabled', async () => {
     renderHouse(
       houseApi(),
       createMemoryHouseStore({
@@ -661,26 +694,17 @@ describe('MascotHouseScreen', () => {
         playedGameLocalDates: {
           banana_catch: '2026-08-22',
           kikki_runner: null,
+          kikki_merge: null,
         },
       }),
     );
 
     await screen.findByTestId('house-scene');
     fireEvent.press(screen.getByTestId('house-mini-game-tile'));
-    expect(
-      screen.getByTestId('house-mini-game-banana_catch').props
-        .accessibilityState,
-    ).toMatchObject({ disabled: true });
-    expect(
-      screen.getByText(
-        `오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`,
-      ),
-    ).toBeTruthy();
-    // 끼끼 달리기 still has its own play left for today.
-    expect(
-      screen.getByTestId('house-mini-game-kikki_runner').props
-        .accessibilityState,
-    ).toMatchObject({ disabled: false });
+    expect(screen.getByText('오늘의 바나나 보너스 수령 완료')).toBeTruthy();
+    expect(screen.getByTestId('house-mini-game-banana_catch')).toBeEnabled();
+    expect(screen.getByTestId('house-mini-game-kikki_runner')).toBeEnabled();
+    expect(screen.getByTestId('house-mini-game-kikki_merge')).toBeEnabled();
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -702,6 +726,18 @@ describe('MascotHouseScreen', () => {
     fireEvent.press(screen.getByTestId('house-mini-game-tile'));
     fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
     expect(screen.getByTestId('kikki-runner-screen')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('opens Kkikki merge from the game list and returns', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    fireEvent.press(screen.getByTestId('house-mini-game-kikki_merge'));
+    expect(screen.getByTestId('kikki-merge-screen')).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
@@ -764,12 +800,33 @@ describe('MascotHouseScreen', () => {
 
       const amount = Math.min(Math.floor(sent.score / 2), 25);
       expect(
-        await screen.findByText(`바나나 코인 ${amount}개를 받았어요!`),
+        await screen.findByText(`바나나 보너스 ${amount}개를 받았어요!`),
       ).toBeOnTheScreen();
       fireEvent.press(screen.getByRole('button', { name: '확인' }));
       expect(await screen.findByTestId('house-scene')).toBeOnTheScreen();
       expect(
         screen.getByLabelText(`바나나 ${100 + amount}개 보유`),
+      ).toBeOnTheScreen();
+
+      // A different game can still be opened, while the shared bonus remains
+      // a single payout for the day.
+      fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+      expect(
+        screen.getByText('오늘의 바나나 보너스 수령 완료'),
+      ).toBeOnTheScreen();
+      fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
+      fireEvent.press(screen.getByRole('button', { name: '달리기 시작' }));
+      act(() => jest.advanceTimersByTime(65_000));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(api.claimMiniGameReward).toHaveBeenCalledTimes(2);
+      expect(
+        screen.getByText(
+          '오늘의 바나나 보너스는 이미 받았어요. 게임은 계속 즐길 수 있어요!',
+        ),
       ).toBeOnTheScreen();
     } finally {
       random.mockRestore();
@@ -832,8 +889,9 @@ describe('MascotHouseScreen', () => {
       fireEvent.press(screen.getByTestId('house-mini-game-tile'));
       fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
       fireEvent.press(screen.getByRole('button', { name: '달리기 시작' }));
-      act(() => jest.advanceTimersByTime(30_000));
+      act(() => jest.advanceTimersByTime(65_000));
       await act(async () => {
+        await Promise.resolve();
         await Promise.resolve();
       });
 

@@ -8,7 +8,9 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
+  Easing,
   Image,
   PanResponder,
   Platform,
@@ -39,7 +41,6 @@ import type {
 import {
   orderedWorkoutPlanItems,
   planItemWorkSecondsPerSet,
-  routineTitleFromPlan,
 } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
@@ -178,6 +179,225 @@ export function workoutPageAfterHorizontalDrag(
   const nextIndex =
     swipeX === 0 ? currentIndex : currentIndex + (swipeX < 0 ? 1 : -1);
   return Math.max(0, Math.min(blockCount - 1, nextIndex));
+}
+
+function RewardEligibilityBanner({ scale }: { scale: number }) {
+  const [shimmer] = useState(() => new Animated.Value(0));
+  const [sparkle] = useState(() => new Animated.Value(0));
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const useNativeDriver = Platform.OS !== 'web';
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    let active = true;
+
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) {
+        setReduceMotion(enabled);
+      }
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotion,
+    );
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    shimmer.stopAnimation();
+    sparkle.stopAnimation();
+    shimmer.setValue(0);
+    sparkle.setValue(0);
+
+    if (reduceMotion) {
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1200),
+        Animated.parallel([
+          Animated.timing(shimmer, {
+            toValue: 1,
+            duration: 760,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver,
+          }),
+          Animated.sequence([
+            Animated.timing(sparkle, {
+              toValue: 1,
+              duration: 260,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver,
+            }),
+            Animated.timing(sparkle, {
+              toValue: 0,
+              duration: 420,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver,
+            }),
+          ]),
+        ]),
+        Animated.delay(2800),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver,
+        }),
+      ]),
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [reduceMotion, shimmer, sparkle, useNativeDriver]);
+
+  const shimmerStyle = {
+    opacity: shimmer.interpolate({
+      inputRange: [0, 0.12, 0.88, 1],
+      outputRange: [0, 0.5, 0.5, 0],
+    }),
+    transform: [
+      {
+        translateX: shimmer.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-180 * scale, 180 * scale],
+        }),
+      },
+      { rotate: '18deg' },
+    ],
+  };
+  const sparkleStyle = {
+    opacity: sparkle.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.62, 1],
+    }),
+    transform: [
+      {
+        scale: sparkle.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.9, 1.22],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View
+      accessibilityLabel="목표 시간 50% 달성 시, 바나나 획득!"
+      accessible
+      style={styles.rewardEligibilityShell}
+      testID="workout-reward-eligibility-badge"
+    >
+      <LinearGradient
+        colors={['rgba(255,253,245,.98)', 'rgba(255,232,150,.92)']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={[
+          styles.rewardEligibilityBanner,
+          {
+            minHeight: 30 * scale,
+            gap: 6 * scale,
+            borderTopLeftRadius: 3 * scale,
+            borderTopRightRadius: 11 * scale,
+            borderBottomRightRadius: 3 * scale,
+            borderBottomLeftRadius: 11 * scale,
+            paddingHorizontal: 14 * scale,
+            paddingVertical: 5 * scale,
+          },
+        ]}
+        testID="workout-reward-eligibility-surface"
+      >
+        <Animated.View
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={[
+            styles.rewardShimmer,
+            { top: -12 * scale, bottom: -12 * scale, width: 32 * scale },
+            shimmerStyle,
+          ]}
+          testID="workout-reward-shimmer"
+        />
+        <Animated.View
+          accessibilityElementsHidden
+          accessible={false}
+          importantForAccessibility="no"
+          style={[
+            styles.rewardSparkleMark,
+            { width: 14 * scale, height: 14 * scale },
+            sparkleStyle,
+          ]}
+        >
+          <View
+            style={[
+              styles.rewardSparkleCore,
+              {
+                width: 8 * scale,
+                height: 8 * scale,
+                borderRadius: 2 * scale,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.rewardSparkleDot,
+              {
+                width: 3 * scale,
+                height: 3 * scale,
+                borderRadius: 3 * scale,
+              },
+            ]}
+          />
+        </Animated.View>
+        <Text
+          style={[
+            styles.rewardEligibilityNote,
+            { fontSize: 10.5 * scale, lineHeight: 15 * scale },
+          ]}
+        >
+          목표 시간 50% 달성 시,{' '}
+          <Text style={styles.rewardEligibilityEmphasis}>바나나 획득!</Text>
+        </Text>
+      </LinearGradient>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.rewardNotchLeft,
+          {
+            width: 8 * scale,
+            height: 12 * scale,
+            borderTopRightRadius: 8 * scale,
+            borderBottomRightRadius: 8 * scale,
+            transform: [{ translateY: -6 * scale }],
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.rewardNotchRight,
+          {
+            width: 8 * scale,
+            height: 12 * scale,
+            borderTopLeftRadius: 8 * scale,
+            borderBottomLeftRadius: 8 * scale,
+            transform: [{ translateY: -6 * scale }],
+          },
+        ]}
+      />
+    </View>
+  );
 }
 
 export function WorkoutScreen(props: WorkoutScreenProps) {
@@ -1025,51 +1245,53 @@ function WorkoutScreenContent({
               maxWidth: responsiveLayout.contentMaxWidth,
               paddingHorizontal:
                 WORKOUT_LAYOUT.headerHorizontalPadding * layoutScale,
-              paddingBottom: 14 * layoutScale,
+              paddingBottom: 10 * layoutScale,
             },
           ]}
         >
           <View testID="workout-header-top-row" style={styles.headerTopRow}>
-            <View testID="workout-timer-card" style={styles.timerCopy}>
-              <View style={styles.timerMetaRow}>
-                <View style={styles.timerStatusBadge}>
-                  <View
-                    style={[
-                      styles.timerStatusDot,
-                      paused && styles.timerStatusDotPaused,
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.timerCaption,
-                      {
-                        fontSize: 11.5 * layoutScale,
-                        letterSpacing: 0.45 * layoutScale,
-                      },
-                    ]}
-                  >
-                    {timerCaption}
+            <View style={styles.timerColumn} testID="workout-timer-column">
+              <View testID="workout-timer-card" style={styles.timerCopy}>
+                <View style={styles.timerMetaRow}>
+                  <View style={styles.timerStatusBadge}>
+                    <View
+                      style={[
+                        styles.timerStatusDot,
+                        paused && styles.timerStatusDotPaused,
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.timerCaption,
+                        {
+                          fontSize: 11.5 * layoutScale,
+                          letterSpacing: 0.45 * layoutScale,
+                        },
+                      ]}
+                    >
+                      {timerCaption}
+                    </Text>
+                  </View>
+                  <Text style={styles.targetTime}>
+                    목표 {targetDurationMinutes}분
                   </Text>
                 </View>
-                <Text style={styles.targetTime}>
-                  목표 {targetDurationMinutes}분
+                <Text
+                  accessibilityLabel={`진행 시간 ${formatWorkoutTime(elapsedSeconds)} / 목표 시간 ${targetDurationMinutes}분`}
+                  style={[
+                    styles.timer,
+                    {
+                      fontSize: 46 * layoutScale,
+                      letterSpacing: 1.6 * layoutScale,
+                      lineHeight: 48 * layoutScale,
+                    },
+                    useJua && styles.timerBrand,
+                    paused && styles.timerPaused,
+                  ]}
+                >
+                  {formatWorkoutTime(elapsedSeconds)}
                 </Text>
               </View>
-              <Text
-                accessibilityLabel={`진행 시간 ${formatWorkoutTime(elapsedSeconds)} / 목표 시간 ${targetDurationMinutes}분`}
-                style={[
-                  styles.timer,
-                  {
-                    fontSize: 46 * layoutScale,
-                    letterSpacing: 1.6 * layoutScale,
-                    lineHeight: 48 * layoutScale,
-                  },
-                  useJua && styles.timerBrand,
-                  paused && styles.timerPaused,
-                ]}
-              >
-                {formatWorkoutTime(elapsedSeconds)}
-              </Text>
             </View>
             <View style={styles.timerActions}>
               <Pressable
@@ -1122,40 +1344,38 @@ function WorkoutScreenContent({
               </Pressable>
             </View>
           </View>
-          <Text style={styles.rewardEligibilityNote}>
-            목표 시간의 50% 이상 운동하면 바나나 리워드를 받아요.
-          </Text>
           <View
-            accessibilityLabel="운동 블록 진행률"
-            style={styles.progressRow}
+            style={[
+              styles.rewardPositionRow,
+              { gap: 8 * layoutScale, marginTop: 8 * layoutScale },
+            ]}
+            testID="workout-header-badge-row"
           >
-            {blocks.map((block, index) => (
-              <View
-                key={block.id}
-                style={[
-                  styles.progressSegment,
-                  block.status === 'COMPLETED'
-                    ? styles.progressSegmentDone
-                    : index === currentIndex
-                      ? styles.progressSegmentCurrent
-                      : null,
-                ]}
-              />
-            ))}
-          </View>
-          <View style={styles.routineHeader}>
-            <Text
-              accessibilityRole="header"
-              numberOfLines={1}
-              style={styles.routineTitle}
+            <View
+              style={[
+                styles.blockPositionBadge,
+                {
+                  minHeight: 30 * layoutScale,
+                  borderRadius: 8 * layoutScale,
+                  paddingHorizontal: 8 * layoutScale,
+                },
+              ]}
+              testID="workout-block-position-badge"
             >
-              {apiConfig === undefined
-                ? '전신 기본 루틴'
-                : routineTitleFromPlan(apiConfig.plan)}
-            </Text>
-            <Text style={styles.routineStep}>
-              {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
-            </Text>
+              <Text
+                style={[
+                  styles.blockPositionText,
+                  {
+                    fontSize: 10.5 * layoutScale,
+                    lineHeight: 15 * layoutScale,
+                  },
+                ]}
+              >
+                {Math.min(currentIndex + 1, blocks.length)} / {blocks.length}{' '}
+                블록
+              </Text>
+            </View>
+            <RewardEligibilityBanner scale={layoutScale} />
           </View>
         </View>
       </View>
@@ -2745,24 +2965,87 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: WORKOUT_LAYOUT.headerHorizontalPadding,
-    paddingBottom: 10,
+    paddingBottom: 34,
   },
   headerTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
   },
+  timerColumn: {
+    minWidth: 0,
+    flex: 1,
+  },
+  rewardEligibilityShell: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
+    position: 'relative',
+  },
+  rewardEligibilityBanner: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.84)',
+    shadowColor: '#9A650D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   rewardEligibilityNote: {
-    marginTop: 8,
-    color: '#FFF8E5',
-    fontSize: 11.5,
+    minWidth: 0,
+    flexShrink: 1,
+    color: '#7A5C10',
     fontWeight: '700',
-    textAlign: 'center',
+  },
+  rewardEligibilityEmphasis: {
+    color: '#694700',
+    fontWeight: '800',
+  },
+  rewardSparkleMark: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  rewardSparkleCore: {
+    backgroundColor: '#D98B16',
+    transform: [{ rotate: '45deg' }],
+  },
+  rewardSparkleDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#F6BA50',
+  },
+  rewardShimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '50%',
+    backgroundColor: 'rgba(255,255,255,.68)',
+  },
+  rewardNotchLeft: {
+    position: 'absolute',
+    top: '50%',
+    left: -1,
+    backgroundColor: colors.green,
+  },
+  rewardNotchRight: {
+    position: 'absolute',
+    top: '50%',
+    right: -1,
+    backgroundColor: colors.green,
   },
   timerCopy: {
     minWidth: 0,
-    flex: 1,
+    width: '100%',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,.72)',
     borderRadius: 20,
@@ -2909,30 +3192,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.15,
   },
-  progressRow: { flexDirection: 'row', gap: 5, marginTop: 14 },
-  progressSegment: {
-    height: 6,
-    flex: 1,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,.28)',
-  },
-  progressSegmentCurrent: { backgroundColor: 'rgba(255,255,255,.75)' },
-  progressSegmentDone: { backgroundColor: colors.text },
-  routineHeader: {
+  rewardPositionRow: {
+    width: '100%',
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 8,
   },
-  routineTitle: {
-    minWidth: 0,
-    flex: 1,
+  blockPositionBadge: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.52)',
+    backgroundColor: 'rgba(255,255,255,.28)',
+  },
+  blockPositionText: {
     color: colors.text,
-    fontSize: 12.5,
     fontWeight: '700',
   },
-  routineStep: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
   offlineBanner: {
     flexShrink: 0,
     flexDirection: 'row',

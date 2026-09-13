@@ -81,6 +81,27 @@ export const imageAssets = {
 } as const;
 
 /**
+ * Ordered evolution artwork for 끼끼 합치기.
+ *
+ * Concept sheets and generation references in the same folder are deliberately
+ * not registered as runtime assets. Keeping this list ordered makes the image
+ * index identical to the physics tier index.
+ */
+export const kikkiMergeStageSources: readonly ImageSourcePropType[] = [
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_01.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_02.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_03.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_04.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_05.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_06.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_07.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_08.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_09.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_10.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_11.png') as ImageSourcePropType,
+];
+
+/**
  * Every selectable non-banana monkey pose under `mascot/monkey`.
  * `unused_` artwork is intentionally not registered here.
  */

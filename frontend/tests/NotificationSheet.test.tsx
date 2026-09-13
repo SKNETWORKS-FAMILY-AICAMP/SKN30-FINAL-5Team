@@ -111,14 +111,20 @@ describe('NotificationSheet', () => {
       }),
     );
     expect(StyleSheet.flatten(readItem.props.style)).toEqual(
-      expect.objectContaining({ backgroundColor: colors.surface }),
+      expect.objectContaining({
+        backgroundColor: colors.surface,
+        opacity: 0.68,
+      }),
     );
+    expect(readItem).toBeDisabled();
     fireEvent.press(
       screen.getByRole('button', { name: '최신 알림 알림 확인' }),
     );
     expect(onSelect).toHaveBeenCalledWith(
       expect.objectContaining({ notification_id: 'newest' }),
     );
+    fireEvent.press(readItem, { stopPropagation: jest.fn() });
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
   it('labels the daily reward action as an in-place claim', () => {
@@ -142,6 +148,38 @@ describe('NotificationSheet', () => {
     );
 
     expect(screen.getByText('바나나 받기')).toBeOnTheScreen();
+  });
+
+  it('does not offer or trigger a daily reward action after it is read', () => {
+    const onSelect = jest.fn();
+    render(
+      <NotificationSheet
+        onRetry={jest.fn()}
+        onSelect={onSelect}
+        pendingNotificationId={null}
+        response={{
+          items: [
+            notification({
+              type: 'DAILY_REWARD',
+              action_type: 'CLAIM_DAILY_REWARD',
+              is_read: true,
+              read_at: '2026-09-04T09:30:00+09:00',
+            }),
+          ],
+          unread_count: 0,
+        }}
+        status="ready"
+        visible
+      />,
+    );
+
+    const readReward = screen.getByRole('button', {
+      name: '끼끼가 기다리고 있어요 알림 확인',
+    });
+    expect(readReward).toBeDisabled();
+    expect(screen.queryByText('바나나 받기')).not.toBeOnTheScreen();
+    fireEvent.press(readReward, { stopPropagation: jest.fn() });
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it('shows the claim result notice above the list', () => {

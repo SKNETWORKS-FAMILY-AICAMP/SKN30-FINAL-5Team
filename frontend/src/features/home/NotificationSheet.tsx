@@ -171,6 +171,8 @@ export function NotificationSheet({
           {items.map((notification) => {
             const pending =
               pendingNotificationId === notification.notification_id;
+            const disabled =
+              notification.is_read || pendingNotificationId !== null;
             const title = notificationTitle(notification);
             return (
               <Pressable
@@ -179,13 +181,14 @@ export function NotificationSheet({
                 accessibilityRole="button"
                 accessibilityState={{
                   busy: pending,
-                  disabled: pendingNotificationId !== null,
+                  disabled,
                 }}
-                disabled={pendingNotificationId !== null}
+                disabled={disabled}
                 onPress={() => onSelect(notification)}
                 style={[
                   styles.item,
                   !notification.is_read && styles.unreadItem,
+                  notification.is_read && styles.readItem,
                   pending && styles.pendingItem,
                 ]}
               >
@@ -210,9 +213,11 @@ export function NotificationSheet({
                       color={colors.primaryBusy}
                       size="small"
                     />
-                  ) : notification.action_type === 'OPEN_KIKKI_HOME' ? (
+                  ) : !notification.is_read &&
+                    notification.action_type === 'OPEN_KIKKI_HOME' ? (
                     <Text style={styles.actionText}>끼끼의 집 보기 ›</Text>
-                  ) : notification.action_type === 'CLAIM_DAILY_REWARD' ? (
+                  ) : !notification.is_read &&
+                    notification.action_type === 'CLAIM_DAILY_REWARD' ? (
                     <Text style={styles.actionText}>바나나 받기</Text>
                   ) : null}
                 </View>
@@ -332,6 +337,7 @@ const styles = StyleSheet.create({
     borderColor: colors.dangerBorder,
     backgroundColor: colors.dangerBg,
   },
+  readItem: { opacity: 0.68 },
   pendingItem: { opacity: 0.64 },
   itemHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   unreadDot: {

@@ -9,6 +9,8 @@ export const BANANA_CATCH_DURATION_MS = 30_000;
 export const BANANA_CATCH_TICK_MS = 50;
 export const BANANA_SPAWN_INTERVAL_MS = 650;
 export const BANANA_FALL_PER_MS = 1 / 4_200;
+export const BANANA_ROUND_PACE_MIN = 1;
+export const BANANA_ROUND_PACE_MAX = 1.25;
 export const PLAYER_HALF_WIDTH = 0.11;
 export const BANANA_HALF_WIDTH = 0.035;
 
@@ -29,6 +31,7 @@ export type BananaCatchState = {
   score: number;
   elapsedMs: number;
   spawnElapsedMs: number;
+  roundPace: number;
   playerX: number;
   nextBananaId: number;
   bananas: FallingBanana[];
@@ -40,6 +43,7 @@ export function createBananaCatchState(): BananaCatchState {
     score: 0,
     elapsedMs: 0,
     spawnElapsedMs: 0,
+    roundPace: 1,
     playerX: 0.5,
     nextBananaId: 1,
     bananas: [],
@@ -50,9 +54,14 @@ export function startBananaCatch(
   random: () => number = Math.random,
   bananaHalfWidthX: number = BANANA_HALF_WIDTH,
 ): BananaCatchState {
+  const roundPace =
+    BANANA_ROUND_PACE_MIN +
+    clamp(random(), 0, 1) * (BANANA_ROUND_PACE_MAX - BANANA_ROUND_PACE_MIN);
+
   return {
     ...createBananaCatchState(),
     status: 'playing',
+    roundPace,
     nextBananaId: 2,
     bananas: [spawnBanana(1, random, bananaHalfWidthX)],
   };
@@ -80,10 +89,12 @@ export function advanceBananaCatch(
 
   const stepMs = Math.min(deltaMs, BANANA_CATCH_DURATION_MS - state.elapsedMs);
   const elapsedMs = state.elapsedMs + stepMs;
+  const fallPerMs = BANANA_FALL_PER_MS * state.roundPace;
+  const spawnIntervalMs = BANANA_SPAWN_INTERVAL_MS / state.roundPace;
   let score = state.score;
 
   const bananas = state.bananas.flatMap((banana) => {
-    const nextY = banana.y + BANANA_FALL_PER_MS * stepMs;
+    const nextY = banana.y + fallPerMs * stepMs;
     const crossedCatchLine = banana.y < catchLineY && nextY >= catchLineY;
     const overlapsCatcher =
       Math.abs(banana.x - state.playerX) <= catchHalfWidthX;
@@ -107,10 +118,10 @@ export function advanceBananaCatch(
   let spawnElapsedMs = state.spawnElapsedMs + stepMs;
   let nextBananaId = state.nextBananaId;
   while (
-    spawnElapsedMs >= BANANA_SPAWN_INTERVAL_MS &&
+    spawnElapsedMs >= spawnIntervalMs &&
     elapsedMs < BANANA_CATCH_DURATION_MS
   ) {
-    spawnElapsedMs -= BANANA_SPAWN_INTERVAL_MS;
+    spawnElapsedMs -= spawnIntervalMs;
     bananas.push(spawnBanana(nextBananaId, random, bananaHalfWidthX));
     nextBananaId += 1;
   }

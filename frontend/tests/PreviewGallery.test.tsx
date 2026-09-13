@@ -169,6 +169,28 @@ describe('PreviewGallery', () => {
     ).toBeOnTheScreen();
   });
 
+  it('opens the Kkikki merge prototype and returns to the mascot house', async () => {
+    await render(<PreviewGallery initialScreenId="kikki-merge" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      canvas.getByRole('header', { name: '끼끼 합치기' }),
+    ).toBeOnTheScreen();
+    expect(
+      canvas.getByRole('button', { name: '합치기 시작' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('단독 진입: ?preview=kikki-merge'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      canvas.getByRole('button', { name: '끼끼의 집으로 돌아가기' }),
+    );
+    expect(
+      await canvas.findByRole('button', { name: '집 꾸미기' }),
+    ).toBeOnTheScreen();
+  });
+
   it('previews notification states, read updates and the Kikki house action', async () => {
     await render(<PreviewGallery initialScreenId="home" />);
 
@@ -544,7 +566,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '위험 신호 없어요' }));
 
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
-    expect(await canvas.findByText('상체 · 근력 · 40분')).toBeOnTheScreen();
+    expect(await canvas.findByText('상체 근력 루틴 · 40분')).toBeOnTheScreen();
     fireEvent.press(
       canvas.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
     );
@@ -625,7 +647,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(
       screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
     );
-    expect(canvas.getByText('상체 · 근력 · 40분')).toBeOnTheScreen();
+    expect(canvas.getByText('상체 근력 루틴 · 40분')).toBeOnTheScreen();
     expect(canvas.queryByText('계획대로 진행')).toBeNull();
     expect(canvas.queryByTestId('home-action-error')).toBeNull();
 
@@ -641,7 +663,7 @@ describe('PreviewGallery', () => {
       canvas.getByRole('button', { name: '루틴 생성 다시 시도' }),
     );
     expect(canvas.getByTestId('routine-generation-loading')).toBeOnTheScreen();
-    expect(await canvas.findByText('상체 · 근력 · 40분')).toBeOnTheScreen();
+    expect(await canvas.findByText('상체 근력 루틴 · 40분')).toBeOnTheScreen();
     expect(
       screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
     ).toBeChecked();

@@ -50,7 +50,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { imageAssets } from '../../assets';
+import { imageAssets, kikkiMergeStageSources } from '../../assets';
 import {
   BASE_H,
   getContainedInterfaceScale,
@@ -85,7 +85,6 @@ import {
   HOUSE_BACKGROUND_IDS,
   HOUSE_BONDING_COPY,
   HOUSE_DAILY_QUESTS,
-  HOUSE_GAME_DAILY_PLAYS,
   INTIMACY_DAILY_EARN_LIMIT,
   INTIMACY_MAX_LEVEL,
   houseSpeech,
@@ -290,6 +289,13 @@ export const HOUSE_MINI_GAMES: readonly {
     id: 'kikki_runner',
     title: '끼끼 달리기',
     imageSource: imageAssets.kikkiRunnerMascot,
+  },
+  {
+    id: 'kikki_merge',
+    title: '끼끼 합치기',
+    imageSource:
+      kikkiMergeStageSources[kikkiMergeStageSources.length - 1] ??
+      kikkiMergeStageSources[0]!,
   },
 ];
 
@@ -1720,8 +1726,8 @@ function HouseTile({
  * its two square tiles and the panel below it keeps its fixed height, which is
  * what pins the backdrop's blur boundary.
  *
- * A game that is out of plays for today is disabled and says so; it is a limit
- * that has been reached, not a failure, so it carries no warning colour.
+ * Playing is unlimited. The heading only reports whether today's one shared
+ * banana bonus has already been received.
  */
 function MiniGamePanel({
   controlScale,
@@ -1751,6 +1757,11 @@ function MiniGamePanel({
       <View style={styles.decorateHeader}>
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>미니게임</Text>
+          <Text style={styles.miniGameDescription}>
+            {view.miniGameRewardClaimedToday
+              ? '오늘의 바나나 보너스 수령 완료'
+              : '어떤 게임이든 오늘 첫 완료 시 바나나 보너스'}
+          </Text>
         </View>
         <CloseButton
           accessibilityLabel="미니게임 닫기"
@@ -1766,19 +1777,15 @@ function MiniGamePanel({
         testID="house-game-list"
       >
         {HOUSE_MINI_GAMES.map((game) => {
-          const playedOut = !view.canPlayGame[game.id];
           return (
             <Pressable
               accessibilityLabel={`${game.title} 게임하기`}
               accessibilityRole="button"
-              accessibilityState={{ disabled: playedOut }}
-              disabled={playedOut}
               key={game.id}
               onPress={() => onPlayGame(game.id)}
               style={({ pressed }) => [
                 styles.miniGameCard,
                 pressed && styles.miniGameCardPressed,
-                playedOut && styles.miniGameCardSpent,
               ]}
               testID={`house-mini-game-${game.id}`}
             >
@@ -1792,6 +1799,7 @@ function MiniGamePanel({
                   style={[
                     styles.miniGameMascot,
                     game.id === 'kikki_runner' && styles.miniGameRunnerMascot,
+                    game.id === 'kikki_merge' && styles.miniGameMergeMascot,
                   ]}
                   testID={`house-mini-game-mascot-${game.id}`}
                 />
@@ -1799,15 +1807,7 @@ function MiniGamePanel({
               <View style={styles.miniGameCopy}>
                 <Text style={styles.miniGameTitle}>{game.title}</Text>
               </View>
-              {playedOut ? (
-                <View style={styles.miniGameDuration}>
-                  <Text style={styles.miniGameDurationLabel}>
-                    {`오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`}
-                  </Text>
-                </View>
-              ) : (
-                <ChevronGlyph size={14 * controlScale} />
-              )}
+              <ChevronGlyph size={14 * controlScale} />
             </Pressable>
           );
         })}
@@ -3086,6 +3086,9 @@ const styles = StyleSheet.create({
   },
   miniGameRunnerMascot: {
     transform: [{ translateY: 5 }, { scaleX: -1 }],
+  },
+  miniGameMergeMascot: {
+    transform: [{ scale: 1.35 }],
   },
   miniGameCopy: {
     flex: 1,
