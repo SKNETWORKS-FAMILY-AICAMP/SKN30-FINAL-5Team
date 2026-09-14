@@ -41,21 +41,17 @@ def _terminal_failure_codes(state: V3GraphState) -> tuple[str, ...]:
     Integrity violations are the answer whenever validation ran, so they are
     reported under their own codes rather than collapsed into one.
     """
-    codes = state.get("failure_codes", ())
-    if codes:
-        return tuple(codes)
-    violations = tuple(
+    codes = set(state.get("failure_codes", ()))
+    codes.update(
         f"V3_INTEGRITY_{code}"
         for validation in state.get("integrity_validations", ())
         for code in validation.violation_codes
     )
-    if violations:
-        return tuple(sorted(set(violations)))
     if state.get("used_fallback") and state.get("fallback_plan_spec") is None:
-        return ("V3_FALLBACK_PLAN_UNAVAILABLE",)
-    if state.get("compiled_plan") is None:
-        return ("V3_COMPILED_PLAN_MISSING",)
-    return ()
+        codes.add("V3_FALLBACK_PLAN_UNAVAILABLE")
+    if state.get("compiled_plan") is None and not codes:
+        codes.add("V3_COMPILED_PLAN_MISSING")
+    return tuple(sorted(codes))
 
 
 def _invocation_audit(
@@ -187,12 +183,41 @@ async def _run_specialist(
             outcome = AgentOutcome(
                 agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
             )
+        elif result.output is None:
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_NO_PROPOSAL",
+                telemetry=result.telemetry,
+            )
+        elif not _proposal_is_valid(state, agent_type, result.output):
+            # Distinct from NOT_READY below, which is the agent's own verdict on
+            # its inputs. This one is a contract breach -- a hash that does not
+            # match, or an exercise outside the pool it was handed -- and the
+            # two call for different responses. One code for both left a paid
+            # evaluation unable to say which had happened (ADR-0022).
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_PROPOSAL_INVALID",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
+            )
+        elif result.output.proposal_status_code is V3ProposalStatusCode.FAILED:
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code=f"V3_{agent_type.value}_FAILED",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
+            )
         elif (
-            result.output is None
-            or result.output.proposal_status_code is not V3ProposalStatusCode.READY
-            or not _proposal_is_valid(state, agent_type, result.output)
+            agent_type is SpecialistAgentTypeCode.TRAINING
+            and result.output.proposal_status_code is not V3ProposalStatusCode.READY
         ):
-            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NOT_READY")
+            outcome = AgentOutcome(
+                agent_type,
+                failure_code="V3_TRAINING_NOT_READY",
+                telemetry=result.telemetry,
+                decline_reason_codes=result.output.reason_codes,
+            )
         else:
             outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
     return {"agent_outcomes": (outcome,)}
@@ -215,7 +240,15 @@ def parallel_agents(state: V3GraphState) -> dict[str, object]:
     return {"agent_outcomes": ()}
 
 
-def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
+def collect_proposals(state: V3GraphState) -> dict[str, object]:
+    """Fan the three specialist branches back in, in `SPECIALIST_AGENT_ORDER`.
+
+    The branches merge through an append reducer, so their arrival order is the
+    order they happened to finish in. Reading them back by role is what makes a
+    run replayable: the proposals, failure codes, and audits this returns are
+    the same for the same three outcomes however the supersteps interleaved.
+    """
+
     by_role = {outcome.agent_type: outcome for outcome in state.get("agent_outcomes", ())}
     failures: list[str] = []
     proposals: list[SpecialistAgentProposal] = []
@@ -246,6 +279,7 @@ def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
                 outcome.telemetry.provider_usage_present if outcome.telemetry else False
             ),
             failure_code=outcome.failure_code,
+            decline_reason_codes=outcome.decline_reason_codes,
         )
         for outcome in (by_role[role] for role in SPECIALIST_AGENT_ORDER if role in by_role)
     )
@@ -257,7 +291,14 @@ def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
     }
 
 
-async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
+async def coordinator_agent(state: V3GraphState) -> dict[str, object]:
+    """Run the Coordinator once over the collected proposals to draft a PlanSpec.
+
+    This is the plan's first and usually only coordination pass (`repair_attempt`
+    0). `coordinator_repair` runs the second pass, and only when the integrity
+    validator rejects what this one produced.
+    """
+
     graph_input = state["graph_input"]
     try:
         async with asyncio.timeout(graph_input.node_timeout_seconds):
@@ -292,7 +333,7 @@ async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
         }
     return {
         "plan_spec": result.output,
-        "coordinator_initial_plan": result.output,
+        "coordinator_agent_plan": result.output,
         "invocation_audits": (audit,),
     }
 
@@ -438,7 +479,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
                 used_fallback=state.get("used_fallback", False),
                 repair_attempts=state.get("repair_attempts", 0),
                 round_one_proposals=state.get("round_one_proposals", ()),
-                coordinator_initial_plan=state.get("coordinator_initial_plan"),
+                coordinator_agent_plan=state.get("coordinator_agent_plan"),
                 coordinator_repair_plan=state.get("coordinator_repair_plan"),
                 integrity_validations=state.get("integrity_validations", ()),
                 compiled_plans=state.get("compiled_plans", ()),
@@ -455,7 +496,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_agent_plan=state.get("coordinator_agent_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
         compiled_plans=state.get("compiled_plans", ()),
@@ -478,7 +519,7 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_agent_plan=state.get("coordinator_agent_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
         compiled_plans=state.get("compiled_plans", ()),
@@ -489,9 +530,9 @@ def terminal(state: V3GraphState) -> dict[str, object]:
 
 
 __all__ = [
-    "canonicalize_agents",
+    "collect_proposals",
     "compile_plan",
-    "coordinator_initial",
+    "coordinator_agent",
     "coordinator_repair",
     "fallback",
     "feasibility_agent",

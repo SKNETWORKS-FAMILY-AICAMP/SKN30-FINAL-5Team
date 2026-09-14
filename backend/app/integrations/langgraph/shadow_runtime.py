@@ -39,6 +39,7 @@ from backend.app.domain.agents.v3_validation import (
     IntegrityValidationStatusCode,
     validate_plan_integrity,
 )
+from backend.app.integrations.langgraph.fallback import DETERMINISTIC_FALLBACK_VERSION
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.state import (
     IntegrityValidatorPort,
@@ -79,7 +80,7 @@ class V3ShadowRuntimeVersions:
     graph_version: str = "v3-langgraph-shadow-v2"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
-    fallback_version: str = "v3-deterministic-fallback-v1"
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,7 +257,12 @@ class V3ShadowRuntime:
             snapshot_is_fresh=request.snapshot_is_fresh,
             specialists={
                 SpecialistAgentTypeCode.TRAINING: cast(
-                    SpecialistPort, TrainingAgentAdapter(invoker=self.invoker)
+                    SpecialistPort,
+                    TrainingAgentAdapter(
+                        invoker=self.invoker,
+                        feasibility_provider=self.fallback_provider,
+                        fallback_version=self.versions.fallback_version,
+                    ),
                 ),
                 SpecialistAgentTypeCode.RECOVERY: cast(
                     SpecialistPort, RecoveryAgentAdapter(invoker=self.invoker)
@@ -502,6 +508,7 @@ def build_v3_shadow_runtime(
         model_code=settings.llm_agents_model_code,
         max_attempts=settings.llm_agents_max_attempts,
         use_native_json_schema=chat_model is None and model is not None,
+        tracing_enabled=settings.llm_agents_tracing_enabled,
     )
     return V3ShadowRuntime(
         settings=settings,

@@ -1,0 +1,59 @@
+{
+  "architecture_code": "MULTI_AGENT",
+  "cases": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17421,
+      "llm_call_count": 4,
+      "output_tokens": 3526,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 27625
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17310,
+      "llm_call_count": 4,
+      "output_tokens": 3036,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 21031
+    },
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 17236,
+      "llm_call_count": 4,
+      "output_tokens": 3216,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 24281
+    }
+  ],
+  "critical_failures": 0,
+  "llm_calls_made": 12,
+  "model_label": "OPENAI:gpt-5.6-terra",
+  "passed_runs": 3,
+  "run_count": 3,
+  "tracing": "LangSmith tracing on: project=helkki-service-quality-round2 run=multi-agent-v2"
+}

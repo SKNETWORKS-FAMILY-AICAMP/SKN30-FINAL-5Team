@@ -30,12 +30,13 @@ from backend.app.modules.workouts.schemas import (
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
+    WorkoutSessionStopRequest,
+    WorkoutSessionStopResponse,
     WorkoutTimerEventRequest,
     WorkoutTimerEventResponse,
 )
 from backend.app.modules.workouts.service import (
     DecisionAlreadySelectedError,
-    FeedbackAlreadyExistsError,
     IdempotencyKeyReusedError,
     InvalidSafetyEventInputError,
     InvalidSessionStateError,
@@ -101,12 +102,6 @@ def _error(exc: Exception) -> AppError:
             code="INVALID_SAFETY_EVENT",
             message="불편 부위 또는 이상 반응을 한 가지 이상 입력해야 합니다.",
         )
-    if isinstance(exc, FeedbackAlreadyExistsError):
-        return AppError(
-            status_code=409,
-            code="FEEDBACK_ALREADY_EXISTS",
-            message="이 운동 세션의 피드백이 이미 저장되었습니다.",
-        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=409,
@@ -129,7 +124,6 @@ _WORKOUT_ERRORS = (
     IdempotencyKeyReusedError,
     NotCompletedReasonRequiredServiceError,
     InvalidSafetyEventInputError,
-    FeedbackAlreadyExistsError,
     IntegrityError,
     SQLAlchemyError,
 )
@@ -316,6 +310,23 @@ def record_safety_event(
 ) -> WorkoutSafetyEventResponse:
     try:
         return WorkoutService(repository).record_safety_event(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.patch("/{session_id}/stop", response_model=WorkoutSessionStopResponse)
+def stop_session(
+    session_id: UUID,
+    payload: WorkoutSessionStopRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSessionStopResponse:
+    try:
+        return WorkoutService(repository).stop_session(
             session, current_user.user_id, session_id, payload, idempotency_key
         )
     except _WORKOUT_ERRORS as exc:

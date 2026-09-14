@@ -1,0 +1,46 @@
+{
+  "approval_registry_path": "approval/production_approval_registry.json",
+  "bundle_version": "home-equipment-variants-v1-final-2026-09-04",
+  "files": [
+    {
+      "bytes": 2458,
+      "path": "approval/production_approval_registry.json",
+      "sha256": "7e399bc153d7659b1efc9a4b6a3ef707c1c0a051ccd093279a2da5f1c1b672d6"
+    },
+    {
+      "bytes": 16658,
+      "path": "guides/substitution_guides.jsonl",
+      "records": 34,
+      "sha256": "369924bd4f6d5f3c16ca59b314f7b94f8a6e89c0723e3685511c86a58e51eac0"
+    },
+    {
+      "bytes": 563,
+      "path": "guides/substitution_guides_manifest.json",
+      "sha256": "ef1d039837f634ddae996f0f04583559cbaddd3173d8a74296192645c0b4e40a"
+    },
+    {
+      "bytes": 9630,
+      "path": "variants/bodyweight_variant_candidates.jsonl",
+      "records": 20,
+      "sha256": "85809a02ea89aa7f81d89e8553debf5907e269c23a4a7f82c5848db8e8ab5370"
+    },
+    {
+      "bytes": 681,
+      "path": "variants/bodyweight_variant_candidates_manifest.json",
+      "sha256": "1709f3c0c8e60941c5ef73fccc354ea75004e6bb0338226cdb033fdbfc5490ba"
+    }
+  ],
+  "generated_at": "2026-09-04T00:00:00+09:00",
+  "generator_version": "home-equipment-variants-backend-bundle-1.0.0",
+  "importer_entry_path": "bundle_manifest.json",
+  "importer_paths": {
+    "substitution_guides": "guides/substitution_guides_manifest.json",
+    "variant_candidates": "variants/bodyweight_variant_candidates_manifest.json"
+  },
+  "schema_version": "home-equipment-importer-v1",
+  "summary": {
+    "stretch_strap_records": 0,
+    "substitution_guide_records": 34,
+    "variant_candidate_records": 20
+  }
+}

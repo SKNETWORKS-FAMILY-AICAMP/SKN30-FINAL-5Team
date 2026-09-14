@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * 끼끼의 집 — the scene itself.
  *
@@ -28,12 +29,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
   type GestureResponderEvent,
+  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
@@ -47,14 +50,24 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { imageAssets } from '../../assets';
-import { BASE_H, useScale } from '../../components/scale';
+import { imageAssets, kikkiMergeStageSources } from '../../assets';
+import {
+  BASE_H,
+  getContainedInterfaceScale,
+  useScale,
+} from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
   BananaGlyph,
+  BulbGlyph,
+  ChevronGlyph,
+  ClipboardGlyph,
+  FlameGlyph,
   GiftGlyph,
+  HeartGlyph,
   HouseArtView,
-  HouseMarkGlyph,
+  InfoGlyph,
+  PlusGlyph,
   StarGlyph,
 } from './HouseArt';
 import {
@@ -62,6 +75,7 @@ import {
   houseBackgroundArt,
   houseBackgroundLabels,
   houseBackgroundThumbnailArt,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   type HouseArtSlot,
@@ -69,18 +83,22 @@ import {
 import {
   HOUSE_ACTION_COST,
   HOUSE_BACKGROUND_IDS,
+  HOUSE_BONDING_COPY,
+  HOUSE_DAILY_QUESTS,
+  INTIMACY_DAILY_EARN_LIMIT,
+  INTIMACY_MAX_LEVEL,
   houseSpeech,
   type HouseBackgroundId,
+  type HouseQuest,
+  type HouseWeeklyQuest,
   type HouseItemId,
   type HouseItemPlacement,
+  type HouseMiniGameId,
   type HousePose,
   type HouseView,
 } from './houseModel';
-/**
- * The controls stay phone-width however wide the window gets. Past this the
- * extra room goes to the scene, not to stretched buttons.
- */
-const CONTENT_MAX_WIDTH = 430;
+/** Matches the Large phone preview's inset without fixing the layout to its pixels. */
+const HOUSE_HORIZONTAL_INSET = '4%' as const;
 
 /**
  * The requested scene zoom relative to the former full-screen `cover` size.
@@ -88,6 +106,14 @@ const CONTENT_MAX_WIDTH = 430;
  * as much of the source image is visible on the narrow reference viewport.
  */
 export const HOUSE_BACKDROP_ZOOM = 0.5;
+
+/**
+ * Decorations without reviewed artwork stay in the domain model and saved
+ * state, but are not offered or drawn until their asset is connected.
+ */
+function hasRenderableHouseItemArt(itemId: HouseItemId): boolean {
+  return houseItemArt[itemId].source !== null;
+}
 
 /** The selected mascot is displayed at 75% of the former 148px frame. */
 export const HOUSE_MASCOT_SIZE = 148 * 0.75;
@@ -120,6 +146,95 @@ export function houseMascotTallScreenOffset(viewportHeight: number): number {
   );
 }
 
+/** The anchor the scene was tuned to, as a fraction of the viewport height. */
+export const HOUSE_MASCOT_ANCHOR_RATIO = 0.45;
+
+/** Kept clear between the mascot's copy and the first control under it. */
+export const HOUSE_MASCOT_CONTROL_CLEARANCE = 12;
+
+/** Reserved for the touch hint until it has been measured. */
+export const HOUSE_TOUCH_HINT_RESERVED_HEIGHT = 24;
+
+/**
+ * Screen y of the first control, or `null` before the controls are measured.
+ *
+ * The action area is bottom-anchored inside the column, so its top is the
+ * column's bottom less its own height. This is the line the scene may not
+ * cross.
+ */
+export function houseControlsTop(
+  columnTop: number | null,
+  columnHeight: number | null,
+  actionAreaHeight: number | null,
+): number | null {
+  if (
+    columnTop === null ||
+    columnHeight === null ||
+    actionAreaHeight === null ||
+    !Number.isFinite(columnTop) ||
+    !Number.isFinite(columnHeight) ||
+    !Number.isFinite(actionAreaHeight) ||
+    columnHeight <= 0 ||
+    actionAreaHeight <= 0
+  ) {
+    return null;
+  }
+  return Math.max(0, columnTop + columnHeight - actionAreaHeight);
+}
+
+/**
+ * Where the top of the mascot slot sits, in screen pixels.
+ *
+ * The 45% anchor is what the artwork was tuned to and is kept whenever there
+ * is room for it. What must never happen is the mascot — or the touch hint
+ * under it — sliding behind the controls, so the anchor is clamped to the
+ * space actually measured above them.
+ *
+ * Everything here comes from measured layout rather than a device assumption,
+ * so it holds on any aspect ratio and on the web, where the window can be any
+ * shape at all. The controls are bottom-anchored and their height changes with
+ * the design; the scene is what gives way.
+ *
+ * `sceneTop` is the floor: on a viewport too short to hold both, the mascot
+ * stops under the top chips instead of climbing behind them.
+ */
+export function houseMascotTop({
+  belowMascotHeight,
+  controlsTop,
+  mascotSize,
+  sceneTop,
+  viewportHeight,
+}: {
+  /** The touch hint under the mascot, its gap included. */
+  belowMascotHeight: number;
+  controlsTop: number | null;
+  mascotSize: number;
+  sceneTop: number;
+  viewportHeight: number;
+}): number {
+  const floor = Math.max(0, sceneTop);
+  const anchored =
+    viewportHeight * HOUSE_MASCOT_ANCHOR_RATIO -
+    mascotSize / 2 +
+    houseMascotTallScreenOffset(viewportHeight);
+
+  if (
+    controlsTop === null ||
+    !Number.isFinite(controlsTop) ||
+    controlsTop <= 0
+  ) {
+    return Math.max(floor, anchored);
+  }
+
+  const highestAllowed =
+    controlsTop -
+    HOUSE_MASCOT_CONTROL_CLEARANCE -
+    Math.max(0, belowMascotHeight) -
+    mascotSize;
+
+  return Math.max(floor, Math.min(anchored, highestAllowed));
+}
+
 /** Fallback dimensions used only when a platform cannot resolve a local asset. */
 const HOUSE_BACKDROP_SOURCE_SIZE = { width: 1600, height: 976 } as const;
 
@@ -140,28 +255,177 @@ const HOUSE_COLUMN_TOP_PADDING = spacing.sm;
 const HOUSE_COLUMN_GAP = spacing.sm;
 const HOUSE_STAGE_MIN_HEIGHT = 210;
 
-const PLACED_ITEM_SIZE = 44;
+const PLACED_ITEM_BASE_SIZE = 44;
+export const HOUSE_ITEM_CONTROL_CLEARANCE = spacing.sm;
 const DECORATE_GRID_GAP = spacing.sm;
 
-export const HOUSE_MINI_GAMES = [
+const HOUSE_PLACED_ITEM_SCALE: Record<HouseItemId, number> = {
+  yoga_mat: 3,
+  dumbbell: 1,
+  plant: 2,
+  cushion: 1.5,
+  lamp: 3,
+  star_frame: 1,
+  window: 1,
+};
+
+export function housePlacedItemSize(itemId: HouseItemId): number {
+  return PLACED_ITEM_BASE_SIZE * HOUSE_PLACED_ITEM_SCALE[itemId];
+}
+
+export const HOUSE_SPEECH_BUBBLE_DURATION_MS = 5000;
+
+export const HOUSE_MINI_GAMES: readonly {
+  id: HouseMiniGameId;
+  title: string;
+  imageSource: ImageSourcePropType;
+}[] = [
   {
     id: 'banana_catch',
-    title: '바나나 받기',
-    description: '떨어지는 바나나를 받아요',
-    durationLabel: '30초',
+    title: '바나나 받아라',
     imageSource: imageAssets.houseMascotCollectingBananasEmpty,
   },
-] as const;
+  {
+    id: 'kikki_runner',
+    title: '끼끼 달리기',
+    imageSource: imageAssets.kikkiRunnerMascot,
+  },
+  {
+    id: 'kikki_merge',
+    title: '끼끼 합치기',
+    imageSource:
+      kikkiMergeStageSources[kikkiMergeStageSources.length - 1] ??
+      kikkiMergeStageSources[0]!,
+  },
+];
 
-export type HouseMiniGameId = (typeof HOUSE_MINI_GAMES)[number]['id'];
+export type { HouseMiniGameId };
+
+/** The hub tile's art. It stands for the panel, not for one of the games. */
+const HOUSE_MINI_GAME_TILE_ART = imageAssets.houseMascotCollectingBananasEmpty;
+
+type HousePanel = 'decorate' | 'games' | 'quests';
+
+/**
+ * The bottom panel's inner height.
+ *
+ * `houseBottomPanelTop` is derived from this panel's own measured height, and
+ * that boundary sets both the backdrop's minimum scale and where its blurred
+ * continuation starts. The value below reproduces what the panel measured when
+ * it held the `끼끼와 놀기` header above one 122px card
+ * (16 + 20 + 8 + 122 + 16 = 182), so the room behind the mascot is unchanged.
+ * Do not let it drift: anything that needs more room goes above the panel, not
+ * inside it.
+ */
+const HOUSE_PANEL_CONTENT_HEIGHT = 150;
 
 export const HOUSE_ACTION_EFFECT_MS = 900;
+
+/**
+ * The gift's `+15` is read, not just felt, so it holds longer than a spend.
+ */
+export const HOUSE_GIFT_EFFECT_MS = 1600;
 
 type HouseActionEffect = {
   id: number;
   amount: number;
+  /** A gain reads `+`; everything else is a deduction. */
+  gain?: boolean;
+  durationMs: number;
   mascotEffect?: 'banana' | 'sparkle';
 };
+
+function houseControlStyles(controlScale: number) {
+  const scaled = (value: number) => value * controlScale;
+  return {
+    column: {
+      gap: scaled(HOUSE_COLUMN_GAP),
+      paddingTop: scaled(HOUSE_COLUMN_TOP_PADDING),
+    },
+    stage: { minHeight: scaled(HOUSE_STAGE_MIN_HEIGHT) },
+    rail: { gap: scaled(spacing.sm) },
+    chip: {
+      minWidth: scaled(84),
+      gap: scaled(3),
+      borderRadius: scaled(14),
+      paddingHorizontal: scaled(10),
+      paddingVertical: scaled(9),
+    },
+    chipValue: { fontSize: scaled(13) },
+    giftCard: {
+      top: scaled(-8),
+      right: scaled(-12),
+      width: scaled(30),
+      height: scaled(30),
+      borderRadius: scaled(10),
+    },
+    streakChip: {
+      gap: scaled(5),
+      paddingHorizontal: scaled(10),
+      paddingVertical: scaled(5),
+    },
+    streakLabel: { fontSize: scaled(11) },
+    bubble: {
+      maxWidth: scaled(250),
+      borderRadius: scaled(18),
+      paddingHorizontal: scaled(16),
+      paddingVertical: scaled(11),
+    },
+    bubbleText: {
+      fontSize: scaled(13.5),
+      lineHeight: scaled(20),
+    },
+    primaryActionRow: { gap: scaled(spacing.sm) },
+    primaryActionButton: {
+      minHeight: 44,
+      gap: scaled(spacing.sm),
+      paddingVertical: scaled(15),
+    },
+    primaryActionLabel: { fontSize: scaled(14) },
+    actionArea: { gap: scaled(spacing.sm) },
+    actionStack: { gap: scaled(spacing.sm) },
+    panel: {
+      gap: scaled(spacing.sm),
+      borderRadius: scaled(20),
+      padding: scaled(spacing.lg),
+      marginBottom: scaled(spacing.xs),
+    },
+    tileRow: {
+      height: scaled(HOUSE_PANEL_CONTENT_HEIGHT),
+      gap: scaled(spacing.sm),
+    },
+    tile: {
+      gap: scaled(spacing.xs),
+      borderRadius: scaled(radii.card),
+      padding: scaled(spacing.md),
+    },
+    tileIcon: {
+      width: scaled(52),
+      height: scaled(52),
+      borderRadius: scaled(16),
+    },
+    tileMascot: { width: scaled(46), height: scaled(46) },
+    tileTitle: { fontSize: scaled(15) },
+    tileCaption: { fontSize: scaled(11), lineHeight: scaled(15) },
+    bonusRow: {
+      gap: scaled(spacing.md),
+      borderRadius: scaled(16),
+      paddingHorizontal: scaled(spacing.md),
+      paddingVertical: scaled(10),
+    },
+    bonusTitle: { fontSize: scaled(13) },
+    bonusBody: { fontSize: scaled(11), lineHeight: scaled(15) },
+    touchHint: { gap: scaled(2) },
+    touchHintTitle: { fontSize: scaled(13) },
+    touchHintBody: { fontSize: scaled(11) },
+    intimacyChip: {
+      gap: scaled(spacing.xs),
+      paddingHorizontal: scaled(10),
+      paddingVertical: scaled(6),
+    },
+    intimacyLabel: { fontSize: scaled(13) },
+  };
+}
 
 /**
  * Returns half of the size the artwork would have occupied with `cover`, then
@@ -295,34 +559,101 @@ export function houseBottomPanelTop(
 /** @deprecated Use `houseBottomPanelTop`; retained for existing callers. */
 export const houseWeekPanelTop = houseBottomPanelTop;
 
+/**
+ * Largest persisted y-coordinate that keeps a decoration wholly above the
+ * measured controls. Stored coordinates remain relative to the full canvas.
+ */
+export function houseItemPlacementMaxY(
+  canvasHeight: number,
+  controlsTop: number | null,
+  itemSize: number = PLACED_ITEM_BASE_SIZE,
+): number {
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  if (usableHeight <= 0) return 0;
+  if (controlsTop === null || !Number.isFinite(controlsTop)) return 1;
+
+  const maximumTop = Math.max(
+    0,
+    Math.min(canvasHeight, controlsTop) -
+      itemSize -
+      HOUSE_ITEM_CONTROL_CLEARANCE,
+  );
+  return clampUnit(maximumTop / usableHeight);
+}
+
+/** Smallest persisted y-coordinate that clears every control in the top rails. */
+export function houseItemPlacementMinY(
+  canvasHeight: number,
+  topControlsBottom: number | null,
+  itemSize: number = PLACED_ITEM_BASE_SIZE,
+): number {
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  if (usableHeight <= 0 || topControlsBottom === null) return 0;
+  if (!Number.isFinite(topControlsBottom)) return 0;
+  return clampUnit(
+    (topControlsBottom + HOUSE_ITEM_CONTROL_CLEARANCE) / usableHeight,
+  );
+}
+
 export function MascotHouseContent({
+  actionError,
   footer,
   onBuyItem,
-  onClaimGift,
+  onClaimDailyGift,
   onFeed,
+  onOpenPass,
   onPet,
   onPlayGame,
   onPlaceItem,
   onSelectBackground,
+  giftPending = false,
   mascotArt,
   pose,
+  spendPending = false,
   view,
 }: {
+  actionError?: string | null;
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
-  onBuyItem: (itemId: HouseItemId) => boolean;
-  onClaimGift: () => void;
-  onFeed: () => boolean;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
+  /** Claims today's server-paid gift; `false` when nothing was claimed. */
+  onClaimDailyGift: () => boolean | Promise<boolean>;
+  onFeed: () => boolean | Promise<boolean>;
+  onOpenPass: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
+  giftPending?: boolean;
   mascotArt?: HouseArtSlot;
   pose: HousePose;
+  spendPending?: boolean;
   view: HouseView;
 }) {
   const scaleViewport = useScale();
-  const [decorating, setDecorating] = useState(false);
+  const [activePanel, setActivePanel] = useState<HousePanel | null>(null);
+  const [bondingInfoOpen, setBondingInfoOpen] = useState(false);
+  /**
+   * 오늘의 퀘스트, opened as an overlay over the same action stack the
+   * decorate panel covers. Every affordance that asks "how do I earn more?" —
+   * the intimacy chip, the bonus row and the quest tile — opens it, because
+   * the quest list is the one answer to all three. The banana chip's `+` opens
+   * the HELKKI PASS preview instead. It is a
+   * panel and not a screen so the backdrop, the mascot and the tab bar all
+   * stay exactly where they are.
+   */
+  const decorating = activePanel === 'decorate';
+  const questing = activePanel === 'quests';
+  /**
+   * 미니게임, opened from the bottom tile as an overlay the same size as
+   * 오늘의 퀘스트. The tile is a hub rather than one game per tile so the row
+   * stays two tiles wide however many games ship.
+   */
+  const playing = activePanel === 'games';
+  const openQuests = () => setActivePanel('quests');
+  const overlayOpen = activePanel !== null;
+  /** Today's gift is open only while the server still owes it. */
+  const giftOpen = view.dailyGiftClaimable && !giftPending;
   const [measuredViewport, setMeasuredViewport] = useState<{
     width: number;
     height: number;
@@ -332,9 +663,18 @@ export function MascotHouseContent({
     height: number;
   } | null>(null);
   const [actionAreaHeight, setActionAreaHeight] = useState<number | null>(null);
+  /** Measured so the mascot's floor sits under the title and the top chips. */
+  const [stageTop, setStageTop] = useState<number | null>(null);
+  const [leftRailHeight, setLeftRailHeight] = useState<number | null>(null);
+  const [centerRailHeight, setCenterRailHeight] = useState<number | null>(null);
+  const [rightRailHeight, setRightRailHeight] = useState<number | null>(null);
+  /** Measured so the hint under the mascot is counted in its clearance. */
+  const [touchHintHeight, setTouchHintHeight] = useState<number | null>(null);
   const [bottomPanelHeight, setBottomPanelHeight] = useState<number | null>(
     null,
   );
+  /** Keeps the quest overlay aligned to the intimacy bonus row at every scale. */
+  const [questPanelTop, setQuestPanelTop] = useState<number | null>(null);
   const [decorationCanvas, setDecorationCanvas] = useState({
     width: 0,
     height: 0,
@@ -356,19 +696,27 @@ export function MascotHouseContent({
 
   const showActionEffect = (effect: {
     amount: number;
+    gain?: boolean;
+    durationMs?: number;
     mascotEffect?: 'banana' | 'sparkle';
   }) => {
     actionEffectId.current += 1;
-    setActionEffect({ ...effect, id: actionEffectId.current });
+    const durationMs = effect.durationMs ?? HOUSE_ACTION_EFFECT_MS;
+    setActionEffect({ ...effect, durationMs, id: actionEffectId.current });
     if (actionEffectTimer.current !== null) {
       clearTimeout(actionEffectTimer.current);
     }
     actionEffectTimer.current = setTimeout(() => {
       setActionEffect(null);
       actionEffectTimer.current = null;
-    }, HOUSE_ACTION_EFFECT_MS);
+    }, durationMs);
   };
   const viewport = measuredViewport ?? scaleViewport;
+  const controlScale = getContainedInterfaceScale(
+    viewport.width,
+    viewport.height,
+  );
+  const compactStyles = houseControlStyles(controlScale);
   const mascotSize = houseMascotSize(viewport.height);
   const bottomPanelTop = houseBottomPanelTop(
     columnLayout?.y ?? null,
@@ -376,9 +724,42 @@ export function MascotHouseContent({
     actionAreaHeight,
     bottomPanelHeight,
   );
+  const controlsTop = houseControlsTop(
+    columnLayout?.y ?? null,
+    columnLayout?.height ?? null,
+    actionAreaHeight,
+  );
+  // The hint's measured height is kept even while it is hidden mid-reaction, so
+  // the mascot holds its place instead of hopping down and back.
+  const belowMascotHeight =
+    (touchHintHeight ?? HOUSE_TOUCH_HINT_RESERVED_HEIGHT * controlScale) +
+    spacing.sm * controlScale;
+  // All three rails hold controls, so the scene has to clear the tallest one.
+  const topRailHeight = Math.max(
+    leftRailHeight ?? 0,
+    centerRailHeight ?? 0,
+    rightRailHeight ?? 0,
+  );
+  const topControlsBottom =
+    columnLayout !== null &&
+    stageTop !== null &&
+    leftRailHeight !== null &&
+    centerRailHeight !== null &&
+    rightRailHeight !== null
+      ? columnLayout.y + stageTop + topRailHeight
+      : null;
+  const mascotTop = houseMascotTop({
+    belowMascotHeight,
+    controlsTop,
+    mascotSize,
+    sceneTop: (columnLayout?.y ?? 0) + (stageTop ?? 0) + topRailHeight,
+    viewportHeight: viewport.height,
+  });
+  const speech = houseSpeech(view, pose);
 
   return (
     <View
+      onPointerDown={() => setBondingInfoOpen(false)}
       onLayout={(event) => {
         const { height, width } = event.nativeEvent.layout;
         setMeasuredViewport((current) =>
@@ -396,27 +777,50 @@ export function MascotHouseContent({
         bottomPanelTop={bottomPanelTop}
       />
 
+      {/* The slot keeps the tuned 45% anchor while there is room for it, and
+          `houseMascotTop` lifts it only far enough that neither the mascot nor
+          the hint under it ends up behind the controls. Every input is measured
+          layout, so it holds on any aspect ratio and on the web. The bubble and
+          the hint are absolutely positioned inside the slot: an ordinary child
+          would stack in the column and push the mascot off its anchor. */}
       <View
-        pointerEvents="none"
-        style={[
-          styles.mascotSlot,
-          {
-            height: mascotSize,
-            transform: [
-              {
-                translateY:
-                  -mascotSize / 2 +
-                  houseMascotTallScreenOffset(viewport.height),
-              },
-            ],
-          },
-        ]}
+        pointerEvents="box-none"
+        style={[styles.mascotSlot, { height: mascotSize, top: mascotTop }]}
         testID="house-mascot-slot"
       >
-        <SpeechBubble mascotSize={mascotSize} text={houseSpeech(view, pose)} />
-        <PersistentMascotArt
-          size={mascotSize}
-          slot={mascotArt ?? housePoseArt[pose]}
+        <SpeechBubble
+          controlScale={controlScale}
+          key={speech}
+          mascotSize={mascotSize}
+          text={speech}
+        />
+        <Pressable
+          accessibilityLabel={HOUSE_BONDING_COPY.actionAccessibilityLabel}
+          accessibilityRole="button"
+          onPress={() => {
+            if (onPet())
+              showActionEffect({ amount: 0, mascotEffect: 'sparkle' });
+          }}
+          style={{ width: mascotSize, height: mascotSize }}
+          testID="house-pet-action"
+        >
+          <PersistentMascotArt
+            size={mascotSize}
+            slot={mascotArt ?? housePoseArt[pose]}
+          />
+        </Pressable>
+        <BondingInfo
+          controlScale={controlScale}
+          infoOpen={bondingInfoOpen}
+          mascotSize={mascotSize}
+          onToggleInfo={() => setBondingInfoOpen((current) => !current)}
+          viewportWidth={viewport.width}
+        />
+        <TouchHint
+          controlScale={controlScale}
+          mascotSize={mascotSize}
+          onMeasure={setTouchHintHeight}
+          visible={pose !== 'petted' && pose !== 'eating'}
         />
         <MascotActionEffectOverlay effect={actionEffect} />
       </View>
@@ -427,18 +831,22 @@ export function MascotHouseContent({
         style={styles.decorationCanvas}
         testID="house-decoration-canvas"
       >
-        {view.ownedItems.map((item) => (
-          <DraggablePlacedItem
-            canvasHeight={decorationCanvas.height}
-            canvasWidth={decorationCanvas.width}
-            editable={decorating}
-            itemId={item.id}
-            key={item.id}
-            label={item.label}
-            onPlace={onPlaceItem}
-            placement={view.itemPlacements[item.id]}
-          />
-        ))}
+        {view.ownedItems
+          .filter((item) => hasRenderableHouseItemArt(item.id))
+          .map((item) => (
+            <DraggablePlacedItem
+              canvasHeight={decorationCanvas.height}
+              canvasWidth={decorationCanvas.width}
+              controlsTop={controlsTop}
+              editable={decorating}
+              itemId={item.id}
+              key={item.id}
+              label={item.label}
+              onPlace={onPlaceItem}
+              placement={view.itemPlacements[item.id]}
+              topControlsBottom={topControlsBottom}
+            />
+          ))}
       </View>
 
       <SafeAreaView
@@ -457,62 +865,169 @@ export function MascotHouseContent({
             );
           }}
           pointerEvents="box-none"
-          style={styles.column}
+          style={[styles.column, compactStyles.column]}
           testID="house-content-column"
         >
           <View
             pointerEvents="box-none"
-            style={styles.stage}
+            onLayout={(event) => setStageTop(event.nativeEvent.layout.y)}
+            style={[styles.stage, compactStyles.stage]}
             testID="house-scene"
           >
-            <View style={styles.railLeft}>
-              <View
-                accessible
-                accessibilityLabel={`바나나 ${view.bananas}개 보유`}
-                style={styles.chip}
-                testID="house-banana-count"
-              >
-                <BananaGlyph size={40} />
-                <Text style={styles.chipValue}>{view.bananas}개</Text>
-                <SpendActionEffectOverlay effect={actionEffect} />
-              </View>
+            <View
+              onLayout={(event) =>
+                setLeftRailHeight(event.nativeEvent.layout.height)
+              }
+              style={[styles.railLeft, compactStyles.rail]}
+              testID="house-top-left-controls"
+            >
+              <View style={styles.bananaAnchor}>
+                <View
+                  accessible
+                  accessibilityLabel={`바나나 ${view.bananas}개 보유`}
+                  style={[styles.chip, compactStyles.chip]}
+                  testID="house-banana-count"
+                >
+                  <BananaGlyph size={40 * controlScale} />
+                  <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                    {view.bananas}개
+                  </Text>
+                  <Pressable
+                    accessibilityLabel="HELKKI PASS 보기"
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setActivePanel(null);
+                      onOpenPass();
+                    }}
+                    style={[styles.chipPlus, { marginLeft: spacing.xs }]}
+                    testID="house-banana-earn-action"
+                  >
+                    <PlusGlyph size={12 * controlScale} />
+                  </Pressable>
+                  <SpendActionEffectOverlay effect={actionEffect} />
+                </View>
 
+                {/* 오늘의 선물, on the banana card's top-right corner. The
+                    server owns "once a day", so a claimed gift is simply gone
+                    for the day: no closed box, no warning colour, no retry.
+                    The `+15` floats over the count in its place. */}
+                {view.dailyGiftClaimable ? (
+                  <Pressable
+                    accessibilityLabel={`오늘의 선물, 바나나 ${view.dailyGiftAmount}개 받기`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !giftOpen }}
+                    disabled={!giftOpen}
+                    hitSlop={10}
+                    onPress={() => {
+                      void Promise.resolve(onClaimDailyGift()).then(
+                        (claimed) => {
+                          if (claimed) {
+                            showActionEffect({
+                              amount: view.dailyGiftAmount,
+                              gain: true,
+                              durationMs: HOUSE_GIFT_EFFECT_MS,
+                              mascotEffect: 'sparkle',
+                            });
+                          }
+                        },
+                      );
+                    }}
+                    style={[styles.giftCard, compactStyles.giftCard]}
+                    testID="house-daily-gift"
+                  >
+                    <GiftGlyph size={18 * controlScale} />
+                  </Pressable>
+                ) : null}
+              </View>
+              {actionError ? (
+                <Text accessibilityRole="alert" style={styles.walletError}>
+                  {actionError}
+                </Text>
+              ) : null}
+            </View>
+
+            <View
+              onLayout={(event) =>
+                setCenterRailHeight(event.nativeEvent.layout.height)
+              }
+              pointerEvents="box-none"
+              style={styles.railCenter}
+              testID="house-top-center-controls"
+            >
               <Pressable
-                accessibilityLabel="집 꾸미기"
+                accessibilityLabel={`친밀도 레벨 ${view.intimacyLevel}, 자세히 보기`}
                 accessibilityRole="button"
-                onPress={() => setDecorating(true)}
-                style={styles.chip}
-                testID="house-decorate-action"
+                onPress={openQuests}
+                style={[
+                  styles.chip,
+                  compactStyles.chip,
+                  styles.intimacyChip,
+                  compactStyles.intimacyChip,
+                ]}
+                testID="house-intimacy-chip"
               >
-                <HouseMarkGlyph size={22} color={colors.brandOutline} />
-                <Text style={styles.chipValue}>집 꾸미기</Text>
+                <HeartGlyph size={22 * controlScale} />
+                <View style={styles.intimacyCopy}>
+                  <Text
+                    style={[styles.intimacyLabel, compactStyles.intimacyLabel]}
+                  >
+                    친밀도 Lv.{view.intimacyLevel}
+                  </Text>
+                  <View style={styles.heartRow} testID="house-intimacy-hearts">
+                    {Array.from({ length: INTIMACY_MAX_LEVEL }, (_, index) => (
+                      <HeartGlyph
+                        filled={index < view.intimacyLevel}
+                        key={index}
+                        size={11 * controlScale}
+                      />
+                    ))}
+                  </View>
+                </View>
+                <ChevronGlyph size={13 * controlScale} />
               </Pressable>
             </View>
 
-            <View style={styles.railRight}>
+            <View
+              onLayout={(event) =>
+                setRightRailHeight(event.nativeEvent.layout.height)
+              }
+              style={[styles.railRight, compactStyles.rail]}
+              testID="house-top-right-controls"
+            >
               <Pressable
-                accessibilityLabel={
-                  view.giftAvailable
-                    ? '오늘의 선물 받기'
-                    : '오늘의 선물, 이미 받았어요'
-                }
+                accessibilityLabel="집 꾸미기"
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !view.giftAvailable }}
-                disabled={!view.giftAvailable}
-                onPress={onClaimGift}
-                style={[styles.chip, !view.giftAvailable && styles.spent]}
-                testID="house-gift-button"
+                onPress={() => setActivePanel('decorate')}
+                style={[styles.chip, compactStyles.chip]}
+                testID="house-decorate-action"
               >
-                <GiftGlyph size={22} />
-                <Text style={styles.chipValue}>
-                  {view.giftAvailable ? '오늘의 선물' : '받았어요'}
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  pointerEvents="none"
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseDecorateButtonArt}
+                    style={{
+                      height: 28 * controlScale,
+                      width: 28 * controlScale,
+                    }}
+                  />
+                </View>
+                <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                  집 꾸미기
                 </Text>
               </Pressable>
 
               {view.visitStreakDays > 1 ? (
-                <View style={styles.streakChip} testID="house-visit-streak">
-                  <StarGlyph size={14} />
-                  <Text style={styles.streakLabel}>
+                <View
+                  style={[styles.streakChip, compactStyles.streakChip]}
+                  testID="house-visit-streak"
+                >
+                  <FlameGlyph size={14 * controlScale} />
+                  <Text style={[styles.streakLabel, compactStyles.streakLabel]}>
                     {view.visitStreakDays}일 연속
                   </Text>
                 </View>
@@ -527,71 +1042,95 @@ export function MascotHouseContent({
             onLayout={(event) =>
               setActionAreaHeight(event.nativeEvent.layout.height)
             }
-            style={styles.actionArea}
+            style={[styles.actionArea, compactStyles.actionArea]}
             testID="house-action-area"
           >
             <View
-              accessibilityElementsHidden={decorating}
+              accessibilityElementsHidden={overlayOpen}
               importantForAccessibility={
-                decorating ? 'no-hide-descendants' : 'auto'
+                overlayOpen ? 'no-hide-descendants' : 'auto'
               }
-              pointerEvents={decorating ? 'none' : 'auto'}
-              style={styles.actionStack}
+              pointerEvents={overlayOpen ? 'none' : 'auto'}
+              style={[styles.actionStack, compactStyles.actionStack]}
             >
               <View
-                style={styles.primaryActionRow}
+                style={[
+                  styles.primaryActionRow,
+                  compactStyles.primaryActionRow,
+                ]}
                 testID="house-primary-actions"
               >
                 <FeedButton
-                  enabled={view.canFeed}
+                  controlScale={controlScale}
+                  enabled={view.canFeed && !spendPending}
                   onPress={() => {
-                    if (onFeed()) {
-                      showActionEffect({
-                        amount: HOUSE_ACTION_COST.feed,
-                        mascotEffect: 'banana',
-                      });
-                    }
+                    void Promise.resolve(onFeed()).then((succeeded) => {
+                      if (succeeded) {
+                        showActionEffect({
+                          amount: HOUSE_ACTION_COST.feed,
+                          mascotEffect: 'banana',
+                        });
+                      }
+                    });
                   }}
                 />
-                <Pressable
-                  accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !view.canPet }}
-                  disabled={!view.canPet}
-                  onPress={() => {
-                    if (onPet()) {
-                      showActionEffect({
-                        amount: HOUSE_ACTION_COST.pet,
-                        mascotEffect: 'sparkle',
-                      });
-                    }
-                  }}
-                  style={[
-                    styles.primaryActionButton,
-                    styles.petButton,
-                    !view.canPet && styles.spent,
-                  ]}
-                  testID="house-pet-action"
-                >
-                  <Text style={styles.petLabel}>
-                    쓰다듬기 · {HOUSE_ACTION_COST.pet}개
-                  </Text>
-                  <BananaGlyph size={18} />
-                </Pressable>
               </View>
 
-              <MiniGamePanel
+              {/* Above the panel on purpose. The panel's own height fixes the
+                  backdrop boundary, so anything that grows the controls has to
+                  grow upward into the scene instead of downward into it. */}
+              <View
+                onLayout={(event) =>
+                  setQuestPanelTop(event.nativeEvent.layout.y)
+                }
+                testID="house-quest-panel-anchor"
+              >
+                <IntimacyBonusRow
+                  controlScale={controlScale}
+                  onPress={openQuests}
+                  view={view}
+                />
+              </View>
+
+              <HouseTilePanel
+                controlScale={controlScale}
                 onHeightChange={setBottomPanelHeight}
-                onPlayGame={onPlayGame}
+                onOpenGames={() => setActivePanel('games')}
+                onOpenQuests={openQuests}
+                view={view}
               />
             </View>
 
             {decorating ? (
               <DecoratePanel
+                controlScale={controlScale}
                 onBuyItem={onBuyItem}
-                onClose={() => setDecorating(false)}
+                onClose={() => setActivePanel(null)}
                 onSelectBackground={onSelectBackground}
                 onSpend={(amount) => showActionEffect({ amount })}
+                spendPending={spendPending}
+                view={view}
+              />
+            ) : null}
+
+            {playing ? (
+              <MiniGamePanel
+                controlScale={controlScale}
+                onClose={() => setActivePanel(null)}
+                onPlayGame={(gameId) => {
+                  setActivePanel(null);
+                  onPlayGame(gameId);
+                }}
+                panelTop={questPanelTop ?? 0}
+                view={view}
+              />
+            ) : null}
+
+            {questing ? (
+              <QuestPanel
+                controlScale={controlScale}
+                onClose={() => setActivePanel(null)}
+                panelTop={questPanelTop ?? 0}
                 view={view}
               />
             ) : null}
@@ -822,30 +1361,52 @@ function Backdrop({
 }
 
 function SpeechBubble({
+  controlScale,
   mascotSize,
   text,
 }: {
+  controlScale: number;
   mascotSize: number;
   text: string;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setVisible(false),
+      HOUSE_SPEECH_BUBBLE_DURATION_MS,
+    );
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
   return (
     <View
-      style={[styles.bubble, { bottom: mascotSize + spacing.sm }]}
+      style={[
+        styles.bubble,
+        compactStyles.bubble,
+        { bottom: mascotSize + spacing.sm * controlScale },
+      ]}
       testID="house-speech-bubble"
     >
-      <Text style={styles.bubbleText}>{text}</Text>
+      <Text style={[styles.bubbleText, compactStyles.bubbleText]}>{text}</Text>
       <View style={styles.bubbleTail} />
     </View>
   );
 }
 
 function FeedButton({
+  controlScale,
   enabled,
   onPress,
 }: {
+  controlScale: number;
   enabled: boolean;
   onPress: () => void;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   return (
     <Pressable
       accessibilityLabel={`바나나 주기, 바나나 ${HOUSE_ACTION_COST.feed}개`}
@@ -856,6 +1417,7 @@ function FeedButton({
       style={({ pressed }) => [
         styles.primaryActionButton,
         styles.feedButton,
+        compactStyles.primaryActionButton,
         !enabled && styles.spent,
         pressed && enabled && styles.feedButtonPressed,
       ]}
@@ -869,113 +1431,626 @@ function FeedButton({
         start={{ x: 0.5, y: 0 }}
         style={styles.feedGradient}
       />
-      <Text style={styles.feedLabel}>
-        바나나 주기 · {HOUSE_ACTION_COST.feed}개
+      <BananaGlyph size={18 * controlScale} />
+      <Text style={[styles.feedLabel, compactStyles.primaryActionLabel]}>
+        바나나 주기
       </Text>
-      <BananaGlyph size={18} />
+      <BananaGlyph size={18 * controlScale} />
+      <Text style={[styles.feedLabel, compactStyles.primaryActionLabel]}>
+        -{HOUSE_ACTION_COST.feed}
+      </Text>
     </Pressable>
   );
 }
 
-function MiniGamePanel({
-  onHeightChange,
-  onPlayGame,
+/** The always-available help control anchored beside the mascot. */
+function BondingInfo({
+  controlScale,
+  infoOpen,
+  mascotSize,
+  onToggleInfo,
+  viewportWidth,
 }: {
-  onHeightChange: (height: number) => void;
-  onPlayGame: (gameId: HouseMiniGameId) => void;
+  controlScale: number;
+  infoOpen: boolean;
+  mascotSize: number;
+  onToggleInfo: () => void;
+  viewportWidth: number;
 }) {
+  const buttonSize = 22;
+  const buttonTop = (mascotSize - buttonSize) / 2;
+  const rightSideGap = spacing.xs * controlScale;
+  const tooltipLeft = viewportWidth / 2 + mascotSize / 2 + rightSideGap;
+  const tooltipWidth = Math.max(
+    0,
+    Math.min(
+      196 * controlScale,
+      viewportWidth - tooltipLeft - spacing.sm * controlScale,
+    ),
+  );
+
+  return (
+    <>
+      <Pressable
+        accessibilityLabel="끼끼와 친해지는 방법 안내"
+        accessibilityRole="button"
+        accessibilityState={{ expanded: infoOpen }}
+        hitSlop={8}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPress={onToggleInfo}
+        style={({ pressed }) => [
+          styles.bondingInfoButton,
+          {
+            top: buttonTop,
+            left: '50%',
+            marginLeft: mascotSize / 2 + rightSideGap,
+          },
+          pressed && styles.tilePressed,
+        ]}
+        testID="house-bonding-info"
+      >
+        <InfoGlyph size={14 * controlScale} />
+      </Pressable>
+      {infoOpen ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.bondingInfoTooltip,
+            {
+              top: buttonTop + buttonSize + spacing.xs * controlScale,
+              left: tooltipLeft,
+              width: tooltipWidth,
+            },
+          ]}
+          testID="house-bonding-tooltip"
+        >
+          <Text
+            lineBreakStrategyIOS="hangul-word"
+            style={styles.bondingInfoTooltipTitle}
+            textBreakStrategy="balanced"
+          >
+            끼끼와 친해지는 방법
+          </Text>
+          <Text
+            lineBreakStrategyIOS="hangul-word"
+            style={styles.bondingInfoTooltipBody}
+            textBreakStrategy="balanced"
+          >
+            {HOUSE_BONDING_COPY.hintDescription}
+          </Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The invitation to touch the mascot.
+ *
+ * Absolutely positioned below the mascot rather than stacked under it: the
+ * slot's height is the mascot's, and an ordinary sibling would move the
+ * anchor. It steps aside while the mascot is mid-reaction so the bubble and
+ * the hint never talk over each other.
+ */
+function TouchHint({
+  controlScale,
+  mascotSize,
+  onMeasure,
+  visible,
+}: {
+  controlScale: number;
+  mascotSize: number;
+  /** Reports the hint's height so the mascot's clearance can account for it. */
+  onMeasure: (height: number) => void;
+  visible: boolean;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+  if (!visible) return null;
+  return (
+    <View
+      onLayout={(event) => onMeasure(event.nativeEvent.layout.height)}
+      pointerEvents="none"
+      style={[
+        styles.touchHint,
+        compactStyles.touchHint,
+        { top: mascotSize + spacing.sm * controlScale },
+      ]}
+      testID="house-touch-hint"
+    >
+      <Text style={[styles.touchHintTitle, compactStyles.touchHintTitle]}>
+        끼끼를 터치해보세요!
+      </Text>
+    </View>
+  );
+}
+
+/** Says what intimacy is still available today, and where the rest comes from. */
+function IntimacyBonusRow({
+  controlScale,
+  onPress,
+  view,
+}: {
+  controlScale: number;
+  onPress: () => void;
+  view: HouseView;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+  return (
+    <Pressable
+      accessibilityLabel={`친밀도 보너스, 오늘 남은 획득 가능 ${view.intimacyRemainingToday}회`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.bonusRow,
+        compactStyles.bonusRow,
+        pressed && styles.tilePressed,
+      ]}
+      testID="house-intimacy-bonus"
+    >
+      <BulbGlyph size={20 * controlScale} />
+      <View style={styles.bonusCopy}>
+        <Text style={[styles.bonusTitle, compactStyles.bonusTitle]}>
+          친밀도 보너스{' '}
+          <Text style={styles.bonusTitleWeak}>
+            (오늘 남은 획득 가능: {view.intimacyRemainingToday}/
+            {INTIMACY_DAILY_EARN_LIMIT})
+          </Text>
+        </Text>
+        <Text style={[styles.bonusBody, compactStyles.bonusBody]}>
+          {HOUSE_BONDING_COPY.bonusDescription}
+        </Text>
+      </View>
+      <ChevronGlyph size={14 * controlScale} />
+    </Pressable>
+  );
+}
+
+/**
+ * The square tiles at the foot of the screen.
+ *
+ * Its height is pinned to `HOUSE_PANEL_CONTENT_HEIGHT` because
+ * `houseBottomPanelTop` reads this panel to place the backdrop's blur
+ * boundary. New tiles go into the same row, never into a taller panel.
+ */
+function HouseTilePanel({
+  controlScale,
+  onHeightChange,
+  onOpenGames,
+  onOpenQuests,
+  view,
+}: {
+  controlScale: number;
+  onHeightChange: (height: number) => void;
+  onOpenGames: () => void;
+  onOpenQuests: () => void;
+  view: HouseView;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
   return (
     <View
       onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
-      style={styles.panel}
+      style={[styles.panel, compactStyles.panel]}
       testID="house-play-panel"
     >
-      <View style={styles.playPanelHeader}>
-        <Text style={styles.playPanelTitle}>끼끼와 놀기</Text>
+      <View style={[styles.tileRow, compactStyles.tileRow]}>
+        <HouseTile
+          caption="끼끼와 놀아요!"
+          controlScale={controlScale}
+          label="미니게임"
+          onPress={onOpenGames}
+          testID="house-mini-game-tile"
+          title="미니게임"
+          tone="banana"
+        >
+          <Image
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            resizeMode="contain"
+            source={HOUSE_MINI_GAME_TILE_ART}
+            style={[styles.tileMascot, compactStyles.tileMascot]}
+            testID="house-mini-game-tile-mascot"
+          />
+        </HouseTile>
+
+        <HouseTile
+          caption={`${view.questsCompletedCount} / ${view.questCount} 완료`}
+          controlScale={controlScale}
+          label={`퀘스트, ${view.questCount}개 중 ${view.questsCompletedCount}개 완료`}
+          onPress={onOpenQuests}
+          testID="house-quest-tile"
+          title="퀘스트"
+          tone="quest"
+        >
+          <ClipboardGlyph size={40 * controlScale} />
+        </HouseTile>
+      </View>
+    </View>
+  );
+}
+
+function HouseTile({
+  caption,
+  children,
+  controlScale,
+  disabled = false,
+  label,
+  onPress,
+  testID,
+  title,
+  tone,
+}: {
+  caption: string;
+  children: ReactNode;
+  controlScale: number;
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+  testID: string;
+  title: string;
+  tone: 'banana' | 'quest';
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        compactStyles.tile,
+        tone === 'quest' ? styles.tileQuest : styles.tileBanana,
+        disabled && styles.spent,
+        pressed && !disabled && styles.tilePressed,
+      ]}
+      testID={testID}
+    >
+      <View style={[styles.tileIcon, compactStyles.tileIcon]}>{children}</View>
+      <Text style={[styles.tileTitle, compactStyles.tileTitle]}>{title}</Text>
+      {caption ? (
+        <Text style={[styles.tileCaption, compactStyles.tileCaption]}>
+          {caption}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/**
+ * 미니게임.
+ *
+ * The same overlay as 오늘의 퀘스트 — same anchor, same height — holding one
+ * row per game. Games live here instead of in the bottom row so the row keeps
+ * its two square tiles and the panel below it keeps its fixed height, which is
+ * what pins the backdrop's blur boundary.
+ *
+ * Playing is unlimited. The heading only reports whether today's one shared
+ * banana bonus has already been received.
+ */
+function MiniGamePanel({
+  controlScale,
+  onClose,
+  onPlayGame,
+  panelTop,
+  view,
+}: {
+  controlScale: number;
+  onClose: () => void;
+  onPlayGame: (gameId: HouseMiniGameId) => void;
+  panelTop: number;
+  view: HouseView;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+
+  return (
+    <View
+      style={[
+        styles.panel,
+        compactStyles.panel,
+        styles.questPanel,
+        { top: panelTop },
+      ]}
+      testID="house-game-panel"
+    >
+      <View style={styles.decorateHeader}>
+        <View style={styles.decorateHeading}>
+          <Text style={styles.weekTitle}>미니게임</Text>
+          <Text style={styles.miniGameDescription}>
+            {view.miniGameRewardClaimedToday
+              ? '오늘의 바나나 보너스 수령 완료'
+              : '어떤 게임이든 오늘 첫 완료 시 바나나 보너스'}
+          </Text>
+        </View>
+        <CloseButton
+          accessibilityLabel="미니게임 닫기"
+          onPress={onClose}
+          testID="house-game-close"
+        />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.miniGameListContent}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        testID="house-mini-game-list"
+        showsVerticalScrollIndicator={false}
+        style={styles.questList}
+        testID="house-game-list"
       >
-        {HOUSE_MINI_GAMES.map((game) => (
-          <Pressable
-            accessibilityLabel={`${game.title} 게임하기`}
-            accessibilityRole="button"
-            key={game.id}
-            onPress={() => onPlayGame(game.id)}
-            style={({ pressed }) => [
-              styles.miniGameCard,
-              pressed && styles.miniGameCardPressed,
-            ]}
-            testID={`house-mini-game-${game.id}`}
-          >
-            <View style={styles.miniGameIcon}>
-              <Image
-                accessible={false}
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                resizeMode="contain"
-                source={game.imageSource}
-                style={styles.miniGameMascot}
-                testID={`house-mini-game-mascot-${game.id}`}
-              />
-            </View>
-            <View style={styles.miniGameCopy}>
-              <Text style={styles.miniGameTitle}>{game.title}</Text>
-              <Text style={styles.miniGameDescription}>{game.description}</Text>
-            </View>
-            <View style={styles.miniGameDuration}>
-              <Text style={styles.miniGameDurationLabel}>
-                {game.durationLabel}
-              </Text>
-            </View>
-            <Text accessibilityElementsHidden style={styles.miniGameArrow}>
-              ›
-            </Text>
-          </Pressable>
-        ))}
+        {HOUSE_MINI_GAMES.map((game) => {
+          return (
+            <Pressable
+              accessibilityLabel={`${game.title} 게임하기`}
+              accessibilityRole="button"
+              key={game.id}
+              onPress={() => onPlayGame(game.id)}
+              style={({ pressed }) => [
+                styles.miniGameCard,
+                pressed && styles.miniGameCardPressed,
+              ]}
+              testID={`house-mini-game-${game.id}`}
+            >
+              <View style={styles.miniGameIcon}>
+                <Image
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                  resizeMode="contain"
+                  source={game.imageSource}
+                  style={[
+                    styles.miniGameMascot,
+                    game.id === 'kikki_runner' && styles.miniGameRunnerMascot,
+                    game.id === 'kikki_merge' && styles.miniGameMergeMascot,
+                  ]}
+                  testID={`house-mini-game-mascot-${game.id}`}
+                />
+              </View>
+              <View style={styles.miniGameCopy}>
+                <Text style={styles.miniGameTitle}>{game.title}</Text>
+              </View>
+              <ChevronGlyph size={14 * controlScale} />
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </View>
   );
 }
 
+/**
+ * 오늘의 퀘스트.
+ *
+ * An overlay over the action stack, exactly like 집 꾸미기: the backdrop, the
+ * mascot and the tab bar all stay put, and the content scrolls inside the
+ * panel rather than making the panel taller.
+ *
+ * An unmet quest shows its count and nothing else — no warning colour, no
+ * "아직", no red mark. A rest day simply leaves a row at `0 / 1`, which is
+ * what a learning signal looks like when it is not a penalty.
+ */
+function QuestPanel({
+  controlScale,
+  onClose,
+  panelTop,
+  view,
+}: {
+  controlScale: number;
+  onClose: () => void;
+  panelTop: number;
+  view: HouseView;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+  const [tab, setTab] = useState<'daily' | 'weekly'>('daily');
+  const title = tab === 'weekly' ? '주간 퀘스트' : '오늘의 퀘스트';
+
+  return (
+    <View
+      style={[
+        styles.panel,
+        compactStyles.panel,
+        styles.questPanel,
+        { top: panelTop },
+      ]}
+      testID="house-quest-panel"
+    >
+      <View style={styles.decorateHeader}>
+        <View style={styles.decorateHeading}>
+          <Text style={styles.weekTitle}>{title}</Text>
+        </View>
+        <CloseButton
+          accessibilityLabel={`${title} 닫기`}
+          onPress={onClose}
+          testID="house-quest-close"
+        />
+      </View>
+
+      <View style={styles.decorateTabs}>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'daily' }}
+          onPress={() => setTab('daily')}
+          style={[
+            styles.decorateTab,
+            tab === 'daily' && styles.decorateTabSelected,
+          ]}
+          testID="house-quest-tab-daily"
+        >
+          <Text
+            style={[
+              styles.decorateTabLabel,
+              tab === 'daily' && styles.decorateTabLabelSelected,
+            ]}
+          >
+            일일
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'weekly' }}
+          onPress={() => setTab('weekly')}
+          style={[
+            styles.decorateTab,
+            tab === 'weekly' && styles.decorateTabSelected,
+          ]}
+          testID="house-quest-tab-weekly"
+        >
+          <Text
+            style={[
+              styles.decorateTabLabel,
+              tab === 'weekly' && styles.decorateTabLabelSelected,
+            ]}
+          >
+            주간
+          </Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.questListContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.questList}
+        testID="house-quest-list"
+      >
+        {tab === 'daily' ? (
+          <>
+            {HOUSE_DAILY_QUESTS.map((quest) => (
+              <QuestRow
+                key={quest.id}
+                progress={view.questProgress[quest.id]}
+                quest={quest}
+              />
+            ))}
+            <Text style={styles.questFootnote}>
+              일일 퀘스트는 매일 00시에 초기화돼요.
+            </Text>
+          </>
+        ) : (
+          <WeeklyQuestList view={view} />
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function WeeklyQuestList({ view }: { view: HouseView }) {
+  return (
+    <View style={styles.weeklyQuestList} testID="house-weekly-quest-list">
+      {view.weeklyQuests.map((quest) => (
+        <QuestRow
+          key={quest.id}
+          progress={quest.progress}
+          quest={quest}
+          testID={`house-weekly-quest-row-${quest.id}`}
+        />
+      ))}
+      {view.weekTargetCount === null ? (
+        <Text style={styles.questFootnote}>
+          이번 주 정보를 불러오지 못했어요.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+type QuestRowDefinition = Pick<HouseQuest, 'id' | 'label' | 'target'> &
+  Partial<Pick<HouseQuest, 'reward'>>;
+
+function QuestRow({
+  progress,
+  quest,
+  testID,
+}: {
+  progress: number | null;
+  quest: QuestRowDefinition | HouseWeeklyQuest;
+  testID?: string;
+}) {
+  const target = quest.target;
+  const done = progress !== null && target !== null && progress >= target;
+  // A one-step quest already reads as finished from its mark, so the count is
+  // only spelled out where it actually carries information.
+  const countText =
+    progress !== null && target !== null && (target > 1 || !done)
+      ? `(${progress}/${target})`
+      : null;
+  const progressLabel =
+    progress !== null && target !== null
+      ? `${progress} / ${target}${done ? ', 완료' : ''}`
+      : '진행 정보 없음';
+  const rewardLabel =
+    quest.reward === null
+      ? '보상 준비 중'
+      : quest.reward === undefined
+        ? null
+        : `바나나 ${quest.reward}개`;
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${quest.label}, ${progressLabel}${rewardLabel ? `, ${rewardLabel}` : ''}`}
+      style={styles.questRow}
+      testID={testID ?? `house-quest-row-${quest.id}`}
+    >
+      <View style={[styles.questMark, done && styles.questMarkDone]}>
+        {done ? (
+          <View style={styles.questCheck} />
+        ) : (
+          <ClipboardGlyph size={15} />
+        )}
+      </View>
+      <Text style={styles.questLabel}>
+        {quest.label}
+        {countText !== null ? (
+          <Text style={styles.questCount}> {countText}</Text>
+        ) : null}
+      </Text>
+      {quest.reward !== undefined ? (
+        <View style={styles.questReward}>
+          <Text
+            style={[
+              styles.questRewardLabel,
+              quest.reward === null && styles.questRewardPendingLabel,
+            ]}
+          >
+            {quest.reward === null ? '보상 준비 중' : `+${quest.reward}`}
+          </Text>
+          {quest.reward === null ? null : <BananaGlyph size={16} />}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function DecoratePanel({
+  controlScale,
   onBuyItem,
   onClose,
   onSelectBackground,
   onSpend,
+  spendPending,
   view,
 }: {
-  onBuyItem: (itemId: HouseItemId) => boolean;
+  controlScale: number;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
   onClose: () => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   onSpend: (amount: number) => void;
+  spendPending: boolean;
   view: HouseView;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   const [category, setCategory] = useState<'background' | 'items'>(
     'background',
   );
 
   return (
     <View
-      style={[styles.panel, styles.decoratePanel]}
+      style={[styles.panel, compactStyles.panel, styles.decoratePanel]}
       testID="house-decorate-panel"
     >
       <View style={styles.decorateHeader}>
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
-        <Pressable
-          accessibilityLabel="집 꾸미기 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        <CloseButton accessibilityLabel="집 꾸미기 닫기" onPress={onClose} />
       </View>
 
       <View style={styles.decorateTabs}>
@@ -1068,34 +2143,10 @@ function DecoratePanel({
           testID="house-item-list"
         >
           <FixedGrid columns={3} testID="house-item-grid">
-            {view.ownedItems.map((item) => (
-              <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
-                <HouseArtView
-                  showPlaceholderLabel={false}
-                  showPlaceholderOutline={false}
-                  slot={houseItemArt[item.id]}
-                  style={styles.itemArt}
-                />
-                <Text style={styles.itemLabel}>{item.label}</Text>
-                <Text style={styles.itemOwnedLabel}>배치됨</Text>
-              </View>
-            ))}
-
-            {view.lockedItems.map((item) => {
-              const affordable = view.bananas >= item.cost;
-              return (
-                <Pressable
-                  accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !affordable }}
-                  disabled={!affordable}
-                  key={item.id}
-                  onPress={() => {
-                    if (onBuyItem(item.id)) onSpend(item.cost);
-                  }}
-                  style={[styles.itemTile, !affordable && styles.spent]}
-                  testID={`house-item-${item.id}`}
-                >
+            {view.ownedItems
+              .filter((item) => hasRenderableHouseItemArt(item.id))
+              .map((item) => (
+                <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
                   <HouseArtView
                     showPlaceholderLabel={false}
                     showPlaceholderOutline={false}
@@ -1103,13 +2154,45 @@ function DecoratePanel({
                     style={styles.itemArt}
                   />
                   <Text style={styles.itemLabel}>{item.label}</Text>
-                  <View style={styles.itemCost}>
-                    <BananaGlyph size={12} />
-                    <Text style={styles.itemCostLabel}>{item.cost}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                  <Text style={styles.itemOwnedLabel}>배치됨</Text>
+                </View>
+              ))}
+
+            {view.lockedItems
+              .filter((item) => hasRenderableHouseItemArt(item.id))
+              .map((item) => {
+                const affordable = view.bananas >= item.cost && !spendPending;
+                return (
+                  <Pressable
+                    accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !affordable }}
+                    disabled={!affordable}
+                    key={item.id}
+                    onPress={() => {
+                      void Promise.resolve(onBuyItem(item.id)).then(
+                        (succeeded) => {
+                          if (succeeded) onSpend(item.cost);
+                        },
+                      );
+                    }}
+                    style={[styles.itemTile, !affordable && styles.spent]}
+                    testID={`house-item-${item.id}`}
+                  >
+                    <HouseArtView
+                      showPlaceholderLabel={false}
+                      showPlaceholderOutline={false}
+                      slot={houseItemArt[item.id]}
+                      style={styles.itemArt}
+                    />
+                    <Text style={styles.itemLabel}>{item.label}</Text>
+                    <View style={styles.itemCost}>
+                      <BananaGlyph size={12} />
+                      <Text style={styles.itemCostLabel}>{item.cost}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
           </FixedGrid>
         </ScrollView>
       )}
@@ -1119,11 +2202,13 @@ function DecoratePanel({
 
 function FloatingActionEffect({
   children,
+  durationMs = HOUSE_ACTION_EFFECT_MS,
   effectId,
   style,
   testID,
 }: {
   children: ReactNode;
+  durationMs?: number;
   effectId: number;
   style: object;
   testID: string;
@@ -1133,13 +2218,13 @@ function FloatingActionEffect({
   useEffect(() => {
     progress.setValue(0);
     const animation = Animated.timing(progress, {
-      duration: HOUSE_ACTION_EFFECT_MS,
+      duration: durationMs,
       toValue: 1,
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [effectId, progress]);
+  }, [durationMs, effectId, progress]);
 
   return (
     <Animated.View
@@ -1180,21 +2265,26 @@ function SpendActionEffectOverlay({
 }: {
   effect: HouseActionEffect | null;
 }) {
-  if (effect === null) return null;
+  // Petting spends nothing, so it gets the sparkle on the mascot and no
+  // deduction chip on the banana count.
+  if (effect === null || effect.amount <= 0) return null;
+  const gain = effect.gain === true;
 
   return (
     <FloatingActionEffect
+      durationMs={effect.durationMs}
       effectId={effect.id}
       style={styles.spendActionEffect}
-      testID="house-action-effect-spend"
+      testID={gain ? 'house-action-effect-gain' : 'house-action-effect-spend'}
     >
-      <View style={styles.spendEffect}>
+      <View style={[styles.spendEffect, gain && styles.gainEffect]}>
         <BananaGlyph size={18} />
         <Text
-          style={styles.spendEffectLabel}
+          style={[styles.spendEffectLabel, gain && styles.gainEffectLabel]}
           testID="house-action-effect-amount"
         >
-          -{effect.amount}
+          {gain ? '+' : '-'}
+          {effect.amount}
         </Text>
       </View>
     </FloatingActionEffect>
@@ -1210,6 +2300,7 @@ function MascotActionEffectOverlay({
 
   return (
     <FloatingActionEffect
+      durationMs={effect.durationMs}
       effectId={effect.id}
       style={styles.mascotActionEffect}
       testID={`house-mascot-effect-${effect.mascotEffect}`}
@@ -1276,19 +2367,23 @@ function FixedGrid({
 function DraggablePlacedItem({
   canvasHeight,
   canvasWidth,
+  controlsTop,
   editable,
   itemId,
   label,
   onPlace,
   placement,
+  topControlsBottom,
 }: {
   canvasHeight: number;
   canvasWidth: number;
+  controlsTop: number | null;
   editable: boolean;
   itemId: HouseItemId;
   label: string;
   onPlace: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   placement: HouseItemPlacement;
+  topControlsBottom: number | null;
 }) {
   const [dragPlacement, setDragPlacement] = useState<HouseItemPlacement | null>(
     null,
@@ -1299,15 +2394,26 @@ function DraggablePlacedItem({
     pageY: number;
     placement: HouseItemPlacement;
   } | null>(null);
-  const usableWidth = Math.max(0, canvasWidth - PLACED_ITEM_SIZE);
-  const usableHeight = Math.max(0, canvasHeight - PLACED_ITEM_SIZE);
+  const itemSize = housePlacedItemSize(itemId);
+  const usableWidth = Math.max(0, canvasWidth - itemSize);
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  const maximumY = houseItemPlacementMaxY(canvasHeight, controlsTop, itemSize);
+  const minimumY = Math.min(
+    houseItemPlacementMinY(canvasHeight, topControlsBottom, itemSize),
+    maximumY,
+  );
+  const boundedPlacement = (candidate: HouseItemPlacement) => ({
+    x: clampUnit(candidate.x),
+    y: Math.min(maximumY, Math.max(minimumY, clampUnit(candidate.y))),
+  });
 
   const startDragging = (event: GestureResponderEvent) => {
-    livePlacementRef.current = placement;
+    const startPlacement = boundedPlacement(placement);
+    livePlacementRef.current = startPlacement;
     dragOrigin.current = {
       pageX: event.nativeEvent.pageX,
       pageY: event.nativeEvent.pageY,
-      placement,
+      placement: startPlacement,
     };
   };
   const continueDragging = (event: GestureResponderEvent) => {
@@ -1318,9 +2424,15 @@ function DraggablePlacedItem({
         origin.placement.x +
           (event.nativeEvent.pageX - origin.pageX) / usableWidth,
       ),
-      y: clampUnit(
-        origin.placement.y +
-          (event.nativeEvent.pageY - origin.pageY) / usableHeight,
+      y: Math.min(
+        maximumY,
+        Math.max(
+          minimumY,
+          clampUnit(
+            origin.placement.y +
+              (event.nativeEvent.pageY - origin.pageY) / usableHeight,
+          ),
+        ),
       ),
     };
     livePlacementRef.current = next;
@@ -1333,7 +2445,7 @@ function DraggablePlacedItem({
     setDragPlacement(null);
     onPlace(itemId, next);
   };
-  const renderedPlacement = dragPlacement ?? placement;
+  const renderedPlacement = boundedPlacement(dragPlacement ?? placement);
 
   return (
     <View
@@ -1351,8 +2463,10 @@ function DraggablePlacedItem({
         styles.placedItem,
         editable && styles.placedItemEditable,
         {
+          height: itemSize,
           left: renderedPlacement.x * usableWidth,
           top: renderedPlacement.y * usableHeight,
+          width: itemSize,
         },
       ]}
       testID={`house-placed-item-${itemId}`}
@@ -1421,14 +2535,14 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: 'transparent',
+    zIndex: 2,
   },
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     gap: HOUSE_COLUMN_GAP,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: HOUSE_HORIZONTAL_INSET,
     paddingTop: HOUSE_COLUMN_TOP_PADDING,
   },
   stage: {
@@ -1453,6 +2567,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     minWidth: 84,
+    minHeight: 44,
     alignItems: 'center',
     gap: 3,
     borderRadius: 14,
@@ -1465,6 +2580,37 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  bananaAnchor: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+  },
+  /**
+   * Overlaps the banana card's top-right corner on purpose: it keeps the left
+   * rail as narrow as the card itself, so the gift never reaches the intimacy
+   * chip in the middle. `hitSlop` carries the touch target the 30px box does
+   * not.
+   */
+  giftCard: {
+    position: 'absolute',
+    top: -8,
+    right: -12,
+    zIndex: 3,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    ...shadows.card,
+  },
+  walletError: {
+    maxWidth: 180,
+    color: colors.danger,
+    fontSize: 11,
+    lineHeight: 15,
   },
   streakChip: {
     flexDirection: 'row',
@@ -1484,10 +2630,234 @@ const styles = StyleSheet.create({
   },
   mascotSlot: {
     position: 'absolute',
-    top: '45%',
     right: 0,
     left: 0,
     alignItems: 'center',
+    zIndex: 3,
+  },
+  touchHint: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  touchHintTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  bondingInfoButton: {
+    position: 'absolute',
+    zIndex: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+  },
+  bondingInfoTooltip: {
+    position: 'absolute',
+    zIndex: 5,
+    gap: 3,
+    borderRadius: radii.control,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  bondingInfoTooltipTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
+  },
+  bondingInfoTooltipBody: {
+    color: colors.textSub,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '600',
+    ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
+  },
+  railCenter: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  intimacyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  intimacyCopy: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  intimacyLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  heartRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  chipPlus: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+  },
+  bonusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  bonusCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  bonusTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  bonusTitleWeak: {
+    color: colors.textSub,
+    fontWeight: '600',
+  },
+  bonusBody: {
+    color: colors.textSub,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  tileRow: {
+    flexDirection: 'row',
+    height: HOUSE_PANEL_CONTENT_HEIGHT,
+    gap: spacing.sm,
+  },
+  tile: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  tileBanana: {
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successSurface,
+  },
+  tileQuest: {
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenTint,
+  },
+  tilePressed: {
+    opacity: 0.72,
+  },
+  tileIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 231, 154, 0.7)',
+  },
+  tileMascot: {
+    width: 46,
+    height: 46,
+  },
+  tileTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  tileCaption: {
+    color: colors.textSub,
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
+  },
+  questList: {
+    flex: 1,
+    minHeight: 0,
+  },
+  questListContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  questRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  questMark: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceAlt,
+  },
+  questMarkDone: {
+    backgroundColor: colors.greenBand,
+  },
+  questCheck: {
+    width: 11,
+    height: 6,
+    marginTop: -3,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: 2.5,
+    borderColor: colors.greenText,
+    transform: [{ rotate: '-45deg' }],
+  },
+  questLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  questCount: {
+    color: colors.textSub,
+    fontWeight: '600',
+  },
+  questReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  questRewardLabel: {
+    color: colors.greenText,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  questRewardPendingLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  questFootnote: {
+    color: colors.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  weeklyQuestList: {
+    gap: spacing.md,
   },
   bubble: {
     position: 'absolute',
@@ -1530,11 +2900,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    zIndex: 1,
   },
   placedItem: {
     position: 'absolute',
-    width: PLACED_ITEM_SIZE,
-    height: PLACED_ITEM_SIZE,
     borderWidth: 0,
     borderRadius: radii.control,
   },
@@ -1617,8 +2986,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
+  questPanel: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   decorateGrid: {
     flex: 1,
+    minHeight: 0,
   },
   panel: {
     gap: spacing.sm,
@@ -1648,6 +3024,14 @@ const styles = StyleSheet.create({
     zIndex: 4,
     alignSelf: 'center',
   },
+  gainEffect: {
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successSurface,
+  },
+  gainEffectLabel: {
+    color: colors.greenText,
+  },
   spendEffect: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1672,8 +3056,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   miniGameCard: {
-    width: 286,
-    minHeight: 122,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -1686,6 +3069,9 @@ const styles = StyleSheet.create({
   miniGameCardPressed: {
     opacity: 0.72,
   },
+  miniGameCardSpent: {
+    backgroundColor: colors.surface,
+  },
   miniGameIcon: {
     width: 44,
     height: 44,
@@ -1697,6 +3083,12 @@ const styles = StyleSheet.create({
   miniGameMascot: {
     width: 42,
     height: 42,
+  },
+  miniGameRunnerMascot: {
+    transform: [{ translateY: 5 }, { scaleX: -1 }],
+  },
+  miniGameMergeMascot: {
+    transform: [{ scale: 1.35 }],
   },
   miniGameCopy: {
     flex: 1,
@@ -1772,19 +3164,9 @@ const styles = StyleSheet.create({
   decorateTabLabelSelected: {
     color: colors.brandOutline,
   },
-  closeButton: {
-    borderRadius: radii.control,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  closeLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '600',
-  },
   decorateGridContent: {
     width: '100%',
+    paddingBottom: spacing.lg,
   },
   fixedGrid: {
     width: '100%',

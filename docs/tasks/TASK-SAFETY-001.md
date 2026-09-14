@@ -1,5 +1,7 @@
 # TASK-SAFETY-001: 결정적 SafetyRule core
 
+> 상태: SUPERSEDED. 현재 구현·문서 기준은 SafetyPolicyEngine이 Safety envelope와 승인 pool을 선행 생성하고 integrity validator가 compiled plan을 검증하는 구조다.
+
 - Primary owner: 개발·데이터 팀장
 - Reviewers: 백엔드 담당자, PM, 외부 도메인 검수자
 - 관련 요구사항: `F002-1-15`, `F002-1-20`, `F002-1-21`, `NFR-006-1-9`, `NFR-006-1-12`

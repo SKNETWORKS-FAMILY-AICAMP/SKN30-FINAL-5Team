@@ -19,6 +19,7 @@ from backend.app.domain.rules.safety import (
     SafetyRuleSet,
     SafetyStatusCode,
     evaluate_safety,
+    severity_from_intensity_score,
 )
 
 
@@ -110,6 +111,38 @@ def test_emergency_reaction_has_priority_over_acute_and_severe_inputs() -> None:
     assert result.emergency_reaction_codes == (AdverseReactionCode.CHEST_DISCOMFORT,)
     assert result.acute_reaction_codes == (AdverseReactionCode.SUDDEN_SEVERE_PAIN,)
     assert result.severe_body_area_codes == (BodyAreaCode.KNEE,)
+
+
+def test_red_flag_blocks_plan_generation_before_rule_evaluation() -> None:
+    result = evaluate_safety(SafetyContext(red_flag_present=True), _candidate(), None)
+
+    assert result.status_code is SafetyStatusCode.BLOCKED
+    assert result.required_action_code is SafetyRequiredActionCode.STOP_AND_SEEK_HELP
+    assert result.veto is True
+    assert result.plan_allowed is False
+
+
+@pytest.mark.parametrize(
+    ("intensity_score", "severity"),
+    [
+        (1, DiscomfortSeverityCode.MILD),
+        (3, DiscomfortSeverityCode.MILD),
+        (4, DiscomfortSeverityCode.MODERATE),
+        (6, DiscomfortSeverityCode.MODERATE),
+        (7, DiscomfortSeverityCode.SEVERE),
+        (10, DiscomfortSeverityCode.SEVERE),
+    ],
+)
+def test_nrs_intensity_maps_to_the_approved_safety_band(
+    intensity_score: int, severity: DiscomfortSeverityCode
+) -> None:
+    assert severity_from_intensity_score(intensity_score) is severity
+
+
+@pytest.mark.parametrize("intensity_score", [0, 11])
+def test_nrs_intensity_outside_approved_range_is_rejected(intensity_score: int) -> None:
+    with pytest.raises(InvalidSafetyInputError):
+        severity_from_intensity_score(intensity_score)
 
 
 @pytest.mark.parametrize(

@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,14 +20,25 @@ from backend.app.modules.catalog.approvals import (
     get_derived_data_approval,
 )
 from backend.app.modules.catalog.codes import (
+    APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_CODE_SET_VERSION,
     CATALOG_V2_CODE_SET_VERSION,
     BodyAreaCode,
+    BodyFocusCode,
     DifficultyCode,
     EquipmentCode,
     LocationCode,
     TrainingTypeCode,
+)
+from backend.app.modules.catalog.home_equipment import (
+    ApprovedExerciseReference,
+    GymEquipmentGuideProviderPort,
+    HomeEquipmentBundle,
+    HomeEquipmentGuideProviderPort,
+    load_home_equipment_bundle,
+    load_integrated_gym_starting_guides,
+    validate_bundle_references,
 )
 from backend.app.modules.catalog.media_mapping import parse_source_identity
 from backend.app.modules.catalog.schemas import (
@@ -43,6 +55,8 @@ from backend.app.modules.catalog.schemas import (
     ExerciseSafetyRuleRecord,
     ExerciseVariantItem,
     ExerciseVariantsResponse,
+    GymEquipmentStartingGuide,
+    HouseholdEquipmentGuide,
     ManifestFile,
     MediaAssetRecord,
     MediaManifest,
@@ -72,6 +86,13 @@ class CatalogImportResult:
     manifest_hash: str
     exercise_record_count: int
     imported: bool
+
+
+@dataclass(frozen=True)
+class IntegratedCatalogBundle:
+    catalog: CatalogArtifact
+    home_equipment: HomeEquipmentBundle
+    gym_guide_record_count: int
 
 
 @dataclass(frozen=True)
@@ -136,6 +157,8 @@ class ExerciseDetailRecord:
     instruction_summary: str
     form_cues: tuple[str, ...]
     instruction_content_version: str
+    body_focus_code: str | None = None
+    required_equipment_codes: tuple[str, ...] = ()
     media_asset_key: str | None = None
     source_identity: str | None = None
     media_source_object_key: str | None = None
@@ -144,6 +167,25 @@ class ExerciseDetailRecord:
     media_set_version_code: str | None = None
     media_source_manifest_hash: str | None = None
     media_approval_metadata: dict[str, Any] | None = None
+    exercise_stable_code: str | None = None
+    household_equipment_guides: tuple["HouseholdEquipmentGuideRecord", ...] = ()
+    gym_equipment_starting_guides: tuple["GymEquipmentStartingGuideRecord", ...] = ()
+
+
+@dataclass(frozen=True)
+class HouseholdEquipmentGuideRecord:
+    equipment_code: str
+    proposal_ko: str
+    examples_ko: tuple[str, ...]
+    cautions_ko: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GymEquipmentStartingGuideRecord:
+    equipment_code: str
+    proposal_ko: str
+    examples_ko: tuple[str, ...]
+    cautions_ko: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -161,6 +203,7 @@ class ExerciseListRecord:
     primary_body_area_codes: tuple[str, ...]
     required_equipment_codes: tuple[str, ...]
     media_asset_key: str | None = None
+    body_focus_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -172,6 +215,9 @@ class ExerciseVariantRecord:
     form_cues: tuple[str, ...]
     goal_preservation_code: str
     media_asset_key: str | None = None
+    missing_equipment_code: str | None = None
+    selection_rationale_ko: str | None = None
+    household_guide: HouseholdEquipmentGuideRecord | None = None
 
 
 @dataclass(frozen=True)
@@ -199,6 +245,27 @@ class ExerciseCatalogUnavailableError(Exception):
 
 class ExerciseVariantSetUnavailableError(Exception):
     """Equipment variants do not resolve to one approved derived-data set."""
+
+
+_INSTRUCTION_STEP_MARKER = re.compile(r"(?:^|\s)(\d+)\.\s+")
+
+
+def _instruction_steps(instruction_summary: str) -> list[str]:
+    """Split reviewed numbered steps without allowing display parsing to fail lookup."""
+
+    matches = tuple(_INSTRUCTION_STEP_MARKER.finditer(instruction_summary))
+    if len(matches) < 2:
+        return [instruction_summary]
+    steps = [
+        instruction_summary[match.end() : next_match.start()].strip()
+        for match, next_match in zip(matches, matches[1:], strict=False)
+    ]
+    steps.append(instruction_summary[matches[-1].end() :].strip())
+    return steps if all(steps) else [instruction_summary]
+
+
+def _unique_strings(values: tuple[str, ...]) -> list[str]:
+    return list(dict.fromkeys(values))
 
 
 class InvalidExerciseListQueryError(Exception):
@@ -251,9 +318,13 @@ class ExerciseReadService:
         self,
         repository: ExerciseReadRepositoryPort,
         media_url_provider: ExerciseMediaUrlPort | None = None,
+        home_equipment_guide_provider: HomeEquipmentGuideProviderPort | None = None,
+        gym_equipment_guide_provider: GymEquipmentGuideProviderPort | None = None,
     ) -> None:
         self._repository = repository
         self._media_url_provider = media_url_provider or NullExerciseMediaUrlProvider()
+        self._home_equipment_guide_provider = home_equipment_guide_provider
+        self._gym_equipment_guide_provider = gym_equipment_guide_provider
 
     def list_exercises(
         self,
@@ -302,6 +373,11 @@ class ExerciseReadService:
                     name=record.exercise_name,
                     training_type_code=TrainingTypeCode(record.training_type_code),
                     difficulty_code=DifficultyCode(record.difficulty_code),
+                    body_focus_code=(
+                        BodyFocusCode(record.body_focus_code)
+                        if record.body_focus_code is not None
+                        else None
+                    ),
                     primary_body_area_codes=[
                         BodyAreaCode(code) for code in record.primary_body_area_codes
                     ],
@@ -324,28 +400,106 @@ class ExerciseReadService:
         if _is_approved_media_candidate(record):
             assert record.media_source_object_key is not None
             media_url = self._media_url_provider.create_url(record.media_source_object_key)
+        guides = record.household_equipment_guides
+        if (
+            not guides
+            and record.exercise_stable_code is not None
+            and self._home_equipment_guide_provider is not None
+        ):
+            guides = tuple(
+                HouseholdEquipmentGuideRecord(
+                    equipment_code=guide.equipment_code,
+                    proposal_ko=guide.proposal_ko,
+                    examples_ko=guide.examples_ko,
+                    cautions_ko=guide.cautions_ko,
+                )
+                for guide in self._home_equipment_guide_provider.guides_for(
+                    record.exercise_stable_code
+                )
+                if guide.equipment_code in record.required_equipment_codes
+            )
+        gym_guides = record.gym_equipment_starting_guides
+        if (
+            not gym_guides
+            and record.exercise_stable_code is not None
+            and self._gym_equipment_guide_provider is not None
+        ):
+            gym_guides = tuple(
+                GymEquipmentStartingGuideRecord(
+                    equipment_code=guide.equipment_code,
+                    proposal_ko=guide.proposal_ko,
+                    examples_ko=guide.examples_ko,
+                    cautions_ko=guide.cautions_ko,
+                )
+                for guide in self._gym_equipment_guide_provider.guides_for(
+                    record.exercise_stable_code,
+                    record.required_equipment_codes,
+                )
+            )
         return ExerciseDetailResponse(
             exercise_id=record.exercise_id,
             exercise_name=record.exercise_name,
             training_type_code=record.training_type_code,
+            body_focus_code=(
+                BodyFocusCode(record.body_focus_code)
+                if record.body_focus_code is not None
+                else None
+            ),
             primary_body_area_codes=list(record.primary_body_area_codes),
             instruction_summary=record.instruction_summary,
             form_cues=list(record.form_cues),
+            instruction_steps=_instruction_steps(record.instruction_summary),
+            cautions=(
+                _unique_strings(
+                    (
+                        *record.form_cues,
+                        *(caution for guide in guides for caution in guide.cautions_ko),
+                        *(caution for guide in gym_guides for caution in guide.cautions_ko),
+                    )
+                )
+                or None
+            ),
             media_asset_key=record.media_asset_key,
             media_url=media_url,
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
+            household_equipment_guides=(
+                [
+                    HouseholdEquipmentGuide(
+                        equipment_code=EquipmentCode(guide.equipment_code),
+                        proposal_ko=guide.proposal_ko,
+                        examples_ko=list(guide.examples_ko),
+                        cautions_ko=list(guide.cautions_ko),
+                    )
+                    for guide in guides
+                ]
+                or None
+            ),
+            gym_equipment_starting_guides=(
+                [
+                    GymEquipmentStartingGuide(
+                        equipment_code=EquipmentCode(guide.equipment_code),
+                        proposal_ko=guide.proposal_ko,
+                        examples_ko=list(guide.examples_ko),
+                        cautions_ko=list(guide.cautions_ko),
+                    )
+                    for guide in gym_guides
+                ]
+                or None
+            ),
         )
 
     def get_equipment_variants(
         self,
         session: Session,
         exercise_id: UUID,
+        *,
+        location_code: str | None = None,
     ) -> ExerciseVariantsResponse:
         record = self._repository.get_equipment_variants(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
-        return ExerciseVariantsResponse(
+        response = ExerciseVariantsResponse(
             source_exercise_id=record.source_exercise_id,
             source_required_equipment_codes=[
                 EquipmentCode(code) for code in record.source_required_equipment_codes
@@ -361,12 +515,31 @@ class ExerciseReadService:
                     form_cues=list(item.form_cues),
                     media_asset_key=item.media_asset_key,
                     goal_preservation_code=item.goal_preservation_code,
+                    missing_equipment_code=(
+                        None
+                        if item.missing_equipment_code is None
+                        else EquipmentCode(item.missing_equipment_code)
+                    ),
+                    selection_rationale_ko=item.selection_rationale_ko,
+                    household_guide=(
+                        None
+                        if item.household_guide is None
+                        else HouseholdEquipmentGuide(
+                            equipment_code=EquipmentCode(item.household_guide.equipment_code),
+                            proposal_ko=item.household_guide.proposal_ko,
+                            examples_ko=list(item.household_guide.examples_ko),
+                            cautions_ko=list(item.household_guide.cautions_ko),
+                        )
+                    ),
                 )
                 for item in record.items
             ],
             catalog_version=record.catalog_version,
             alternative_set_version=record.alternative_set_version,
         )
+        if location_code is not None and location_code != "HOME":
+            return response.model_copy(update={"items": []})
+        return response
 
 
 def _is_approved_media_candidate(record: ExerciseDetailRecord) -> bool:
@@ -553,6 +726,18 @@ def load_catalog_artifact(
                     legacy_value = payload.pop("beginner_suitable", None)
                     if legacy_value is not None and type(legacy_value) is not bool:
                         raise ValueError("legacy beginner_suitable must be boolean")
+                # The normalized source uses an empty string for absent optional
+                # identity fields in one legacy-derived row. Preserve its
+                # absence as null rather than treating it as a new machine code.
+                for optional_field in (
+                    "record_type",
+                    "family_code",
+                    "representative_stable_code",
+                    "form_cues_source",
+                    "form_cues_review_status",
+                ):
+                    if payload.get(optional_field) == "":
+                        payload[optional_field] = None
                 records.append(
                     ExerciseRecord.model_validate(
                         payload,
@@ -688,6 +873,11 @@ def _validate_v2_alternative_metadata(
             "V2_REVIEW_METHOD_INVALID",
             "V2 alternative artifacts require DOMAIN_REVIEWER evidence",
         )
+    # v2.0.6 keeps the historical importer path but intentionally publishes
+    # an empty relationship artifact.  There are no record-level metadata
+    # invariants to apply when the artifact contains no records.
+    if not records:
+        return
     expected_version = manifest.alternative_set_version.version_code
     for record in records:
         if (
@@ -1017,6 +1207,7 @@ def _validate_bundle_exercise_references(
             "derived data references an exercise absent from its catalog: "
             f"{missing_version}/{missing_stable_code}",
         )
+
     uses_directional_level_contract = any(
         artifact.manifest.schema_version == "1.1" for artifact in catalog_artifacts
     )
@@ -1085,6 +1276,121 @@ def _validate_bundle_exercise_references(
         )
 
 
+def load_integrated_catalog_bundle(
+    bundle_directory: Path,
+    *,
+    expected_catalog_version: str = "exercise-catalog-v2.0.7-draft",
+) -> IntegratedCatalogBundle:
+    """Validate a v2.0.7 wrapper before importing its catalog artifact."""
+
+    root = bundle_directory.resolve()
+    manifest_raw = _read_bytes(root / "bundle_manifest.json", "MANIFEST_UNREADABLE")
+    try:
+        manifest = json.loads(manifest_raw)
+    except json.JSONDecodeError as exc:
+        raise CatalogImportError(
+            "MANIFEST_INVALID", "integrated bundle manifest is invalid"
+        ) from exc
+    if not isinstance(manifest, dict):
+        raise CatalogImportError("MANIFEST_INVALID", "integrated bundle manifest is invalid")
+    paths = manifest.get("importer_paths")
+    files = manifest.get("files")
+    summary = manifest.get("summary")
+    if (
+        manifest.get("schema_version") != "integrated-exercise-importer-v1"
+        or manifest.get("status_code") != "DRAFT"
+        or manifest.get("production_eligible") is not False
+        or not isinstance(paths, dict)
+        or set(paths) != {"catalog", "home_equipment", "gym_equipment"}
+        or not all(isinstance(value, str) for value in paths.values())
+        or not isinstance(files, list)
+        or not isinstance(summary, dict)
+    ):
+        raise CatalogImportError("MANIFEST_INVALID", "integrated bundle paths are incomplete")
+    entries = {entry.get("path"): entry for entry in files if isinstance(entry, dict)}
+    if len(entries) != len(files) or not all(isinstance(path, str) for path in entries):
+        raise CatalogImportError("MANIFEST_INVALID", "integrated bundle files are invalid")
+    for path, entry in entries.items():
+        if not isinstance(entry, dict):
+            raise CatalogImportError("MANIFEST_INVALID", "integrated bundle files are invalid")
+        assert isinstance(path, str)
+        try:
+            raw = _read_bytes(_resolve_inside(root, path), "CATALOG_FILE_UNREADABLE")
+            byte_count = entry["bytes"]
+            digest = entry["sha256"]
+        except (KeyError, TypeError) as exc:
+            raise CatalogImportError(
+                "MANIFEST_INVALID", "integrated file metadata is invalid"
+            ) from exc
+        if (
+            not isinstance(byte_count, int)
+            or not isinstance(digest, str)
+            or len(raw) != byte_count
+            or _sha256(raw) != digest
+        ):
+            raise CatalogImportError("CATALOG_FILE_INTEGRITY_MISMATCH", "integrated file mismatch")
+        if "records" in entry and (
+            not isinstance(entry["records"], int)
+            or len([line for line in raw.splitlines() if line.strip()]) != entry["records"]
+        ):
+            raise CatalogImportError(
+                "RECORD_COUNT_MISMATCH", "integrated bundle record count differs"
+            )
+    if not all(paths[key] in entries for key in paths):
+        raise CatalogImportError(
+            "MANIFEST_PATH_MISMATCH", "integrated importer path is not inventoried"
+        )
+
+    catalog_path = paths["catalog"]
+    assert isinstance(catalog_path, str)
+    catalog = load_catalog_artifact(
+        _resolve_inside(root, catalog_path).parent / "catalog",
+        v2_import=True,
+        v2_taxonomy_registry_sha256=APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
+    )
+    if (
+        catalog.manifest.catalog_version.version_code != expected_catalog_version
+        or len(catalog.records) != summary.get("catalog_records")
+        or len(catalog.records) != 237
+        or any(record.met_review_status_code != "DOMAIN_APPROVED" for record in catalog.records)
+    ):
+        raise CatalogImportError(
+            "INTEGRATED_CATALOG_CONTRACT_INVALID", "catalog MET contract is incomplete"
+        )
+    try:
+        home_equipment = load_home_equipment_bundle(
+            _resolve_inside(root, paths["home_equipment"]).parent
+        )
+        gym_guides = load_integrated_gym_starting_guides(root)
+    except RuntimeError as exc:
+        raise CatalogImportError(
+            "EQUIPMENT_GUIDE_INVALID", "equipment guide bundle is invalid"
+        ) from exc
+    exercises = {
+        record.stable_code: ApprovedExerciseReference(
+            catalog_version_code=catalog.manifest.catalog_version.version_code,
+            required_equipment_codes=frozenset(code.value for code in record.equipment_codes),
+        )
+        for record in catalog.records
+    }
+    try:
+        validate_bundle_references(home_equipment, exercises)
+    except RuntimeError as exc:
+        raise CatalogImportError(
+            "EQUIPMENT_GUIDE_REFERENCE_INVALID", "home guide reference is invalid"
+        ) from exc
+    if len(gym_guides) != summary.get("gym_guide_records") or any(
+        guide.exercise_stable_code not in exercises
+        or guide.equipment_code
+        not in exercises[guide.exercise_stable_code].required_equipment_codes
+        for guide in gym_guides
+    ):
+        raise CatalogImportError(
+            "EQUIPMENT_GUIDE_REFERENCE_INVALID", "gym guide reference is invalid"
+        )
+    return IntegratedCatalogBundle(catalog, home_equipment, len(gym_guides))
+
+
 class CatalogImporter:
     def __init__(
         self,
@@ -1104,17 +1410,23 @@ class CatalogImporter:
         session: Session,
         artifact_directory: Path,
     ) -> CatalogImportResult:
-        if self._app_env not in {"local", "test"}:
-            raise CatalogImportError(
-                "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
-                "DRAFT catalog import is allowed only in local or test",
-            )
-
         artifact = load_catalog_artifact(
             artifact_directory,
             v2_import=self._v2_import,
             v2_taxonomy_registry_sha256=self._v2_taxonomy_registry_sha256,
         )
+        return self.import_loaded_artifact(session, artifact)
+
+    def import_loaded_artifact(
+        self,
+        session: Session,
+        artifact: CatalogArtifact,
+    ) -> CatalogImportResult:
+        if self._app_env not in {"local", "test"}:
+            raise CatalogImportError(
+                "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
+                "DRAFT catalog import is allowed only in local or test",
+            )
         version_code = artifact.manifest.catalog_version.version_code
 
         with session.begin():
@@ -1143,6 +1455,22 @@ class CatalogImporter:
             )
 
 
+class IntegratedCatalogBundleImporter:
+    """Import the catalog portion of the reviewed integrated DRAFT bundle."""
+
+    def __init__(self, repository: CatalogRepositoryPort, app_env: str) -> None:
+        self._catalog_importer = CatalogImporter(
+            repository,
+            app_env,
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    def import_bundle(self, session: Session, bundle_directory: Path) -> CatalogImportResult:
+        bundle = load_integrated_catalog_bundle(bundle_directory)
+        return self._catalog_importer.import_loaded_artifact(session, bundle.catalog)
+
+
 class CatalogDataBundleImporter:
     """Atomically import catalogs and their DRAFT derived datasets."""
 
@@ -1169,20 +1497,33 @@ class CatalogDataBundleImporter:
         media_directory: Path | None = None,
         media_reference_map: dict[str, str] | None = None,
         approved_v2_bundle: bool = False,
+        production_release: bool = False,
     ) -> CatalogDataBundleImportResult:
         # A DRAFT bundle stays confined to local/test. The reviewed V2 release is
         # a different artifact: import_v2_bundle only reaches this call after every
         # one of its four manifests matched an exact approval-registry entry, and
         # those entries carry the DOMAIN_REVIEWER sign-off that the repository
-        # turns into PRODUCTION_APPROVED. Staging is allowed for that path alone;
-        # production still requires its own separately reviewed release decision.
+        # turns into PRODUCTION_APPROVED. Production is reachable only through
+        # the v2.0.6 promotion script's explicit release flag.
         release_import = self._v2_import and approved_v2_bundle
-        allowed_envs = {"local", "test", "staging"} if release_import else {"local", "test"}
+        if production_release and not release_import:
+            raise CatalogImportError(
+                "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
+                "production release imports require the exact approved V2 bundle path",
+            )
+        allowed_envs = (
+            {"local", "test", "staging", "production"}
+            if production_release and release_import
+            else {"local", "test", "staging"}
+            if release_import
+            else {"local", "test"}
+        )
         if self._app_env not in allowed_envs:
             raise CatalogImportError(
                 "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
                 (
-                    "approved V2 release import is allowed only in local, test, or staging"
+                    "approved V2 release import is allowed only in local, test, staging, "
+                    "or production"
                     if release_import
                     else "DRAFT catalog data import is allowed only in local or test"
                 ),
@@ -1337,6 +1678,7 @@ class CatalogDataBundleImporter:
         bundle_directory: Path,
         *,
         expected_bundle_manifest_sha256: str,
+        allow_production: bool = False,
     ) -> CatalogDataBundleImportResult:
         if not self._v2_import:
             raise CatalogImportError("V2_IMPORT_REQUIRED", "V2 bundle importer mode is required")
@@ -1447,6 +1789,7 @@ class CatalogDataBundleImporter:
             media_directory,
             media_reference_map,
             True,
+            production_release=allow_production,
         )
 
     def _import_derived_set(
@@ -1476,6 +1819,8 @@ __all__ = [
     "CatalogImportError",
     "CatalogImportResult",
     "CatalogImporter",
+    "IntegratedCatalogBundle",
+    "IntegratedCatalogBundleImporter",
     "CatalogDataBundleImporter",
     "CatalogDataBundleImportResult",
     "DerivedImportResult",
@@ -1486,6 +1831,7 @@ __all__ = [
     "SafetyRuleArtifact",
     "load_alternative_artifact",
     "load_catalog_artifact",
+    "load_integrated_catalog_bundle",
     "load_media_artifact",
     "load_prescription_artifact",
     "load_safety_rule_artifact",

@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     # exported environment variable. Left empty, the SDK falls back to
     # Application Default Credentials, which is what cloud deployments use.
     google_application_credentials: Path | None = None
+    kakao_rest_api_key: SecretStr | None = None
+    kakao_client_secret: SecretStr | None = None
+    kakao_redirect_uris: Annotated[tuple[str, ...], NoDecode] = ()
+    kakao_oauth_timeout_seconds: float = 3.0
+    google_oauth_client_id: SecretStr | None = None
+    google_oauth_client_secret: SecretStr | None = None
+    google_oauth_redirect_uris: Annotated[tuple[str, ...], NoDecode] = ()
+    google_oauth_timeout_seconds: float = 3.0
+    social_oauth_rate_limit_hmac_key: SecretStr | None = None
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
     birthdate_kms_key_id: str | None = None
@@ -50,7 +59,13 @@ class Settings(BaseSettings):
     exercise_media_s3_region: str | None = None
     exercise_media_s3_prefix: str = "videos/"
     exercise_media_url_expiry_seconds: int = 300
+    profile_image_s3_prefix: str = "profile-images/"
+    profile_image_url_expiry_seconds: int = 300
     consent_policy_version: str | None = None
+    # The terms revision users are asked to accept. Unset means the deployment has
+    # not approved one yet, and onboarding keeps accepting whatever a client
+    # claims, which is the behaviour that shipped before this setting existed.
+    terms_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
     llm_provider_code: Literal["NONE", "OPENAI"] = "NONE"
@@ -71,7 +86,18 @@ class Settings(BaseSettings):
     llm_agents_timeout_seconds: float = 5.0
     llm_agents_max_attempts: int = 2
     llm_agents_max_output_tokens: int = 1200
+    # Structured planning needs bounded deliberation more than open-ended prose.
+    # Pinning this removes provider-default drift and limits serial Training +
+    # Coordinator latency while the deterministic validator remains authoritative.
+    llm_agents_reasoning_effort: Literal["low", "medium", "high"] = "low"
     llm_agents_approved_model_codes: Annotated[tuple[str, ...], NoDecode] = ()
+    # Export the provider call itself -- prompt and model output -- to LangSmith.
+    # Off by default and separately approved (ADR-0020). The prompt carries the
+    # same identifier-free machine projection the provider already receives, so
+    # this adds a second third-party processor for it rather than a new class of
+    # data. A LangSmith key must also be present, so enabling this alone still
+    # exports nothing.
+    llm_agents_tracing_enabled: bool = False
     # V3 graph construction is separately gated so incomplete provider/domain
     # wiring cannot alter the existing V1/V2 production decision path.
     v3_langgraph_enabled: bool = False
@@ -179,11 +205,25 @@ class Settings(BaseSettings):
             raise ValueError("EXERCISE_MEDIA_S3_PREFIX must remain videos/")
         return value
 
+    @field_validator("profile_image_s3_prefix")
+    @classmethod
+    def validate_profile_image_prefix(cls, value: str) -> str:
+        if value != "profile-images/":
+            raise ValueError("PROFILE_IMAGE_S3_PREFIX must remain profile-images/")
+        return value
+
     @field_validator("exercise_media_url_expiry_seconds")
     @classmethod
     def validate_exercise_media_url_expiry(cls, value: int) -> int:
         if not 60 <= value <= 900:
             raise ValueError("EXERCISE_MEDIA_URL_EXPIRY_SECONDS must be within [60, 900]")
+        return value
+
+    @field_validator("profile_image_url_expiry_seconds")
+    @classmethod
+    def validate_profile_image_url_expiry(cls, value: int) -> int:
+        if not 60 <= value <= 900:
+            raise ValueError("PROFILE_IMAGE_URL_EXPIRY_SECONDS must be within [60, 900]")
         return value
 
     @field_validator("firebase_clock_skew_seconds")
@@ -200,6 +240,27 @@ class Settings(BaseSettings):
     def normalize_openai_api_key(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator(
+        "kakao_rest_api_key",
+        "kakao_client_secret",
+        "google_oauth_client_id",
+        "google_oauth_client_secret",
+        "social_oauth_rate_limit_hmac_key",
+        mode="before",
+    )
+    @classmethod
+    def normalize_social_oauth_secret(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("kakao_oauth_timeout_seconds", "google_oauth_timeout_seconds")
+    @classmethod
+    def validate_social_oauth_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 10:
+            raise ValueError("social OAuth timeout must be within (0, 10]")
         return value
 
     @field_validator("qdrant_api_key", mode="before")
@@ -333,7 +394,7 @@ class Settings(BaseSettings):
             raise ValueError("LLM_MAX_OUTPUT_TOKENS must be within (0, 2000]")
         return value
 
-    @field_validator("consent_policy_version", mode="before")
+    @field_validator("consent_policy_version", "terms_version", mode="before")
     @classmethod
     def normalize_optional_version(cls, value: object) -> object:
         if isinstance(value, str):
@@ -352,6 +413,8 @@ class Settings(BaseSettings):
         "onboarding_primary_goal_codes",
         "onboarding_experience_level_codes",
         "cors_allowed_origins",
+        "kakao_redirect_uris",
+        "google_oauth_redirect_uris",
         "llm_agents_approved_model_codes",
         mode="before",
     )
@@ -381,6 +444,18 @@ class Settings(BaseSettings):
         if any(origin.strip() == "*" for origin in value):
             raise ValueError("CORS_ALLOWED_ORIGINS must list exact origins, not '*'")
         return value
+
+    @field_validator("kakao_redirect_uris", "google_oauth_redirect_uris")
+    @classmethod
+    def validate_social_oauth_redirect_uris(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(item.strip() for item in value)
+        if len(normalized) != len(set(normalized)) or any(not item for item in normalized):
+            raise ValueError("social OAuth redirect URIs must be unique and non-empty")
+        for uri in normalized:
+            parsed = urlsplit(uri)
+            if parsed.scheme not in {"https", "http"} or not parsed.netloc or parsed.fragment:
+                raise ValueError("social OAuth redirect URIs must be absolute callbacks")
+        return normalized
 
     @field_validator("llm_agents_approved_model_codes")
     @classmethod

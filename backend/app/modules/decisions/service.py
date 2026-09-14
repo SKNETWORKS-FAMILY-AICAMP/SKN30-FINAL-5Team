@@ -18,6 +18,7 @@ from backend.app.domain.agents.coordinator import (
 )
 from backend.app.domain.agents.runner import ProposalAgent, ProposalRequest, run_required_agents
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION, DurationAdjustmentSourceCode
+from backend.app.domain.rules.recovery import RecoveryLevelCode, recovery_level
 from backend.app.domain.rules.safety import (
     SAFETY_ENGINE_VERSION,
     AdverseReactionCode,
@@ -94,7 +95,11 @@ def _safety_context(context: DecisionContext) -> SafetyContext:
         adverse_reaction_codes=tuple(
             AdverseReactionCode(code) for code in context.adverse_reaction_codes
         ),
-        attention_area_codes=tuple(BodyAreaCode(code) for code in context.attention_area_codes),
+        # Only pains/discomforts submitted in this Daily Check-in may constrain
+        # safety. Profile attention areas are UI defaults and are intentionally
+        # excluded from the decision input.
+        attention_area_codes=(),
+        red_flag_present=context.red_flag_present,
     )
 
 
@@ -145,6 +150,7 @@ def _choose_alternative(
     safety_rule_set: SafetyRuleSet | None,
 ) -> AlternativeItemData | None:
     requirements = _pain_alternative_requirements(context)
+    equipment_options = tuple(option for option in options if option.reason_code == "EQUIPMENT")
     if requirements:
         pain_options = tuple(
             option
@@ -170,12 +176,23 @@ def _choose_alternative(
             # it is not a pain Alternative and is never used to satisfy a pain
             # area requirement.
             candidates = (
-                tuple(option for option in options if option.pain_discomfort_area_code is None)
+                equipment_options
+                + tuple(
+                    option
+                    for option in options
+                    if option.reason_code != "EQUIPMENT"
+                    and option.pain_discomfort_area_code is None
+                )
                 if source_id in excluded
-                else ()
+                else equipment_options
             )
     else:
-        candidates = tuple(options) if source_id in excluded else ()
+        candidates = (
+            equipment_options
+            + tuple(option for option in options if option.reason_code != "EQUIPMENT")
+            if source_id in excluded
+            else equipment_options
+        )
 
     for option in sorted(candidates, key=lambda value: value.evidence_reference_code):
         evaluation = evaluate_safety(
@@ -198,7 +215,20 @@ def _build_adjusted_candidates(
     base_evaluation: SafetyEvaluation,
 ) -> tuple[AdjustedCandidateData, ...]:
     adjusted: list[AdjustedCandidateData] = []
-    if base_evaluation.caution_exercise_codes or assembly.context.fatigue_level_code == "MODERATE":
+    recovery = recovery_level(
+        sleep_minutes=assembly.context.sleep_minutes,
+        fatigue_level_code=assembly.context.fatigue_level_code,
+    )
+    has_moderate_pain = any(severity == "MODERATE" for _, _, severity, _ in assembly.context.pains)
+    force_low_intensity = has_moderate_pain or recovery in {
+        RecoveryLevelCode.LIGHT,
+        RecoveryLevelCode.VERY_LIGHT,
+    }
+    if (
+        base_evaluation.caution_exercise_codes
+        or assembly.context.fatigue_level_code == "MODERATE"
+        or force_low_intensity
+    ):
         candidate_id = f"{assembly.candidate.candidate_id}-approved-downshift"
         candidate = assembly.candidate.model_copy(
             update={
@@ -229,6 +259,11 @@ def _build_adjusted_candidates(
     source_ids = {str(item.exercise_id) for item in assembly.items}
     for source_id in sorted(source_ids):
         options = options_by_source.get(source_id, ())
+        # A Safety BLOCKED result has no eligible base-plan exercise.  An
+        # equipment relation cannot turn that into an exercise fallback; only
+        # a separately approved safety alternative may resolve the exclusion.
+        if base_evaluation.status_code is SafetyStatusCode.BLOCKED:
+            options = tuple(option for option in options if option.reason_code != "EQUIPMENT")
         selected = _choose_alternative(
             source_id=source_id,
             options=options,
@@ -258,7 +293,8 @@ def _build_adjusted_candidates(
             display_name=alternatives_by_source[str(item.exercise_id)].item.display_name,
             intensity_code=(
                 "LOW"
-                if alternatives_by_source[str(item.exercise_id)].item.intensity_code == "LOW"
+                if force_low_intensity
+                or alternatives_by_source[str(item.exercise_id)].item.intensity_code == "LOW"
                 else item.intensity_code
             ),
         )

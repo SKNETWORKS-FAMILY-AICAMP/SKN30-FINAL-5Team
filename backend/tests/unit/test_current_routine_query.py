@@ -44,3 +44,29 @@ def test_current_routine_query_requires_the_current_production_catalog() -> None
     assert "catalog_versions.status_interpretation_code = 'PRODUCTION_APPROVED'" in sql
     assert "catalog_versions.production_eligible IS true" in sql
     assert "catalog_versions.activated_at IS NOT NULL" in sql
+
+
+def test_profile_compatibility_query_checks_goal_and_duration_for_one_user() -> None:
+    session = _CapturingSession()
+    user_id = uuid4()
+
+    archived = RoutineRepository().archive_routines_incompatible_with_profile(
+        session,  # type: ignore[arg-type]
+        user_id,
+        primary_goal_code="MUSCLE_GAIN",
+        requested_duration_minutes=30,
+    )
+
+    assert archived == 0
+    assert session.statement is not None
+    sql = str(
+        session.statement.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+    assert f"routines.user_id = '{user_id}'" in sql
+    assert "routines.status_code = 'ACTIVE'" in sql
+    assert "routines.goal_code != 'MUSCLE_GAIN'" in sql
+    assert "routine_days.requested_duration_minutes != 30" in sql
+    assert " OR " in sql

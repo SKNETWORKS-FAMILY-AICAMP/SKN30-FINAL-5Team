@@ -1,4 +1,5 @@
 from backend.app.modules.profiles.age import (
+    MAXIMUM_AGE_YEARS,
     MINIMUM_AGE_YEARS,
     AgeEligibility,
     AgeRequirementNotMetError,
@@ -9,6 +10,7 @@ from backend.app.modules.profiles.age import (
 
 __all__ = [
     "MINIMUM_AGE_YEARS",
+    "MAXIMUM_AGE_YEARS",
     "AgeEligibility",
     "AgeRequirementNotMetError",
     "InvalidBirthdateError",

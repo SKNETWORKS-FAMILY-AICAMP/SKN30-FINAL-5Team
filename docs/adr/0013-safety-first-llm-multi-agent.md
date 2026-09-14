@@ -209,7 +209,7 @@ hidden reasoning과 prompt 원문은 저장하지 않는다. 공개 가능 summa
 
 ## 결과와 영향
 
-- V3가 production 전환되면 SafetyAgent proposal은 제거되고 결정적 SafetyPolicyEngine record로 대체된다.
+- 현재 V3에서는 SafetyAgent proposal 대신 결정적 SafetyPolicyEngine record를 사용한다.
 - 전문 Agent 수는 세 개이며 Coordinator는 별도 LLM Agent다.
 - LLM failure가 더 이상 항상 동일 plan을 뜻하지 않으며 결정적 fallback 사용 여부가 decision 결과에
   포함된다. Safety·시간·목표 hard constraint는 fallback에서도 동일하다.
@@ -220,7 +220,7 @@ hidden reasoning과 prompt 원문은 저장하지 않는다. 공개 가능 summa
 ## 보안·개인정보·호환성 영향
 
 - LLM payload는 식별자를 제거한 code, 승인 exercise metadata와 최소 요약으로 제한한다.
-- raw health/wearable/calendar text, 위치 경로, 생년월일·나이, 이름·이메일을 전송하지 않는다.
+- raw health/wearable text, 위치 경로, 생년월일·나이, 이름·이메일을 전송하지 않는다.
 - 사용자 범위 DB key는 loader 내부에만 있고 LLM input이나 Tool argument가 아니다.
 - V1/V2 decision과 기존 `DecisionResponse`는 계속 조회 가능하다.
 - historical `SAFETY` AgentSummary는 보존하되 V3 safety summary는 policy engine projection임을 API

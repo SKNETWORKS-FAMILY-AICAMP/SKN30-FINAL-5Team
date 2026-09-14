@@ -1,0 +1,788 @@
+{
+  "blind": true,
+  "scores": [
+    {
+      "case_id": "SQ-HELD-001",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-002",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-003",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-004",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-005",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-006",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-007",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-008",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-009",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-010",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-011",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-012",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-013",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-014",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-015",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-016",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-017",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-018",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-019",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-020",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.8333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-021",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-022",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-023",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-024",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-025",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-026",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-031",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-032",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-HELD-033",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "mock-structural-judge-v1",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "구조 기반 모의 채점",
+        "EXPLANATION_QUALITY": "구조 기반 모의 채점",
+        "FEASIBILITY": "구조 기반 모의 채점",
+        "GROUNDEDNESS": "구조 기반 모의 채점",
+        "OVERALL_QUALITY": "구조 기반 모의 채점",
+        "PERSONALIZATION": "구조 기반 모의 채점"
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    }
+  ]
+}

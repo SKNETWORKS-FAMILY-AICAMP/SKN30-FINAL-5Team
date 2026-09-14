@@ -18,9 +18,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
-import type { WeekResponse, WorkoutSessionLogSummary } from '../../api/types';
+import { isApiError, messageForError } from '../../api/errors';
+import type {
+  BananaSpendRequest,
+  BananaWalletResponse,
+  WeekResponse,
+  WorkoutSessionLogSummary,
+} from '../../api/types';
 import {
   localDateString,
+  useAsyncAction,
   useAsyncData,
   weekStartString,
 } from '../../api/useAsync';
@@ -28,6 +35,9 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
+import { KikkiMergeGameScreen } from '../kikkiMerge/KikkiMergeGameScreen';
+import { HelkkiPassScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
@@ -38,14 +48,16 @@ import {
 } from './houseArtSlots';
 import {
   buyItem,
-  claimDailyGift,
   feedMascot,
   grantWorkoutRewards,
+  miniGameRewardClaimedToday,
   petMascot,
   placeHouseItem,
+  recordMiniGameReward,
   registerVisit,
   restingPose,
   selectBackground,
+  settleHouseDay,
   buildHouseView,
   type HouseBackgroundId,
   type HouseItemId,
@@ -53,6 +65,10 @@ import {
   type HousePose,
   type HouseState,
 } from './houseModel';
+import {
+  IDLE_MINI_GAME_REWARD_STATE,
+  type MiniGameRewardState,
+} from './miniGameReward';
 import {
   createHouseStore,
   initialHouseState,
@@ -62,21 +78,33 @@ import {
 /** How long ordinary reactions are held before the mascot settles back. */
 const POSE_HOLD_MS = 2600;
 
+function spendErrorMessage(error: unknown, fallback: string | null) {
+  if (isApiError(error) && error.code === 'INSUFFICIENT_BANANA_BALANCE') {
+    return '바나나 잔액이 부족해요. 지갑을 확인한 뒤 다시 시도해주세요.';
+  }
+  return fallback;
+}
+
 /** Feeding stays visible about three seconds longer than it did originally. */
 export const FEED_POSE_HOLD_MS = POSE_HOLD_MS + 3000;
 
 type HouseRemote = {
   week: WeekResponse | null;
   sessions: WorkoutSessionLogSummary[];
+  wallet: BananaWalletResponse | null;
+  walletError: string | null;
 };
 
 export function MascotHouseScreen({
+  accountId,
   api,
   now,
   onNavigate,
   store,
   timeZone,
 }: {
+  /** Partitions stored house state so a second account starts its own house. */
+  accountId: string;
   api: Api;
   nickname: string;
   /** Injected by tests so the local date is not the wall clock. */
@@ -90,21 +118,33 @@ export function MascotHouseScreen({
   const localDate = localDateString(referenceNow, timeZone);
   const weekStart = weekStartString(referenceNow, timeZone);
 
-  const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
+  const houseStore = useMemo(
+    () => store ?? createHouseStore(accountId),
+    [accountId, store],
+  );
   const [houseState, setHouseState] = useState<HouseState | null>(null);
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
-  const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
-    null,
-  );
+  const [activeScreen, setActiveScreen] = useState<
+    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'pass' } | null
+  >(null);
+  const [miniGameRewardState, setMiniGameRewardState] =
+    useState<MiniGameRewardState>(IDLE_MINI_GAME_REWARD_STATE);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The latest house state, readable from an async callback without a stale closure. */
   const liveState = useRef<HouseState | null>(null);
+  const serverBalance = useRef(0);
+  /** Serializes wallet mutations so an older response cannot replace a newer balance. */
+  const walletMutationQueue = useRef<Promise<void>>(Promise.resolve());
+  /** Prevents a second game from racing the first bonus claim for the same day. */
+  const miniGameClaimInFlightFor = useRef<string | null>(null);
+  /** Preserves the server's stable code after useAsyncAction presents its copy. */
+  const miniGameClaimError = useRef<unknown>(null);
 
-  const { state: remote } = useAsyncData<HouseRemote>(
+  const { setData: setRemoteData, state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
       // week-aware mascot copy degrades locally instead of failing the screen.
@@ -118,9 +158,17 @@ export function MascotHouseScreen({
         )
         .then((page) => page.items)
         .catch(() => []);
+      const rewards = await api
+        .getRewards(signal)
+        .then((wallet) => ({ wallet, walletError: null }))
+        .catch((error: unknown) => ({
+          wallet: null,
+          walletError: messageForError(error),
+        }));
       return {
         week: week === 'failed' ? null : week,
         sessions,
+        ...rewards,
       };
     },
     [api, localDate, weekStart],
@@ -133,13 +181,41 @@ export function MascotHouseScreen({
     [],
   );
 
+  const sessions = remote.status === 'ready' ? remote.data.sessions : null;
+  const walletBalance =
+    remote.status === 'ready' ? (remote.data.wallet?.balance ?? 0) : 0;
+
+  useEffect(() => {
+    serverBalance.current = walletBalance;
+  }, [walletBalance]);
+
+  /** Official completion, read off the server's status — never inferred here. */
+  const workoutCompletedToday = useMemo(
+    () =>
+      (sessions ?? []).some(
+        (session) =>
+          session.status_code === 'COMPLETED' &&
+          session.local_date === localDate,
+      ),
+    [localDate, sessions],
+  );
+
   const persist = useCallback(
     (next: HouseState) => {
-      liveState.current = next;
-      setHouseState(next);
-      void houseStore.write(next);
+      // Every write settles the day. Any action on this screen can be the one
+      // that finishes a quest, and a single seam means no caller has to
+      // remember to pay it. Settling is idempotent within a day, so writing
+      // twice never grants twice.
+      const settled = settleHouseDay(next, {
+        today: localDate,
+        workoutCompletedToday,
+      }).state;
+      const serverBacked = { ...settled, bananas: serverBalance.current };
+      liveState.current = serverBacked;
+      setHouseState(serverBacked);
+      void houseStore.write(serverBacked);
     },
-    [houseStore],
+    [houseStore, localDate, workoutCompletedToday],
   );
 
   const react = useCallback(
@@ -160,8 +236,71 @@ export function MascotHouseScreen({
     },
     [],
   );
+  const spendRequest = useCallback(
+    (body: BananaSpendRequest) => api.spendBananas(body),
+    [api],
+  );
+  const spend = useAsyncAction(spendRequest);
+  const claimBondingRequest = useCallback(() => api.claimBondingQuest(), [api]);
+  const claimBonding = useAsyncAction(claimBondingRequest);
+  const claimMiniGameRequest = useCallback(
+    async (score: number) => {
+      miniGameClaimError.current = null;
+      try {
+        return await api.claimMiniGameReward({ score });
+      } catch (error) {
+        miniGameClaimError.current = error;
+        throw error;
+      }
+    },
+    [api],
+  );
+  const claimMiniGame = useAsyncAction(claimMiniGameRequest);
+  const claimGiftRequest = useCallback(() => api.claimDailyReward(), [api]);
+  const claimGift = useAsyncAction(claimGiftRequest);
+  const walletMutationPending =
+    spend.pending ||
+    claimGift.pending ||
+    claimBonding.pending ||
+    claimMiniGame.pending;
+  const runWalletMutation = useCallback(
+    <T,>(request: () => Promise<T | undefined>): Promise<T | undefined> => {
+      // Dropping a request while another payout was in flight made a finished
+      // mini-game appear to pay nothing (most often while the automatic
+      // bonding quest was settling). Queue every wallet intent instead; each
+      // endpoint still owns its own idempotency rule.
+      const operation = walletMutationQueue.current.then(request);
+      walletMutationQueue.current = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
+    },
+    [],
+  );
 
-  const sessions = remote.status === 'ready' ? remote.data.sessions : null;
+  // The bonding quest is settled locally, but the wallet is the only balance the
+  // app shows, so the payout has to come from the server. The house used to add
+  // it to its own stored number, which every write then overwrote with the
+  // wallet balance -- the quest looked complete and paid nothing.
+  const bondingClaimedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (houseState === null) return;
+    if (houseState.questLocalDate !== localDate) return;
+    if (!houseState.paidQuestIds.includes('pet')) return;
+    if (bondingClaimedFor.current === localDate) return;
+    bondingClaimedFor.current = localDate;
+    void runWalletMutation(() => claimBonding.run()).then((result) => {
+      if (!result) return;
+      serverBalance.current = result.balance;
+      if (remote.status !== 'ready') return;
+      setRemoteData({
+        ...remote.data,
+        wallet: { balance: result.balance, daily_reward: result.daily_reward },
+        walletError: null,
+      });
+    });
+  }, [houseState, localDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arrival: read the stored house once, then record the visit and pay out any
   // workout it has not paid for yet.
@@ -192,12 +331,110 @@ export function MascotHouseScreen({
     };
   }, [houseStore, localDate, persist, sessions]);
 
+  const settleMiniGameReward = (gameId: HouseMiniGameId, score: number) => {
+    const base = liveState.current ?? houseState;
+    const alreadyClaimedLocally =
+      base !== null && miniGameRewardClaimedToday(base, localDate);
+    if (miniGameClaimInFlightFor.current === localDate) {
+      setMiniGameRewardState({ status: 'pending' });
+      return;
+    }
+
+    miniGameClaimInFlightFor.current = localDate;
+    setMiniGameRewardState({ status: 'pending' });
+    // Only the score leaves the game. The server owns the payout, score cap,
+    // and cross-device once-a-day enforcement.
+    void runWalletMutation(() => claimMiniGame.run(score)).then((result) => {
+      miniGameClaimInFlightFor.current = null;
+      if (!result) {
+        if (
+          isApiError(miniGameClaimError.current) &&
+          miniGameClaimError.current.code === 'INVALID_BANANA_SPEND'
+        ) {
+          const latest = liveState.current ?? houseState;
+          if (latest !== null) {
+            persist(recordMiniGameReward(latest, gameId, localDate));
+          }
+          setMiniGameRewardState({ status: 'claimed_today' });
+          return;
+        }
+        setMiniGameRewardState({
+          status: alreadyClaimedLocally ? 'claimed_today' : 'unavailable',
+        });
+        return;
+      }
+      serverBalance.current = result.balance;
+      if (remote.status === 'ready') {
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+      }
+      const latest = liveState.current ?? houseState ?? initialHouseState();
+      persist(
+        recordMiniGameReward(
+          { ...latest, bananas: result.balance },
+          gameId,
+          localDate,
+        ),
+      );
+      setMiniGameRewardState(
+        alreadyClaimedLocally
+          ? { status: 'claimed_today' }
+          : { status: 'settled', amount: result.transaction.amount },
+      );
+    });
+  };
+
   const tabBar = (
     <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
   );
 
-  if (activeMiniGame === 'banana_catch') {
-    return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'banana_catch'
+  ) {
+    return (
+      <BananaCatchGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => settleMiniGameReward('banana_catch', score)}
+        rewardState={miniGameRewardState}
+      />
+    );
+  }
+
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'kikki_runner'
+  ) {
+    return (
+      <KikkiRunnerGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => settleMiniGameReward('kikki_runner', score)}
+        rewardState={miniGameRewardState}
+      />
+    );
+  }
+
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'kikki_merge'
+  ) {
+    return (
+      <KikkiMergeGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => settleMiniGameReward('kikki_merge', score)}
+        rewardState={miniGameRewardState}
+      />
+    );
+  }
+
+  if (activeScreen?.kind === 'pass') {
+    return <HelkkiPassScreen onBack={() => setActiveScreen(null)} />;
   }
 
   if (remote.status !== 'ready' || houseState === null) {
@@ -208,34 +445,97 @@ export function MascotHouseScreen({
     );
   }
 
+  const dailyReward = remote.data.wallet?.daily_reward ?? null;
   const view = buildHouseView({
-    state: houseState,
+    state: { ...houseState, bananas: walletBalance },
     week: remote.data.week,
     sessions: remote.data.sessions,
     weekStart,
     today: localDate,
+    dailyGift:
+      dailyReward === null
+        ? null
+        : {
+            amount: dailyReward.reward_amount,
+            claimable: dailyReward.is_claimable && !dailyReward.is_claimed,
+          },
   });
 
   return (
     <MascotHouseContent
+      actionError={
+        spendErrorMessage(spend.lastError, spend.error) ??
+        claimGift.error ??
+        (remote.status === 'ready' ? remote.data.walletError : null)
+      }
       footer={tabBar}
-      onBuyItem={(itemId: HouseItemId) => {
-        const next = buyItem(houseState, itemId);
+      onBuyItem={async (itemId: HouseItemId) => {
+        const current = {
+          ...(liveState.current ?? houseState),
+          bananas: serverBalance.current,
+        };
+        const next = buyItem(current, itemId);
         if (next === null) return false;
-        persist(next);
+        const result = await runWalletMutation(() =>
+          spend.run({
+            action_code: 'PURCHASE_HOUSE_ITEM',
+            house_item_code: itemId,
+          }),
+        );
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist({ ...next, bananas: result.balance });
         react('happy');
         return true;
       }}
-      onClaimGift={() => {
-        const claimed = claimDailyGift(houseState, localDate);
-        if (claimed === null) return;
-        persist(claimed.state);
+      giftPending={walletMutationPending}
+      onClaimDailyGift={async () => {
+        // The server owns "once a day": it answers with the same wallet on a
+        // repeat, so nothing here has to remember whether today was paid.
+        const result = await runWalletMutation(() => claimGift.run());
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist(liveState.current ?? houseState);
         react('happy');
+        return true;
       }}
-      onFeed={() => {
-        const next = feedMascot(houseState, localDate);
+      onFeed={async () => {
+        const current = {
+          ...(liveState.current ?? houseState),
+          bananas: serverBalance.current,
+        };
+        const next = feedMascot(current, localDate);
         if (next === null) return false;
-        persist(next);
+        const result = await runWalletMutation(() =>
+          spend.run({ action_code: 'FEED_MASCOT' }),
+        );
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist({ ...next, bananas: result.balance });
         const bananaArt = randomHouseBananaPoseArt(lastBananaArt.current);
         const regularArt = randomHouseRegularPoseArt(lastRegularArt.current);
         lastBananaArt.current = bananaArt.source;
@@ -243,10 +543,11 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
+      onOpenPass={() => setActiveScreen({ kind: 'pass' })}
       onPet={() => {
-        const next = petMascot(houseState, localDate);
-        if (next === null) return false;
-        persist(next);
+        // Free and unlimited, so there is no failure case: the touch always
+        // lands, and only the intimacy it pays is capped.
+        persist(petMascot(liveState.current ?? houseState, localDate));
         const visibleArt =
           (reactionPose === null ? settledArt : reactionArt) ??
           housePoseArt[reactionPose ?? restingPose(view)];
@@ -255,7 +556,16 @@ export function MascotHouseScreen({
         react('petted', pettedArt);
         return true;
       }}
-      onPlayGame={setActiveMiniGame}
+      onPlayGame={(gameId) => {
+        setMiniGameRewardState(
+          miniGameClaimInFlightFor.current === localDate
+            ? { status: 'pending' }
+            : view.miniGameRewardClaimedToday
+              ? { status: 'claimed_today' }
+              : IDLE_MINI_GAME_REWARD_STATE,
+        );
+        setActiveScreen({ kind: 'mini-game', gameId });
+      }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
         const base = liveState.current ?? houseState;
         const next = placeHouseItem(base, itemId, placement);
@@ -270,6 +580,7 @@ export function MascotHouseScreen({
         (reactionPose === null ? settledArt : reactionArt) ?? undefined
       }
       pose={reactionPose ?? restingPose(view)}
+      spendPending={walletMutationPending}
       view={view}
     />
   );

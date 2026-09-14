@@ -1,3 +1,4 @@
+import { RoutineSections } from '../../components/RoutineSections';
 import { StatusBar } from 'expo-status-bar';
 import {
   Image,
@@ -9,8 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { trainingTypeLabel } from '../../api/labels';
 import type { RoutineResponse, WeekResponse } from '../../api/types';
+import { routineTitleFromDay } from '../../api/workoutPlan';
 import { colors } from '../../components/theme';
 import { fontFamilies, useAuthFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
@@ -36,7 +37,6 @@ type MapHomeScreenProps = {
 
 export function MapHomeScreen({
   onNavigateTab,
-  onSelectRest,
   onStartWorkout,
   routine = null,
   week = null,
@@ -59,7 +59,6 @@ export function MapHomeScreen({
         </View>
 
         <RoutinePanel
-          onSelectRest={onSelectRest}
           onStartWorkout={onStartWorkout}
           pixelStyle={pixelStyle}
           routine={routine}
@@ -116,8 +115,9 @@ function RoutinePanel({
           {day ? (
             <>
               <Text style={[styles.routineSummary, pixelStyle]}>
-                {trainingTypeLabel(day.training_type_code)} ·{' '}
-                {day.requested_duration_minutes}분 · 블록 {day.items.length}개
+                {routineTitleFromDay(day)} {' · '}
+                {day.requested_duration_minutes}분 {' · '}블록{' '}
+                {day.items.length}개
               </Text>
               <ScrollView
                 contentContainerStyle={styles.routineItems}
@@ -125,24 +125,28 @@ function RoutinePanel({
                 showsVerticalScrollIndicator
                 style={styles.routineItemsViewport}
               >
-                {day.items.map((item) => (
-                  <View key={item.id} style={styles.routineItemRow}>
-                    <Text style={[styles.routineItemName, pixelStyle]}>
-                      {item.exercise_name}
-                    </Text>
-                    <Text style={[styles.routineItemMeta, pixelStyle]}>
-                      {item.sets}세트
-                      {item.reps === null
-                        ? ` · ${item.work_seconds_per_set ?? 0}초`
-                        : ` × ${item.reps}회`}
-                    </Text>
-                  </View>
-                ))}
+                <RoutineSections
+                  items={[...day.items].sort((a, b) => a.sequence - b.sequence)}
+                  getPhase={(item) => item.phase_code}
+                  renderItem={(item) => (
+                    <View key={item.id} style={styles.routineItemRow}>
+                      <Text style={[styles.routineItemName, pixelStyle]}>
+                        {item.exercise_name}
+                      </Text>
+                      <Text style={[styles.routineItemMeta, pixelStyle]}>
+                        {item.sets}세트
+                        {item.reps === null
+                          ? ` · ${item.work_seconds_per_set ?? 0}초`
+                          : ` × ${item.reps}회`}
+                      </Text>
+                    </View>
+                  )}
+                />
               </ScrollView>
             </>
           ) : (
             <Text style={[styles.emptyRoutineCopy, pixelStyle]}>
-              아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 만들어 주세요.
+              아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 다시 불러와 주세요.
             </Text>
           )}
         </View>

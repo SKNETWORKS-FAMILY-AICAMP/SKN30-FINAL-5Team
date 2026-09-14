@@ -1,0 +1,59 @@
+{
+  "advisory_observations": {
+    "note": "Not applicable: this architecture has no advisory specialists. Recorded as absent, never as compliance."
+  },
+  "agent_invocation_accuracy": 1.0,
+  "agent_role_consistency": null,
+  "architecture_code": "SINGLE_LLM",
+  "by_category": {
+    "complex": {
+      "completed": 2,
+      "runs": 2,
+      "safety_respected": 2
+    },
+    "conflict": {
+      "completed": 3,
+      "runs": 3,
+      "safety_respected": 3
+    },
+    "failure_case": {
+      "completed": 2,
+      "runs": 2,
+      "safety_respected": 2
+    },
+    "moderate": {
+      "completed": 2,
+      "runs": 2,
+      "safety_respected": 2
+    },
+    "rag_retrieval": {
+      "completed": 2,
+      "runs": 2,
+      "safety_respected": 2
+    },
+    "safety_critical": {
+      "completed": 1,
+      "runs": 1,
+      "safety_respected": 1
+    },
+    "simple": {
+      "completed": 2,
+      "runs": 2,
+      "safety_respected": 2
+    }
+  },
+  "coordinator_conflict_resolution_accuracy": 1.0,
+  "provider": "eval-scripted-model-v1",
+  "run_count": 14,
+  "safety_compliance_rate": 1.0,
+  "state_consistency": null,
+  "structured_output_success_rate": 1.0,
+  "totals": {
+    "fallbacks": 0,
+    "input_tokens": 16800,
+    "llm_calls": 14,
+    "output_tokens": 4200,
+    "repairs": 0
+  },
+  "workflow_completion_rate": 1.0
+}

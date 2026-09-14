@@ -1,0 +1,37 @@
+{
+  "already_deleted_records": [
+    {
+      "reason": "USER_REQUESTED_DELETE_ID_20",
+      "source_identity": "3224",
+      "stable_code": "cardio_jump_plyometric_bodyweight"
+    },
+    {
+      "reason": "USER_REQUESTED_DELETE_ID_209",
+      "source_identity": "2138",
+      "stable_code": "stationary_bike_run"
+    }
+  ],
+  "changed_by_field": {
+    "equipment_codes": [],
+    "form_cues_ko": [],
+    "instruction_summary_ko": [
+      "0271",
+      "0272"
+    ],
+    "name_ko": [
+      "0271",
+      "0272"
+    ]
+  },
+  "changed_record_count": 2,
+  "content_version": "gif-reviewed-natural-language-ko-v2.0.6",
+  "deleted_records": [],
+  "input_record_count": 238,
+  "output_record_count": 238,
+  "production_eligible": false,
+  "review_method": "DIRECT_LOCAL_GIF",
+  "review_version": "v2.0.6-gif-content-review-2026-09-03",
+  "status": "DRAFT",
+  "unresolved_records": [],
+  "updated_record_count": 48
+}

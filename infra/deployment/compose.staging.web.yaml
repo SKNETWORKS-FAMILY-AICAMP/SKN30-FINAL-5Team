@@ -1,0 +1,16 @@
+services:
+  api:
+    environment:
+      # The deployed Expo bundle calls WEB_DOMAIN from APP_DOMAIN, so this
+      # exact origin is required. A wildcard remains forbidden by Settings.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set exact browser origins}
+
+  caddy:
+    environment:
+      WEB_DOMAIN: ${WEB_DOMAIN:?set landing domain}
+      APP_DOMAIN: ${APP_DOMAIN:?set app domain}
+      APEX_DOMAIN: ${APEX_DOMAIN:?set apex redirect domain}
+    volumes:
+      - ./Caddyfile.web:/etc/caddy/Caddyfile:ro
+      - ${LANDING_SITE_ROOT:?set landing site root}:/srv/landing:ro
+      - ${WEB_APP_ROOT:?set Expo web export root}:/srv/app:ro

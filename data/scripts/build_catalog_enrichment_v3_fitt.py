@@ -44,8 +44,9 @@ COMPOUND_TEMPLATE_BY_PATTERN = {
 }
 DIRECT_TEMPLATE_BY_PATTERN = {
     "MOBILITY": "FITT-MOBILITY-V1",
-    "CARDIO": "FITT-CARDIO-V1",
+    "CARDIO": "FITT-CARDIO-CONTINUOUS-V1",
 }
+INTERVAL_CARDIO_EXERCISE_IDS = {"NEX-000158", "NEX-000164", "NEX-000168"}
 TIMING_MODE_BY_TRAINING_CATEGORY = {
     "COMPOUND_STRENGTH": "REPS",
     "ISOLATION_STRENGTH": "REPS",
@@ -186,6 +187,13 @@ def choose_template(exercise_id: str, pattern: str) -> tuple[str, str, str]:
                 "좌우를 구분하는 동적 코어 운동에 REPS_PER_SIDE 단위 적용.",
             )
         return "FITT-CORE-DYNAMIC-V1", "NONE", "동적 코어 운동에 REPS 단위 템플릿 적용."
+
+    if pattern == "CARDIO" and exercise_id in INTERVAL_CARDIO_EXERCISE_IDS:
+        return (
+            "FITT-CARDIO-INTERVAL-V1",
+            "NONE",
+            "짧은 반복 수행이 필요한 인터벌 유산소 템플릿 적용.",
+        )
 
     if pattern in DIRECT_TEMPLATE_BY_PATTERN:
         return DIRECT_TEMPLATE_BY_PATTERN[pattern], "NONE", "패턴 전용 FITT 템플릿 적용."

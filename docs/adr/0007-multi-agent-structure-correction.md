@@ -1,6 +1,6 @@
 # ADR-0007: 멀티 에이전트 구조 정정
 
-- 상태: ACCEPTED
+- 상태: SUPERSEDED — ADR-0015 및 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`가 현재 구현 기준
 - 날짜: 2026-08-12
 - 소유자: 제품·개발 공동
 - 승인자: PM + 개발팀장

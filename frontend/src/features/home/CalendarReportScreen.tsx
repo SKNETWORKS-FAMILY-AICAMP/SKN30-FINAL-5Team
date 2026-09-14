@@ -1,3 +1,7 @@
+import {
+  PartialStatusIcon,
+  RestStatusIcon,
+} from '../../components/StatusIcons';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -17,13 +21,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-import { Card } from '../../components/primitives';
+import { Card, GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
   CALENDAR_DAY_VISUALS,
   CALENDAR_MONTH_STATS,
+  CALENDAR_STATUS_ORDER,
   CALENDAR_WEEK_CHIPS,
   CALENDAR_WEEKDAYS,
   CALENDAR_WEEKS,
@@ -207,21 +212,19 @@ function CalendarReportContent({
           </View>
         </Card>
 
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>아이콘 안내</Text>
-          <View style={styles.legendRow}>
-            {(['done', 'partial', 'miss', 'rest'] as const).map((status) => (
-              <View key={status} style={styles.legendItem}>
-                <CalendarStatusMark
-                  status={status}
-                  testID={`calendar-legend-${status}`}
-                />
-                <Text style={styles.legendLabel}>
-                  {CALENDAR_DAY_VISUALS[status].label}
-                </Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.legendRow}>
+          {CALENDAR_STATUS_ORDER.map((status) => (
+            <View key={status} style={styles.legendItem}>
+              <CalendarStatusMark
+                size={18}
+                status={status}
+                testID={`calendar-legend-${status}`}
+              />
+              <Text style={styles.legendLabel}>
+                {CALENDAR_DAY_VISUALS[status].label}
+              </Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.weekdayRow}>
@@ -278,6 +281,7 @@ function CalendarReportContent({
                     >
                       <View style={styles.weekTitleGroup}>
                         <Text style={styles.weekTitle}>{week.label}</Text>
+                        <Text style={styles.weekSeparator}>·</Text>
                         <Text style={styles.weekRange}>{week.range}</Text>
                       </View>
                     </Pressable>
@@ -294,6 +298,15 @@ function CalendarReportContent({
                       weekId={week.id}
                       weekLabel={week.label}
                     />
+                    {beforeRoutineStart ? null : (
+                      <ExpandCaret
+                        expanded={expanded}
+                        onPress={() =>
+                          setExpandedWeek(expanded ? null : week.id)
+                        }
+                        weekId={week.id}
+                      />
+                    )}
                   </View>
                 </View>
                 <View style={styles.dayRow}>
@@ -307,6 +320,9 @@ function CalendarReportContent({
                       !beforeRoutineStart &&
                       day.localDate !== undefined &&
                       (day.sessionIds?.length ?? 0) > 0;
+                    const isToday =
+                      !beforeRoutineStart &&
+                      (day.isToday === true || day.status === 'today');
                     return (
                       <Pressable
                         key={`${week.id}-${day.day}`}
@@ -329,6 +345,7 @@ function CalendarReportContent({
                           styles.dayCell,
                           !day.inCurrentMonth && styles.dayCellOutsideMonth,
                           canOpen && styles.dayCellSelectable,
+                          isToday && styles.dayCellToday,
                           beforeRoutineStart && styles.dayCellBeforeRoutine,
                         ]}
                         testID={`calendar-day-${week.id}-${index}`}
@@ -336,9 +353,10 @@ function CalendarReportContent({
                         <Text
                           style={[
                             styles.dayNumber,
-                            day.status === 'today' && styles.dayNumberToday,
+                            isToday && styles.dayNumberToday,
                             beforeRoutineStart && styles.dayNumberBeforeRoutine,
                           ]}
+                          testID={`calendar-day-${week.id}-${index}-number`}
                         >
                           {day.day}
                         </Text>
@@ -360,7 +378,6 @@ function CalendarReportContent({
                     }
                     state={week.state}
                     stats={week.stats}
-                    title={`${week.label} · 완료 ${week.stats[0]}회 / 부분 ${week.stats[1]}회`}
                   />
                 ) : null}
               </View>
@@ -390,12 +407,23 @@ function MonthArrow({
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
+      hitSlop={6}
       onPress={onPress}
       style={[styles.monthArrow, disabled && styles.monthArrowDisabled]}
     >
-      <Text style={styles.monthArrowText}>
-        {direction === 'previous' ? '‹' : '›'}
-      </Text>
+      <Svg aria-hidden fill="none" height={18} viewBox="0 0 24 24" width={18}>
+        <Path
+          d={
+            direction === 'previous'
+              ? 'M14.5 5.5l-7 6.5 7 6.5'
+              : 'M9.5 5.5l7 6.5-7 6.5'
+          }
+          stroke="#6F6B63"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2.2}
+        />
+      </Svg>
     </Pressable>
   );
 }
@@ -647,35 +675,100 @@ function MonthStat({
 
 function CalendarStatusMark({
   beforeRoutineStart = false,
+  size = 20,
   status,
   testID,
 }: {
   beforeRoutineStart?: boolean;
+  size?: number;
   status: CalendarDayStatus;
   testID: string;
 }) {
   const visual = CALENDAR_DAY_VISUALS[status];
+  /**
+   * Partial and rest use the shared status vectors, which carry their own disc
+   * and palette, so the wrapper drops its circle instead of drawing a second
+   * one behind them. `CALENDAR_DAY_VISUALS` still supplies the label and accent
+   * color those statuses need in the legend and the week stats.
+   */
+  const vectorMark =
+    !beforeRoutineStart && (status === 'partial' || status === 'rest');
+  const markColors = beforeRoutineStart
+    ? { backgroundColor: '#ECE9E3', borderColor: '#D8D3CA' }
+    : vectorMark
+      ? { backgroundColor: 'transparent', borderColor: 'transparent' }
+      : {
+          backgroundColor: visual.backgroundColor,
+          borderColor: visual.borderColor,
+        };
 
   return (
     <View
       style={[
         styles.statusMark,
-        {
-          backgroundColor: beforeRoutineStart
-            ? '#A9A49B'
-            : visual.backgroundColor,
-          borderColor: beforeRoutineStart ? '#8B8780' : visual.borderColor,
-        },
+        { width: size, height: size, borderRadius: size / 2 },
+        markColors,
       ]}
       testID={testID}
     >
-      <Text
-        style={[styles.statusMarkText, { color: visual.color }]}
-        testID={`${testID}-glyph`}
-      >
-        {beforeRoutineStart ? '' : visual.glyph}
-      </Text>
+      {vectorMark ? (
+        status === 'rest' ? (
+          <RestStatusIcon size={size} testID={`${testID}-moon`} />
+        ) : (
+          <PartialStatusIcon size={size} testID={`${testID}-partial`} />
+        )
+      ) : (
+        <Text
+          style={[
+            styles.statusMarkText,
+            {
+              color: visual.color,
+              fontSize: size * 0.6,
+              lineHeight: size * 0.6,
+            },
+          ]}
+          testID={`${testID}-glyph`}
+        >
+          {beforeRoutineStart ? '' : visual.glyph}
+        </Text>
+      )}
     </View>
+  );
+}
+
+/**
+ * Shows whether a week card can be expanded, and whether it already is. The
+ * week title next to it is the labelled toggle, so this caret stays out of the
+ * accessibility tree instead of announcing the same action twice.
+ */
+function ExpandCaret({
+  expanded,
+  onPress,
+  weekId,
+}: {
+  expanded: boolean;
+  onPress: () => void;
+  weekId: string;
+}) {
+  return (
+    <Pressable
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      hitSlop={8}
+      onPress={onPress}
+      style={[styles.expandCaret, expanded && styles.expandCaretExpanded]}
+      testID={`calendar-week-caret-${weekId}`}
+    >
+      <Svg aria-hidden fill="none" height={16} viewBox="0 0 24 24" width={16}>
+        <Path
+          d="M6 9.5l6 6 6-6"
+          stroke="#6F6B63"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2.4}
+        />
+      </Svg>
+    </Pressable>
   );
 }
 
@@ -761,8 +854,8 @@ function StateChip({
   const chipStyle: StyleProp<ViewStyle> = [
     styles.stateChip,
     {
-      backgroundColor: beforeRoutineStart ? '#C9C5BC' : chip.backgroundColor,
-      borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
+      backgroundColor: beforeRoutineStart ? '#F1EFEA' : chip.backgroundColor,
+      borderColor: beforeRoutineStart ? '#DEDAD2' : chip.borderColor,
       borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
     },
   ];
@@ -771,7 +864,7 @@ function StateChip({
     <Text
       style={[
         styles.stateChipText,
-        { color: beforeRoutineStart ? '#5F5B55' : chip.color },
+        { color: beforeRoutineStart ? '#9B968E' : chip.color },
       ]}
       testID={`calendar-chip-${weekId}-label`}
     >
@@ -808,47 +901,54 @@ function WeekDetail({
   onOpenReport,
   state,
   stats,
-  title,
 }: {
   note: string;
   onOpenReport: () => void;
   state: CalendarWeekState;
   stats: readonly number[];
-  title: string;
 }) {
-  const labels = ['완료', '부분', '휴식', '미수행'];
   const canOpenReport =
     state === 'make' || state === 'unread' || state === 'read';
   const actionLabel =
     state === 'make' ? '주간 리포트 만들기' : '주간 리포트 보기';
+  const doneLabel = CALENDAR_DAY_VISUALS.done.label;
+  const partialLabel = CALENDAR_DAY_VISUALS.partial.label;
 
   return (
     <View style={styles.weekDetail}>
-      <Text style={styles.weekDetailTitle}>{title}</Text>
+      <Text style={styles.weekDetailTitle}>
+        {`${doneLabel} ${stats[0] ?? 0}회 / ${partialLabel} ${stats[1] ?? 0}회`}
+      </Text>
       <View style={styles.weekStats}>
-        {stats.map((value, index) => (
-          <View key={labels[index]} style={styles.weekStat}>
-            <Text style={styles.weekStatValue}>{value}</Text>
-            <Text style={styles.weekStatLabel}>{labels[index]}</Text>
+        {CALENDAR_STATUS_ORDER.map((status, index) => (
+          <View
+            key={status}
+            style={styles.weekStat}
+            testID={`calendar-week-stat-${status}`}
+          >
+            <Text style={styles.weekStatLabel}>
+              {CALENDAR_DAY_VISUALS[status].label}
+            </Text>
+            <Text
+              style={[
+                styles.weekStatValue,
+                { color: CALENDAR_DAY_VISUALS[status].accentColor },
+              ]}
+            >
+              {stats[index] ?? 0}
+            </Text>
           </View>
         ))}
       </View>
       <Text style={styles.weekNote}>{note}</Text>
       {canOpenReport ? (
-        <Pressable
-          accessibilityRole="button"
+        <GradientActionButton
+          label={actionLabel}
+          labelStyle={styles.weekActionLabel}
           onPress={onOpenReport}
-          style={[styles.weekAction, state === 'make' && styles.weekActionMake]}
-        >
-          <Text
-            style={[
-              styles.weekActionText,
-              state === 'make' && styles.weekActionTextMake,
-            ]}
-          >
-            {actionLabel} ›
-          </Text>
-        </Pressable>
+          style={styles.weekAction}
+          testID="calendar-week-report-action"
+        />
       ) : null}
     </View>
   );
@@ -913,20 +1013,22 @@ const styles = StyleSheet.create({
   },
   monthActions: {
     flexDirection: 'row',
+    gap: 8,
   },
   monthArrow: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EAE5DA',
+    borderRadius: 999,
+    backgroundColor: '#F7F5EF',
   },
   monthArrowDisabled: {
-    opacity: 0.28,
-  },
-  monthArrowText: {
-    color: '#6F6B63',
-    fontSize: 30,
-    lineHeight: 32,
+    borderColor: '#F1EEE7',
+    backgroundColor: '#FBFAF6',
+    opacity: 0.4,
   },
   monthStats: {
     flexDirection: 'row',
@@ -942,17 +1044,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#F7F5EF',
     paddingHorizontal: 4,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   monthStatValue: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 29,
   },
   monthStatLabel: {
-    marginTop: 3,
+    marginTop: 4,
     color: colors.textMuted,
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
   },
   picker: {
@@ -1034,7 +1136,7 @@ const styles = StyleSheet.create({
   weekdayRow: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingTop: 14,
+    paddingTop: 8,
     paddingBottom: 6,
   },
   weekday: {
@@ -1078,9 +1180,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   weekBandBeforeRoutine: {
-    borderColor: '#A9A49B',
+    borderColor: '#E2DED6',
     borderStyle: 'solid',
-    backgroundColor: '#D9D6CF',
+    backgroundColor: '#F4F2ED',
     opacity: 1,
   },
   weekBandExpanded: {
@@ -1097,14 +1199,29 @@ const styles = StyleSheet.create({
   },
   weekTitleGroup: {
     minWidth: 0,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 5,
   },
   weekTitleButton: {
     minWidth: 0,
     flex: 1,
     paddingVertical: 4,
+  },
+  weekSeparator: {
+    color: '#B7B2A8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  expandCaret: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20,
+    height: 20,
+  },
+  expandCaretExpanded: {
+    transform: [{ rotate: '180deg' }],
   },
   weekTitle: {
     color: colors.text,
@@ -1134,6 +1251,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: 4,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     paddingVertical: 4,
   },
   dayCellOutsideMonth: {
@@ -1143,9 +1262,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,.62)',
   },
+  dayCellToday: {
+    borderWidth: 1.5,
+    borderColor: '#E0A742',
+    borderRadius: 12,
+    backgroundColor: '#FFF3D6',
+  },
   dayCellBeforeRoutine: {
     borderRadius: 12,
-    backgroundColor: '#C9C5BC',
+    backgroundColor: '#EFECE6',
     opacity: 1,
   },
   dayNumber: {
@@ -1154,12 +1279,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayNumberToday: {
-    color: colors.text,
+    color: '#A45F00',
     fontWeight: '800',
   },
   dayNumberBeforeRoutine: {
-    color: '#5F5B55',
-    fontWeight: '700',
+    color: '#9B968E',
+    fontWeight: '600',
   },
   statusMark: {
     width: 20,
@@ -1173,110 +1298,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 12,
+    textAlign: 'center',
   },
   weekDetail: {
     marginTop: 10,
     borderRadius: 14,
     backgroundColor: colors.surface,
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   weekDetailTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
+    color: colors.textMuted,
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   weekStats: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    columnGap: 8,
+    rowGap: 6,
+    marginTop: 8,
   },
   weekStat: {
-    minWidth: 0,
-    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 11,
-    backgroundColor: '#F7F5EF',
-    paddingHorizontal: 4,
-    paddingVertical: 8,
+    gap: 4,
   },
   weekStatValue: {
-    color: '#A45F00',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
   },
   weekStatLabel: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 10.5,
-    fontWeight: '700',
+    color: '#6F6B63',
+    fontSize: 11,
+    fontWeight: '600',
   },
   weekNote: {
     marginTop: 10,
     color: '#6F6B63',
-    fontSize: 12.5,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
   },
   weekAction: {
-    alignItems: 'center',
+    height: 46,
     marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: '#F6BA50',
-    padding: 14,
   },
-  weekActionSecondary: {
-    borderWidth: 1.5,
-    borderColor: '#F1D39A',
-    backgroundColor: colors.surface,
-  },
-  weekActionMake: {
-    borderBottomWidth: 4,
-    borderBottomColor: '#D98B16',
-    backgroundColor: '#F6BA50',
-  },
-  weekActionDisabled: {
-    borderWidth: 1.5,
-    borderColor: '#DFDBD2',
-    borderStyle: 'dashed',
-    backgroundColor: colors.surface,
-  },
-  weekActionText: {
-    color: colors.text,
+  weekActionLabel: {
     fontSize: 14,
-    fontWeight: '800',
-  },
-  weekActionTextSecondary: {
-    color: '#A45F00',
-  },
-  weekActionTextMake: {
-    color: colors.text,
-  },
-  weekActionTextDisabled: {
-    color: '#B7B2A8',
-  },
-  legendCard: {
-    marginTop: 14,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  legendTitle: {
-    color: colors.textMuted,
-    fontSize: 11.5,
     fontWeight: '800',
   },
   legendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-    marginTop: 9,
+    justifyContent: 'space-between',
+    columnGap: 8,
+    rowGap: 6,
+    marginTop: 14,
+    paddingHorizontal: 6,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   legendLabel: {
     color: '#6F6B63',

@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "bytes": 120333,
+      "path": "goal_tag_links.jsonl",
+      "records": 486,
+      "sha256": "ccdd04f0fe143ca93a4f72cc610203703e5f7ec0de9a90e9994805fa54b9696e"
+    },
+    {
+      "bytes": 465594,
+      "path": "prescription_profiles.jsonl",
+      "records": 1047,
+      "sha256": "04b748107037f893851823aa03c65a3ab0c8615c708b88f2c9c2c054614e6788"
+    }
+  ],
+  "generator_version": "v2-0-5-media-gap-packager-1.0.0",
+  "prescription_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "prescription-set-v2.0.5"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.5-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "exercise_records": 162,
+    "goal_tag_records": 486,
+    "prescription_records": 1047
+  }
+}

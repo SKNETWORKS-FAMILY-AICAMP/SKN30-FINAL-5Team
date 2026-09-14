@@ -31,6 +31,12 @@ class SelectionSource:
     plan_item_ids: tuple[UUID, ...]
     estimated_calories_burned: float | None
     already_selected: bool
+    target_duration_seconds: int = 0
+    # What the safety veto excluded, and what the published plan actually
+    # prescribes. The selection gate compares the two rather than trusting a
+    # flag that says only that a veto fired, not whether it was honoured.
+    safety_excluded_exercise_ids: tuple[UUID, ...] = ()
+    plan_exercise_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +47,36 @@ class SessionState:
     ended_at: datetime | None
     items: tuple[tuple[UUID, str, datetime | None], ...]
     estimated_calories_burned: float | None = None
+    completion_code: str | None = None
+    execution_state_code: str | None = None
+    target_duration_seconds: int | None = None
+    accumulated_progress_seconds: int = 0
+    accumulated_rest_seconds: int = 0
+    accumulated_paused_seconds: int = 0
+    last_state_changed_at: datetime | None = None
+    is_resumable: bool = False
+    stop_reason_code: str | None = None
+    local_date: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedWorkoutBlock:
+    exercise_id: UUID
+    exercise_stable_code: str
+    catalog_version_code: str
+    met_value: float | None
+    met_source_code: str | None
+    met_source_activity_code: str | None
+    met_mapping_method_code: str | None
+    met_review_status_code: str | None
+    met_policy_version: str | None
+    planned_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class CalorieEstimateSource:
+    weight_kg: float | None
+    completed_blocks: tuple[CompletedWorkoutBlock, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +181,34 @@ class WorkoutRepositoryPort(Protocol):
         self, session: Session, session_id: UUID, started_at: datetime
     ) -> SessionState: ...
 
+    def transition_execution_state(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        execution_state_code: str,
+        occurred_at: datetime,
+        is_resumable: bool,
+        stop_reason_code: str | None,
+        completion_code: str | None = None,
+        ended_at: datetime | None = None,
+    ) -> SessionState: ...
+
+    def get_calorie_estimate_source(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> CalorieEstimateSource | None: ...
+
+    def save_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        estimated_calories_burned: float | None,
+        source_code: str,
+        policy_version: str,
+        input_snapshot: dict[str, object],
+    ) -> None: ...
+
     def update_session_item(
         self,
         session: Session,
@@ -186,14 +250,9 @@ class WorkoutRepositoryPort(Protocol):
         event_id: UUID,
         session_id: UUID,
         occurred_at: datetime,
-        instruction_code: str,
-        resulting_action_code: str | None,
-        session_status_code: str,
-        guidance_code: str,
-        reason_code: str,
+        result_code: str,
+        completion_code: str,
         rule_version: str,
-        discomforts: tuple[tuple[str, str], ...],
-        adverse_reaction_codes: tuple[str, ...],
         now: datetime,
     ) -> None: ...
 
@@ -205,9 +264,11 @@ class WorkoutRepositoryPort(Protocol):
         status_code: str,
         ended_at: datetime,
         actual_elapsed_seconds: int | None,
+        completion_code: str | None = None,
+        execution_state_code: str | None = None,
     ) -> None: ...
 
-    def create_skip_feedback(
+    def upsert_skip_feedback(
         self,
         session: Session,
         *,
@@ -216,9 +277,7 @@ class WorkoutRepositoryPort(Protocol):
         now: datetime,
     ) -> None: ...
 
-    def feedback_exists(self, session: Session, session_id: UUID) -> bool: ...
-
-    def create_feedback(
+    def upsert_feedback(
         self,
         session: Session,
         *,
@@ -229,6 +288,7 @@ class WorkoutRepositoryPort(Protocol):
         pain_occurred: bool,
         discomforts: tuple[tuple[str, str], ...],
         adverse_reaction_codes: tuple[str, ...],
+        difficulty_reason_codes: tuple[str, ...],
         now: datetime,
     ) -> None: ...
 
@@ -256,9 +316,15 @@ class WorkoutRepositoryPort(Protocol):
         self, session: Session, user_id: UUID, session_id: UUID
     ) -> WorkoutLogDetail | None: ...
 
+    def get_workout_log_detail_for_plan(
+        self, session: Session, user_id: UUID, plan_id: UUID
+    ) -> WorkoutLogDetail | None: ...
+
 
 __all__ = [
     "IdempotencyRecord",
+    "CalorieEstimateSource",
+    "CompletedWorkoutBlock",
     "ReturnHistory",
     "SelectionSource",
     "SessionState",

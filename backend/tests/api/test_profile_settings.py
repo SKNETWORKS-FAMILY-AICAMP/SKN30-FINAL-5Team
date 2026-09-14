@@ -49,6 +49,7 @@ SUPPORTED_PROFILE_UPDATE_FIELDS = {
     "sex_code",
     "timezone",
     "date_of_birth",
+    "persistent_pains",
 }
 
 
@@ -63,6 +64,7 @@ class FakeProfileSettingsRepository:
         self.idempotency: dict[tuple[UUID, MutationEndpointCode, UUID], IdempotencyRecord] = {}
         self.update_count = 0
         self.disabled = False
+        self.persistent_pains: tuple[tuple[str, int], ...] = ()
 
     def acquire_idempotency_lock(
         self,
@@ -119,13 +121,14 @@ class FakeProfileSettingsRepository:
         if changes.protected_birthdate is not None:
             values["protected_birthdate"] = changes.protected_birthdate
         for field_name in (
-            "available_location_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
         ):
             value = getattr(changes, field_name)
             if value is not None:
                 values[field_name] = value
+        if changes.persistent_pains is not None:
+            self.persistent_pains = changes.persistent_pains
         values["profile_version"] = self.record.profile_version + 1
         self.record = replace(self.record, **values)
         self.update_count += 1
@@ -143,14 +146,9 @@ def _record(protected_birthdate: str) -> ProfileSettingsRecord:
         primary_goal_code="GENERAL_FITNESS",
         experience_level_code="BEGINNER",
         timezone="Asia/Seoul",
-        preferred_location_code="HOME",
-        available_location_codes=("GYM", "HOME"),
         default_requested_duration_minutes=40,
         desired_weekly_workout_count=3,
-        coaching_style_code="SUPPORTIVE",
-        height_cm=172.0,
         weight_kg=68.5,
-        sex_code="FEMALE",
         attention_area_codes=("KNEE",),
         preferred_exercise_type_codes=("STRENGTH",),
         profile_version=1,
@@ -209,7 +207,49 @@ def test_changing_the_default_duration_retires_the_stale_routine() -> None:
     )
 
     assert response.status_code == 200
-    assert stale.archived_for == [45]
+    assert stale.archived_for == [("GENERAL_FITNESS", 45)]
+
+
+def test_changing_the_primary_goal_retires_the_stale_routine() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "MUSCLE_GAIN"},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == [("MUSCLE_GAIN", 40)]
+
+
+def test_changing_goal_and_duration_retires_once_with_the_new_profile() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "MUSCLE_GAIN", "default_requested_duration_minutes": 45},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == [("MUSCLE_GAIN", 45)]
+
+
+def test_saving_the_same_primary_goal_leaves_the_routine_alone() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "GENERAL_FITNESS"},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == []
 
 
 def test_editing_other_fields_leaves_the_routine_alone() -> None:
@@ -230,13 +270,18 @@ class FakeStaleRoutines:
     """Records what the profile edit asked to retire, without a database."""
 
     def __init__(self) -> None:
-        self.archived_for: list[int] = []
+        self.archived_for: list[tuple[str, int]] = []
 
-    def archive_routines_with_other_duration(
-        self, session: Any, user_id: UUID, *, requested_duration_minutes: int
+    def archive_routines_incompatible_with_profile(
+        self,
+        session: Any,
+        user_id: UUID,
+        *,
+        primary_goal_code: str,
+        requested_duration_minutes: int,
     ) -> int:
         del session, user_id
-        self.archived_for.append(requested_duration_minutes)
+        self.archived_for.append((primary_goal_code, requested_duration_minutes))
         return 1
 
 
@@ -294,7 +339,7 @@ def _years_ago(local_date: date, years: int) -> date:
         return local_date.replace(year=local_date.year - years, day=28)
 
 
-def test_openapi_exposes_exactly_the_15_supported_non_null_fields() -> None:
+def test_openapi_exposes_exactly_the_supported_non_null_fields() -> None:
     client, _ = _client()
     schema = client.app.openapi()["components"]["schemas"]["ProfileSettingsUpdateRequest"]
 
@@ -321,6 +366,7 @@ def test_openapi_exposes_exactly_the_15_supported_non_null_fields() -> None:
         {"sex_code": "PREFER_NOT_TO_SAY"},
         {"timezone": "UTC"},
         {"date_of_birth": "1999-01-02"},
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}]},
     ],
 )
 def test_each_supported_field_can_be_updated_independently(
@@ -366,8 +412,8 @@ def test_multiple_fields_update_without_resetting_omitted_values() -> None:
         ("desired_weekly_workout_count", 7),
         ("default_requested_duration_minutes", 1),
         ("default_requested_duration_minutes", 240),
-        ("height_cm", 80),
-        ("height_cm", 250),
+        # height_cm is not here on purpose: ADR-0017 stopped collecting it, so
+        # PATCH accepts the value without applying it. See the ignored-field test.
         ("weight_kg", 25),
         ("weight_kg", 300),
     ],
@@ -516,22 +562,6 @@ def test_duplicate_array_codes_are_rejected(payload: dict[str, object]) -> None:
     _assert_repository_unchanged(repository, before)
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [{"available_location_codes": []}],
-)
-def test_arrays_that_must_retain_values_reject_empty_lists(
-    payload: dict[str, object],
-) -> None:
-    client, repository = _client()
-    before = repository.record
-    with client:
-        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
-
-    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
-    _assert_repository_unchanged(repository, before)
-
-
 def test_empty_attention_areas_are_allowed() -> None:
     client, repository = _client()
     with client:
@@ -560,23 +590,46 @@ def test_empty_preferred_exercise_types_are_allowed() -> None:
     assert repository.record.preferred_exercise_type_codes == ()
 
 
+def test_persistent_pains_can_be_replaced_or_cleared() -> None:
+    client, repository = _client()
+    with client:
+        first = client.patch(
+            "/api/v1/me/profile",
+            json={"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}]},
+            headers=_headers(),
+        )
+        assert repository.persistent_pains == (("KNEE", 3),)
+        cleared = client.patch(
+            "/api/v1/me/profile",
+            json={"persistent_pains": []},
+            headers=_headers(version='"2"'),
+        )
+
+    assert first.status_code == 200
+    assert repository.persistent_pains == ()
+    assert cleared.status_code == 200
+
+
 @pytest.mark.parametrize(
     "payload",
     [
-        {"available_location_codes": ["GYM"]},
-        {"preferred_location_code": "OUTDOOR"},
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 0}]},
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 11}]},
+        {
+            "persistent_pains": [
+                {"body_area_code": "KNEE", "intensity_score": 3},
+                {"body_area_code": "KNEE", "intensity_score": 4},
+            ]
+        },
     ],
 )
-def test_invalid_final_location_combination_is_rejected(
-    payload: dict[str, object],
-) -> None:
+def test_invalid_persistent_pains_are_rejected(payload: dict[str, object]) -> None:
     client, repository = _client()
     before = repository.record
     with client:
         response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
 
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
     _assert_repository_unchanged(repository, before)
 
 
@@ -788,10 +841,10 @@ def test_user_without_onboarding_profile_gets_not_found() -> None:
     assert repository.update_count == 0
 
 
-def test_underage_birthdate_disables_account_without_exposing_value() -> None:
+def test_out_of_scope_birthdate_does_not_change_existing_account_status() -> None:
     client, repository = _client()
     local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    secret_birthdate = (_years_ago(local_date, 14) + timedelta(days=1)).isoformat()
+    secret_birthdate = (_years_ago(local_date, 18) + timedelta(days=1)).isoformat()
     before = repository.record
     with client:
         response = client.patch(
@@ -801,16 +854,16 @@ def test_underage_birthdate_disables_account_without_exposing_value() -> None:
         )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "AGE_REQUIREMENT_NOT_MET"
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_AGE"
     assert secret_birthdate not in response.text
-    assert repository.disabled is True
+    assert repository.disabled is False
     _assert_repository_unchanged(repository, before)
 
 
 def test_exact_minimum_age_birthdate_is_accepted_without_reflecting_it() -> None:
     client, repository = _client()
     local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    boundary_birthdate = _years_ago(local_date, 14).isoformat()
+    boundary_birthdate = _years_ago(local_date, 18).isoformat()
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -914,3 +967,118 @@ def test_unauthenticated_request_is_rejected() -> None:
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
     assert repository.update_count == 0
+
+
+@pytest.mark.parametrize("style", [code.value for code in CoachingStyleCode])
+def test_patch_accepts_a_coaching_style_without_applying_it(style: str) -> None:
+    """Write compatibility: a deployed client's style is a no-op, not a 422.
+
+    The request model forbids extra keys, so the field stays declared. There is no
+    longer a column behind it at all, so the value reaches nothing and the rest of
+    the request still applies.
+    """
+
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"coaching_style_code": style, "nickname": "새 닉네임"},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record == replace(
+        before, nickname="새 닉네임", profile_version=before.profile_version + 1
+    )
+
+
+# ADR-0017 stopped collecting sex, height and workout location. Location moved to
+# Daily Check-in, so the profile is no longer its source of truth. The request
+# fields stay declared for write compatibility and the values are not applied.
+_ADR_0017_IGNORED_PAYLOADS = [
+    {"preferred_location_code": "GYM"},
+    {"available_location_codes": ["GYM", "OUTDOOR"]},
+    {"height_cm": 181.0},
+    {"sex_code": "MALE"},
+]
+
+
+@pytest.mark.parametrize("payload", _ADR_0017_IGNORED_PAYLOADS)
+def test_fields_retired_by_adr_0017_are_accepted_without_being_applied(
+    payload: dict[str, object],
+) -> None:
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    # Nothing to compare field by field any more: migration 0050 dropped the
+    # columns, so "not applied" means the stored record is untouched apart from
+    # the version every accepted PATCH bumps.
+    assert repository.record == replace(before, profile_version=before.profile_version + 1)
+
+
+def test_a_retired_field_does_not_block_the_rest_of_the_patch() -> None:
+    """A mixed request still applies what the service does own."""
+
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"preferred_location_code": "GYM", "nickname": "새 닉네임"},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record == replace(
+        before, nickname="새 닉네임", profile_version=before.profile_version + 1
+    )
+
+
+def test_a_retired_location_pair_no_longer_trips_the_cross_field_rule() -> None:
+    """`preferred` had to be inside `available`. Neither is stored now, so a
+    combination that used to be a 400 is a successful no-op instead."""
+
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"preferred_location_code": "OUTDOOR", "available_location_codes": ["GYM"]},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record == replace(before, profile_version=before.profile_version + 1)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"available_location_codes": ["HOME", "HOME"]},
+        {"preferred_location_code": "NOT_A_CODE"},
+        {"height_cm": 10.0},
+    ],
+)
+def test_retired_fields_are_still_schema_validated(payload: dict[str, object]) -> None:
+    """Ignored is not unvalidated: a malformed value is still a 400, so a client
+    sending nonsense learns about it rather than getting a silent success."""
+
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)

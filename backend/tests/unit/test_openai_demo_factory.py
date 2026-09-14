@@ -36,7 +36,19 @@ def test_demo_factory_builds_only_for_staging_demo(monkeypatch) -> None:
     kwargs = constructor.call_args.kwargs
     assert kwargs["model"] == "approved-model-v1"
     assert kwargs["max_retries"] == 0
+    assert kwargs["reasoning_effort"] == "low"
     assert kwargs["callbacks"] == []
+
+
+def test_demo_factory_forwards_an_approved_reasoning_effort(monkeypatch) -> None:
+    constructor = Mock(return_value=Mock())
+    monkeypatch.setattr(openai_integration, "ChatOpenAI", constructor)
+
+    openai_integration.build_openai_demo_chat_model(
+        _settings(llm_agents_reasoning_effort="medium"), execution_profile="DEMO"
+    )
+
+    assert constructor.call_args.kwargs["reasoning_effort"] == "medium"
 
 
 @pytest.mark.parametrize(

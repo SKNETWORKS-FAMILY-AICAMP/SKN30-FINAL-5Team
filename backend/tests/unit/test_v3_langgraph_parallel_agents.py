@@ -76,7 +76,7 @@ def test_one_specialist_timeout_cancels_coroutine_and_skips_coordinator() -> Non
     assert specialists[SPECIALIST_AGENT_ORDER[1]].cancelled
 
 
-def test_non_ready_specialist_never_allows_partial_coordinator_input() -> None:
+def test_needs_input_advisory_reaches_coordinator_without_fallback() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     specialists = {
@@ -105,11 +105,56 @@ def test_non_ready_specialist_never_allows_partial_coordinator_input() -> None:
 
     result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
 
+    assert result.status_code == "SUCCEEDED"
+    assert not result.used_fallback
+    assert coordinator.initial_calls == 1
+    assert len(result.round_one_proposals) == 3
+    assert result.round_one_proposals[2].proposal_status_code is V3ProposalStatusCode.NEEDS_INPUT
+
+
+def test_needs_input_training_still_skips_coordinator() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    specialists = {
+        agent_type: Specialist(
+            agent_type,
+            proposal(
+                agent_type,
+                current_envelope,
+                current_pool,
+                status=(
+                    V3ProposalStatusCode.NEEDS_INPUT
+                    if agent_type is SpecialistAgentTypeCode.TRAINING
+                    else V3ProposalStatusCode.READY
+                ),
+                prescriptions=(() if agent_type is SpecialistAgentTypeCode.TRAINING else None),
+            ),
+        )
+        for agent_type in SPECIALIST_AGENT_ORDER
+    }
+    coordinator = Coordinator()
+    current_input = graph_input(
+        current_envelope=current_envelope,
+        current_pool=current_pool,
+        specialists=specialists,
+        coordinator=coordinator,
+    )
+
+    result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
+
     assert result.used_fallback
     assert coordinator.initial_calls == 0
+    assert "V3_TRAINING_NOT_READY" in result.failure_codes
 
 
 def test_proposal_for_another_envelope_is_invalid_and_skips_coordinator() -> None:
+    """ADR-0022: a contract breach carries its own code.
+
+    Both this and the agent declining its inputs above reported
+    V3_TRAINING_NOT_READY until a paid held-out run had to tell them apart
+    after the fact and could not.
+    """
+
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     other_values = current_envelope.model_dump(exclude={"envelope_hash"})
@@ -139,3 +184,50 @@ def test_proposal_for_another_envelope_is_invalid_and_skips_coordinator() -> Non
 
     assert result.used_fallback
     assert coordinator.initial_calls == 0
+    assert "V3_TRAINING_PROPOSAL_INVALID" in result.failure_codes
+    assert "V3_TRAINING_NOT_READY" not in result.failure_codes
+
+
+def test_a_declining_training_still_reports_its_tokens_and_its_reason() -> None:
+    """Both were dropped, and both mattered to the held-out analysis.
+
+    Telemetry: the audit summed 0 tokens for a declined call, so a run where
+    Training declined reported roughly 6,500 tokens where ~16,700 had been
+    spent -- under-reporting the cost of exactly the runs that failed.
+
+    Reason codes: the Training prompt asks the agent to name the condition it
+    declined on, and the graph discarded that with the rejected proposal.
+    """
+
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    specialists = {
+        agent_type: Specialist(
+            agent_type,
+            proposal(
+                agent_type,
+                current_envelope,
+                current_pool,
+                status=(
+                    V3ProposalStatusCode.NEEDS_INPUT
+                    if agent_type is SpecialistAgentTypeCode.TRAINING
+                    else V3ProposalStatusCode.READY
+                ),
+                prescriptions=(() if agent_type is SpecialistAgentTypeCode.TRAINING else None),
+            ),
+        )
+        for agent_type in SPECIALIST_AGENT_ORDER
+    }
+    current_input = graph_input(
+        current_envelope=current_envelope,
+        current_pool=current_pool,
+        specialists=specialists,
+        coordinator=Coordinator(),
+    )
+
+    result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
+
+    assert "V3_TRAINING_NOT_READY" in result.failure_codes
+    training = next(audit for audit in result.invocation_audits if audit.role_code == "TRAINING")
+    assert training.decline_reason_codes == ("TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN",)
+    assert training.attempt_count > 0, "a declined call still cost an attempt"

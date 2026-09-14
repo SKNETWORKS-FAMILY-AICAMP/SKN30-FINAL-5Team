@@ -8,13 +8,14 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, Self, cast
+from typing import Any, Final, Literal, Self, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.checkin import DailyContext
 from backend.app.db.models.decision import (
     DecisionExplanationRecord,
     DecisionOption,
@@ -29,24 +30,47 @@ from backend.app.db.models.v3_decision import DecisionConstraintEnvelopeRecord
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.vector_index import VectorIndexRepository
 from backend.app.domain.agents.retrieval import (
+    ExerciseFittContext,
+    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExerciseRetrievalResult,
     RetrievalStatusCode,
 )
-from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
+from backend.app.domain.agents.v3_contracts import (
+    ConstraintEnvelope,
+    ExerciseVolumeCeiling,
+    FeedbackAdjustmentEnvelope,
+    RecoveryCeiling,
+)
 from backend.app.domain.agents.v3_duration import (
     pool_size_for_duration,
     prescription_item_duration,
 )
+from backend.app.domain.agents.v3_duration import (
+    work_seconds_per_set as resolved_work_seconds_per_set,
+)
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
+from backend.app.domain.rules.feedback_adjustment import (
+    AdjustmentAxisCode,
+    DifficultyReasonCode,
+    select_feedback_adjustment,
+)
+from backend.app.domain.rules.fitt import context_for_exercise
+from backend.app.domain.rules.plan_naming import build_plan_name
+from backend.app.domain.rules.recovery import (
+    RECOVERY_POLICY_VERSION,
+    RecoveryLevelCode,
+    recovery_level,
+)
 from backend.app.domain.rules.safety import (
     SafetyCandidate,
     SafetyCandidateItem,
     SafetyEvaluation,
     SafetyRequiredActionCode,
     SafetyStatusCode,
+    block_for_no_eligible_exercise,
     evaluate_safety,
 )
 from backend.app.domain.rules.training_level import is_exercise_allowed_for_user
@@ -58,13 +82,18 @@ from backend.app.modules.decisions.codes import (
     DECISION_INPUT_SCHEMA_VERSION,
     DECISION_POLICY_VERSION,
 )
-from backend.app.modules.decisions.ports import DecisionAssembly
+from backend.app.modules.decisions.explanations import (
+    DecisionExplanation,
+    build_v3_explanation,
+)
+from backend.app.modules.decisions.ports import DecisionAssembly, NarrationProviderPort
 from backend.app.modules.decisions.schemas import (
     DecisionOptionResponse,
     DecisionPlan,
     DecisionPlanItem,
     DecisionResponse,
     Guidance,
+    PublicAgentSummary,
     SafetySummary,
 )
 from backend.app.modules.decisions.service import (
@@ -76,6 +105,7 @@ from backend.app.modules.decisions.service import (
 )
 from backend.app.modules.decisions.v3_creation import (
     V3CreationIdempotencyRecord,
+    V3CreationProjection,
     V3CreationSource,
 )
 from backend.app.modules.decisions.v3_regeneration import (
@@ -93,7 +123,6 @@ from backend.app.modules.decisions.v3_sql_persistence import (
 )
 
 _SNAPSHOT_TTL = timedelta(hours=1)
-_TEMPLATE_VERSION = "v3-demo-public-template-v1"
 
 
 def _hash(value: object) -> str:
@@ -116,6 +145,78 @@ def _context(source: V3CreationSource) -> V3ApplicationContext:
     if not isinstance(value, V3ApplicationContext):
         raise RuntimeError("V3_CREATION_SOURCE_INCOMPLETE")
     return value
+
+
+def _exercise_fitt_context(
+    *, stable_code: str, experience_level_code: str, timing_mode_code: str
+) -> ExerciseFittContext:
+    """Adapt the reviewed FITT files before the immutable agent snapshot is built."""
+
+    context = context_for_exercise(
+        stable_code=stable_code,
+        experience_level_code=experience_level_code,
+        timing_mode_code=timing_mode_code,
+    )
+    volume = (
+        None
+        if context.volume is None
+        else ExerciseFittVolumeRange(
+            min_sets=context.volume.min_sets,
+            max_sets=context.volume.max_sets,
+            min_reps=context.volume.min_reps,
+            max_reps=context.volume.max_reps,
+            default_sets=context.volume.default_sets,
+            default_reps=context.volume.default_reps,
+        )
+    )
+    return ExerciseFittContext(
+        source_code=context.source_code,
+        policy_version=context.policy_version,
+        review_status_code=context.review_status_code,
+        template_id=context.template_id,
+        frequency_code=context.frequency_code,
+        intensity_code=context.intensity_code,
+        time_mode_code=context.time_mode_code,
+        type_code=context.type_code,
+        volume=volume,
+    )
+
+
+def _fitt_volume_ceilings(
+    exercises: tuple[ExercisePoolExerciseRecord, ...], *, recovery: RecoveryLevelCode
+) -> tuple[ExerciseVolumeCeiling, ...]:
+    """Turn reviewed FITT maxima into immutable Recovery caps; never loosen them."""
+
+    recovery_sets_cap = (
+        2 if recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT} else None
+    )
+    recovery_reps_cap = (
+        10 if recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT} else None
+    )
+    ceilings: list[ExerciseVolumeCeiling] = []
+    for record in exercises:
+        context = record.fitt_context
+        if (
+            context is None
+            or context.review_status_code != "DOMAIN_APPROVED"
+            or context.volume is None
+        ):
+            continue
+        volume = context.volume
+        ceilings.append(
+            ExerciseVolumeCeiling(
+                exercise_id=record.exercise_id,
+                maximum_sets_per_exercise=min(
+                    volume.max_sets,
+                    recovery_sets_cap if recovery_sets_cap is not None else volume.max_sets,
+                ),
+                maximum_repetitions_per_set=min(
+                    volume.max_reps,
+                    recovery_reps_cap if recovery_reps_cap is not None else volume.max_reps,
+                ),
+            )
+        )
+    return tuple(sorted(ceilings, key=lambda item: str(item.exercise_id)))
 
 
 class SqlAlchemyV3CreationUnitOfWork:
@@ -180,6 +281,7 @@ class SqlAlchemyV3CreationRepository:
                         catalog_version=item.catalog_version_code,
                         content_version=item.instruction_content_version,
                         stable_code=item.stable_code or f"exercise-{item.exercise_id}",
+                        family_code=item.family_code,
                         training_type_code=item.training_type_code,
                         body_focus_code=item.body_focus_code,
                         movement_pattern_codes=(item.primary_movement_pattern_code,),
@@ -189,6 +291,11 @@ class SqlAlchemyV3CreationRepository:
                         default_work_seconds=item.default_work_seconds,
                         default_rest_seconds=item.default_rest_seconds,
                         default_transition_seconds=item.default_transition_seconds,
+                        fitt_context=_exercise_fitt_context(
+                            stable_code=item.stable_code or f"exercise-{item.exercise_id}",
+                            experience_level_code=assembly.context.experience_level_code,
+                            timing_mode_code=item.timing_mode_code,
+                        ),
                         recovery_eligible=item.recovery_eligible,
                         goal_codes=tuple(sorted(item.goal_codes)),
                         phase_codes=tuple(sorted(item.phase_codes)),
@@ -234,6 +341,7 @@ class SqlAlchemyV3CreationRepository:
         source: V3CreationSource,
         envelope: ConstraintEnvelope,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None:
         application = _context(source)
         run, candidate = _persist_public_decision(
@@ -243,6 +351,7 @@ class SqlAlchemyV3CreationRepository:
             response=response,
             decision_id=response.decision_id,
             bundle=None,
+            explanation=explanation,
         )
         run.root_decision_run_id = run.id
         run.generation_mode_code = "ORIGINAL"
@@ -281,6 +390,7 @@ class SqlAlchemyV3CreationRepository:
         source: V3CreationSource,
         bundle: V3DecisionPersistenceBundle,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None:
         run, candidate = _persist_public_decision(
             self._session,
@@ -289,6 +399,7 @@ class SqlAlchemyV3CreationRepository:
             response=response,
             decision_id=bundle.decision_execution_id,
             bundle=bundle,
+            explanation=explanation,
         )
         _persist_v3_bundle(self._session, run, candidate, bundle)
 
@@ -346,6 +457,65 @@ def _pool_safety_evaluation(
     )
 
 
+def _eligible_pool_exercises(
+    *,
+    exercises: tuple[ExercisePoolExerciseRecord, ...],
+    excluded_exercise_ids: set[UUID],
+    experience_level_code: str,
+    allowed_location_codes: set[str],
+) -> tuple[ExercisePoolExerciseRecord, ...]:
+    """Apply the deterministic pre-retrieval eligibility gates once.
+
+    Safety reconstruction may proceed only when the same pool consumed by the
+    retrieval loader still has an eligible exercise. Keeping this projection
+    shared prevents the Safety adapter from allowing a graph run that the pool
+    loader must later reject because every survivor is too difficult or in the
+    wrong location.
+    """
+
+    return tuple(
+        item
+        for item in exercises
+        if item.exercise_id not in excluded_exercise_ids
+        and is_exercise_allowed_for_user(
+            exercise_difficulty_code=item.difficulty_code,
+            user_experience_level_code=experience_level_code,
+        )
+        and bool(set(item.location_codes) & allowed_location_codes)
+    )
+
+
+EASIEST_EXERCISE_DIFFICULTY_CODE: Final = "BEGINNER"
+
+
+def _apply_difficulty_adjustment(
+    eligible: tuple[ExercisePoolExerciseRecord, ...],
+    *,
+    envelope: ConstraintEnvelope,
+) -> tuple[ExercisePoolExerciseRecord, ...]:
+    """Narrow the pool to the easiest approved movements when the ladder says to.
+
+    This is rung 1 of `DOMAIN_RULES.md` 6.1: "replace with a lower-difficulty exercise or
+    variant". Doing it by removing the harder records means every downstream consumer -
+    the specialist agents, the deterministic fallback, and the integrity validator that
+    re-checks membership - sees the same narrowed pool, so no coordinator output can put
+    a harder movement back in.
+
+    The adapter only picks this axis after finding an easier record among exactly these
+    eligible exercises, so the filter cannot empty the pool. It is still written to fall
+    back to the unfiltered pool rather than trust that: an empty pool would fail the run
+    outright, and a slightly harder session is the better failure than no session.
+    """
+
+    adjustment = envelope.feedback_adjustment
+    if adjustment is None or adjustment.axis_code != AdjustmentAxisCode.EXERCISE_DIFFICULTY.value:
+        return eligible
+    easier = tuple(
+        record for record in eligible if record.difficulty_code == EASIEST_EXERCISE_DIFFICULTY_CODE
+    )
+    return easier or eligible
+
+
 class DeterministicV3SafetyPolicyAdapter:
     """Project the reviewed deterministic Safety engine into a V3 envelope."""
 
@@ -357,15 +527,6 @@ class DeterministicV3SafetyPolicyAdapter:
         application.safety_evaluation = base
         pool_evaluation = _pool_safety_evaluation(prepared, application.exercises)
         application.pool_safety_evaluation = pool_evaluation
-        safe_change_available = any(
-            candidate.candidate.action_code.value == "CHANGE"
-            for candidate in prepared.adjusted_candidates
-        )
-        allowed = base.status_code is SafetyStatusCode.PASS or (
-            base.status_code is SafetyStatusCode.REVISE and bool(prepared.adjusted_candidates)
-        )
-        if base.excluded_exercise_codes and not safe_change_available:
-            allowed = False
         excluded_codes = set(base.excluded_exercise_codes)
         if pool_evaluation is not None:
             # A pool exclusion is enforced by removing the exercise from the pool,
@@ -377,20 +538,86 @@ class DeterministicV3SafetyPolicyAdapter:
                 key=str,
             )
         )
-        if application.exercises and not {
-            record.exercise_id for record in application.exercises
-        } - set(excluded):
-            # Nothing survived the rules; fail closed rather than plan from nothing.
-            allowed = False
-        items = tuple(item for item in prepared.items if item.exercise_id not in set(excluded))
-        intensities = tuple(sorted({item.intensity_code for item in items}))
-        ceiling = RecoveryCeiling(
-            policy_version="v3-recovery-ceiling-from-approved-routine-v1",
-            allowed_intensity_codes=intensities,
-            maximum_sets_per_exercise=max((item.sets for item in items), default=None),
-            maximum_repetitions_per_set=max(
-                (item.reps for item in items if item.reps is not None), default=None
+        context = prepared.context
+        eligible_pool = _eligible_pool_exercises(
+            exercises=application.exercises,
+            excluded_exercise_ids=set(excluded),
+            experience_level_code=str(source.normalized_values["experience_level_code"]),
+            allowed_location_codes={context.location_code},
+        )
+        if (
+            not eligible_pool
+            and base.status_code
+            not in {
+                SafetyStatusCode.NEEDS_INPUT,
+                SafetyStatusCode.FAILED,
+            }
+            and base.required_action_code is not SafetyRequiredActionCode.STOP_AND_SEEK_HELP
+        ):
+            # No approved, user-eligible exercise remains.  This is a terminal
+            # BLOCKED/REST result, never a reason to manufacture a fallback.
+            base = block_for_no_eligible_exercise(base)
+            application.safety_evaluation = base
+        exclusion_only_block = (
+            base.status_code is SafetyStatusCode.BLOCKED
+            and base.required_action_code is SafetyRequiredActionCode.REST
+            and bool(base.excluded_exercise_codes)
+            and not base.emergency_reaction_codes
+            and not base.acute_reaction_codes
+            and not base.severe_body_area_codes
+        )
+        allowed = (
+            base.status_code in {SafetyStatusCode.PASS, SafetyStatusCode.REVISE}
+            or exclusion_only_block
+        ) and bool(eligible_pool)
+
+        # A caution requires the approved duration-preserving downshift. Its LOW
+        # intensity must become an immutable ceiling so a coordinator cannot
+        # return KEEP while the public Safety status says REVISE.
+        downshift = next(
+            (
+                candidate
+                for candidate in prepared.adjusted_candidates
+                if candidate.candidate.action_code.value == "DOWNSHIFT"
             ),
+            None,
+        )
+        items = downshift.items if base.caution_exercise_codes and downshift else prepared.items
+        recovery = recovery_level(
+            sleep_minutes=context.sleep_minutes,
+            fatigue_level_code=context.fatigue_level_code,
+        )
+        intensities = tuple(sorted({item.intensity_code for item in items}))
+        has_moderate_pain = any(severity == "MODERATE" for _, _, severity, _ in context.pains)
+        if has_moderate_pain or recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT}:
+            # Catalog prescriptions use LOW/MODERATE. LIGHT is an immutable
+            # global cap, not a catalog data mutation.
+            intensities = ("LOW",)
+        maximum_sets = max((item.sets for item in items), default=None)
+        maximum_repetitions = max(
+            (item.reps for item in items if item.reps is not None), default=None
+        )
+        if recovery is RecoveryLevelCode.LIGHT:
+            maximum_sets = min(maximum_sets, 2) if maximum_sets is not None else None
+            maximum_repetitions = (
+                min(maximum_repetitions, 10) if maximum_repetitions is not None else None
+            )
+        if recovery is RecoveryLevelCode.VERY_LIGHT:
+            maximum_sets = min(maximum_sets, 2) if maximum_sets is not None else None
+            maximum_repetitions = (
+                min(maximum_repetitions, 10) if maximum_repetitions is not None else None
+            )
+        volume_ceilings = _fitt_volume_ceilings(eligible_pool, recovery=recovery)
+        if volume_ceilings:
+            # These global fields preserve the existing wire contract, while
+            # the per-exercise values below are the actual FITT-derived bound.
+            maximum_sets = max(item.maximum_sets_per_exercise for item in volume_ceilings)
+            maximum_repetitions = max(item.maximum_repetitions_per_set for item in volume_ceilings)
+        ceiling = RecoveryCeiling(
+            policy_version=RECOVERY_POLICY_VERSION,
+            allowed_intensity_codes=intensities,
+            maximum_sets_per_exercise=maximum_sets,
+            maximum_repetitions_per_set=maximum_repetitions,
             maximum_work_seconds_per_set=max(
                 (
                     item.work_seconds_per_set
@@ -402,11 +629,61 @@ class DeterministicV3SafetyPolicyAdapter:
             minimum_rest_seconds_between_sets=min(
                 (item.rest_seconds_per_set for item in items), default=None
             ),
+            per_exercise_volume_ceilings=volume_ceilings,
         )
-        required_action = base.required_action_code
+        # The last HARD feedback lowers exactly one axis (DOMAIN_RULES 6.1). Whether an
+        # easier variant or a lower intensity is reachable is answered here, from the
+        # eligible pool and the ceiling just built, because the ladder itself must not
+        # reach into the catalog or re-derive safety state.
+        easier_variant_available = any(
+            record.difficulty_code == "BEGINNER" for record in eligible_pool
+        ) and any(item.intensity_code != "LOW" for item in items)
+        intensity_reducible = intensities != ("LOW",) or (
+            maximum_sets is not None and maximum_sets > 1
+        )
+        adjustment = select_feedback_adjustment(
+            difficulty_code=context.latest_difficulty_code,
+            reason_codes=frozenset(
+                DifficultyReasonCode(code)
+                for code in context.latest_difficulty_reason_codes
+                if code in DifficultyReasonCode.__members__
+            ),
+            easier_variant_available=easier_variant_available,
+            intensity_reducible=intensity_reducible,
+        )
+        if adjustment.axis_code is AdjustmentAxisCode.INTENSITY:
+            # Lowering intensity is a ceiling change, never a catalog change: the plan
+            # keeps the same approved exercises and does less work with them.
+            intensities = ("LOW",)
+            if maximum_sets is not None:
+                maximum_sets = max(2, maximum_sets - 1)
+            # The recovery adjustment may tighten a FITT maximum, but never
+            # below the lowest reviewed strength range (two sets).
+            volume_ceilings = tuple(
+                item.model_copy(
+                    update={"maximum_sets_per_exercise": max(2, item.maximum_sets_per_exercise - 1)}
+                )
+                for item in volume_ceilings
+            )
+            ceiling = ceiling.model_copy(
+                update={
+                    "allowed_intensity_codes": intensities,
+                    "maximum_sets_per_exercise": maximum_sets,
+                    "per_exercise_volume_ceilings": volume_ceilings,
+                }
+            )
+        feedback_adjustment = (
+            None
+            if adjustment.axis_code is AdjustmentAxisCode.NONE
+            else FeedbackAdjustmentEnvelope(
+                axis_code=adjustment.axis_code.value,
+                reason_codes=tuple(code.value for code in adjustment.reason_codes),
+                policy_version=adjustment.policy_version,
+            )
+        )
+        required_action = None if allowed else base.required_action_code
         if not allowed and required_action is None:
             required_action = SafetyRequiredActionCode.REST
-        context = prepared.context
         return ConstraintEnvelope.create(
             requested_duration_minutes=context.requested_duration_minutes,
             primary_goal_code=context.primary_goal_code,
@@ -420,6 +697,7 @@ class DeterministicV3SafetyPolicyAdapter:
             policy_version=DECISION_POLICY_VERSION,
             catalog_version=prepared.catalog_version,
             safety_rule_version=_safety_rule_version(prepared),
+            feedback_adjustment=feedback_adjustment,
         )
 
 
@@ -434,22 +712,16 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
     ) -> EligibleExerciseProjection:
         application = _context(source)
         experience_level_code = str(source.normalized_values["experience_level_code"])
-        eligible = tuple(
-            item
-            for item in application.exercises
-            if item.exercise_id not in set(envelope.excluded_exercise_ids)
-            and is_exercise_allowed_for_user(
-                exercise_difficulty_code=item.difficulty_code,
-                user_experience_level_code=experience_level_code,
-            )
-            # Equipment is not a gate. The 2026-08-27 approval removed the
-            # issubset filter because it required the user to own every piece a
-            # movement lists, and the variant lookup is what tells them how to
-            # work around missing kit. Routine creation dropped it then; this
-            # path kept it, so a bodyweight-only profile saw a pool that was
-            # 85 stretches to 35 strength movements.
-            and bool(set(item.location_codes) & set(envelope.allowed_location_codes))
+        eligible = _eligible_pool_exercises(
+            exercises=application.exercises,
+            excluded_exercise_ids=set(envelope.excluded_exercise_ids),
+            experience_level_code=experience_level_code,
+            allowed_location_codes=set(envelope.allowed_location_codes),
         )
+        eligible = _apply_difficulty_adjustment(eligible, envelope=envelope)
+        # Equipment is intentionally not a gate. The 2026-08-27 approval
+        # removed that filter because owning every listed piece is not a
+        # condition of suitability; approved variants cover missing kit.
         goal_matched = tuple(
             item for item in eligible if envelope.primary_goal_code in item.goal_codes
         )
@@ -494,12 +766,18 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
 
 
 class V3DecisionResponseProjector:
-    def __init__(self, *, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
+    def __init__(
+        self,
+        *,
+        narration_provider: NarrationProviderPort | None = None,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self._narration_provider = narration_provider
         self._clock = clock
 
     def project_terminal(
         self, *, source: V3CreationSource, envelope: ConstraintEnvelope
-    ) -> DecisionResponse:
+    ) -> V3CreationProjection:
         action = envelope.safety_required_action_code or SafetyRequiredActionCode.REST
         guidance = Guidance(
             code=action.value,
@@ -518,7 +796,7 @@ class V3DecisionResponseProjector:
         option_id = uuid4()
         evaluation = _context(source).safety_evaluation
         reasons = list(evaluation.reason_codes if evaluation is not None else ())
-        return DecisionResponse(
+        response = DecisionResponse(
             decision_id=uuid4(),
             local_date=source.local_date,
             status_code="COMPLETED",
@@ -550,10 +828,37 @@ class V3DecisionResponseProjector:
             regeneration_sequence=0,
             created_at=self._clock(),
         )
+        explanation = build_v3_explanation(
+            action_code=action.value,
+            safety_status_code="BLOCKED",
+            safety_vetoed=True,
+            safety_reason_codes=tuple(reasons),
+            final_reason_codes=tuple(reasons[:2] or [action.value]),
+            envelope=envelope,
+            proposals=(),
+            coaching_style_code=_context(source).assembly.coaching_style_code,
+            fallback_used=True,
+            provider=None,
+        )
+        return V3CreationProjection(
+            response=response.model_copy(
+                update={
+                    "summary": explanation.summary,
+                    "public_agent_summaries": [
+                        PublicAgentSummary.model_validate(item)
+                        for item in explanation.agent_summaries_payload()
+                    ],
+                    "safety_summary": SafetySummary.model_validate(
+                        explanation.safety_summary_payload()
+                    ),
+                }
+            ),
+            explanation=explanation,
+        )
 
     def project_success(
         self, *, source: V3CreationSource, bundle: V3DecisionPersistenceBundle
-    ) -> DecisionResponse:
+    ) -> V3CreationProjection:
         plan = bundle.final_plan
         if plan is None:
             raise RuntimeError("V3_FINAL_PLAN_MISSING")
@@ -600,31 +905,72 @@ class V3DecisionResponseProjector:
             )
         first = plan.exercises[0].catalog_record
         evaluation = context.safety_evaluation
-        safety_code: Literal["PASS", "REVISE", "BLOCKED"] = (
-            "REVISE" if evaluation and evaluation.status_code is SafetyStatusCode.REVISE else "PASS"
+        safety_revised = bool(
+            evaluation
+            and (
+                evaluation.status_code is SafetyStatusCode.REVISE
+                or evaluation.excluded_exercise_codes
+            )
         )
-        reason_codes = list(bundle.failure_codes[:2]) or ["V3_COMPLETED"]
-        return DecisionResponse(
+        safety_code: Literal["PASS", "REVISE", "BLOCKED"] = "REVISE" if safety_revised else "PASS"
+        if evaluation and evaluation.excluded_exercise_codes:
+            public_action = "CHANGE"
+        elif evaluation and evaluation.caution_exercise_codes:
+            public_action = "DOWNSHIFT"
+        else:
+            public_action = plan.action_code.value
+        plan_spec = bundle.coordinator_attempts[-1].plan_spec
+        final_reason_codes = (
+            tuple(plan_spec.decision_codes)
+            if plan_spec is not None
+            else tuple(bundle.failure_codes) or ("V3_COMPLETED",)
+        )
+        main_records = tuple(
+            item.catalog_record for item in plan.exercises if item.prescription.phase_code == "MAIN"
+        )
+        plan_name = build_plan_name(
+            action_code=public_action,
+            main_body_focus_codes=(item.body_focus_code for item in main_records),
+            main_movement_pattern_codes=(
+                pattern for item in main_records for pattern in item.movement_pattern_codes
+            ),
+            main_training_type_codes=(item.training_type_code for item in main_records),
+        )
+        response = DecisionResponse(
             decision_id=bundle.decision_execution_id,
             local_date=source.local_date,
             status_code="COMPLETED",
             safety_status_code=safety_code,
-            action_code=plan.action_code.value,
+            action_code=public_action,
             requested_duration_minutes=plan.requested_duration_minutes,
             duration_adjustment_source_code=str(
                 source.normalized_values["duration_adjustment_source_code"]
             ),
             final_plan=DecisionPlan(
                 plan_id=plan_id,
-                action_code=plan.action_code.value,
+                action_code=public_action,
                 training_type_code=first.training_type_code,
                 body_focus_code=first.body_focus_code,
+                routine_name=plan_name.value,
+                routine_name_reason_codes=list(plan_name.reason_codes),
+                routine_naming_rule_version=plan_name.rule_version,
                 requested_duration_minutes=plan.requested_duration_minutes,
                 estimated_duration_seconds=plan.estimated_duration_seconds,
                 estimated_calories_burned=None,
+                # V3 models no separate setup block; the compiled duration is
+                # the whole session. Warmup and cooldown are the time actually
+                # spent in those phases, computed the same way the base-routine
+                # planner computes them, so a V3 plan and a legacy plan report
+                # the same field the same way. Reporting a flat zero here made
+                # every V3 routine look like it had no preparation or settling
+                # work even when the plan carried both.
                 setup_seconds=0,
-                warmup_seconds=0,
-                cooldown_seconds=0,
+                warmup_seconds=sum(
+                    item.estimated_item_seconds for item in items if item.phase_code == "WARMUP"
+                ),
+                cooldown_seconds=sum(
+                    item.estimated_item_seconds for item in items if item.phase_code == "COOLDOWN"
+                ),
                 items=items,
             ),
             options=[
@@ -633,7 +979,7 @@ class V3DecisionResponseProjector:
                         NAMESPACE_URL, f"v3-option:final:{bundle.decision_execution_id}"
                     ),
                     option_code="FINAL_ROUTINE",
-                    action_code=plan.action_code.value,
+                    action_code=public_action,
                     plan_id=plan_id,
                 ),
                 DecisionOptionResponse(
@@ -644,13 +990,17 @@ class V3DecisionResponseProjector:
                     action_code="REST",
                 ),
             ],
-            reason_codes=reason_codes,
-            summary="오늘의 안전한 운동 루틴이 준비되었습니다.",
+            reason_codes=list(final_reason_codes[:2]),
+            summary="오늘의 운동 계획이 준비되었습니다.",
             safety_summary=SafetySummary(
                 safety_status_code=safety_code,
-                vetoed=False,
+                vetoed=bool(evaluation and evaluation.veto),
                 reason_codes=list(evaluation.reason_codes if evaluation else ()),
-                summary="결정적 안전 정책 검증을 통과했습니다.",
+                summary=(
+                    "결정적 안전 정책에 따라 운동 구성을 조정했습니다."
+                    if safety_revised
+                    else "결정적 안전 정책 검증을 통과했습니다."
+                ),
             ),
             generation_mode_code="ORIGINAL",
             decision_engine_code=(
@@ -659,6 +1009,33 @@ class V3DecisionResponseProjector:
             root_decision_id=bundle.root_decision_execution_id,
             regeneration_sequence=0,
             created_at=self._clock(),
+        )
+        explanation = build_v3_explanation(
+            action_code=public_action,
+            safety_status_code=safety_code,
+            safety_vetoed=bool(evaluation and evaluation.veto),
+            safety_reason_codes=tuple(evaluation.reason_codes if evaluation else ()),
+            final_reason_codes=final_reason_codes,
+            envelope=bundle.root_snapshot.constraint_envelope,
+            proposals=tuple(item.proposal for item in bundle.agent_proposals),
+            coaching_style_code=context.assembly.coaching_style_code,
+            fallback_used=bundle.fallback_used,
+            provider=self._narration_provider,
+        )
+        return V3CreationProjection(
+            response=response.model_copy(
+                update={
+                    "summary": explanation.summary,
+                    "public_agent_summaries": [
+                        PublicAgentSummary.model_validate(item)
+                        for item in explanation.agent_summaries_payload()
+                    ],
+                    "safety_summary": SafetySummary.model_validate(
+                        explanation.safety_summary_payload()
+                    ),
+                }
+            ),
+            explanation=explanation,
         )
 
 
@@ -687,6 +1064,7 @@ def _persist_public_decision(
     response: DecisionResponse,
     decision_id: UUID,
     bundle: V3DecisionPersistenceBundle | None,
+    explanation: DecisionExplanation,
 ) -> tuple[DecisionRun, PlanCandidate]:
     now = response.created_at
     policy_version = bundle.policy_version if bundle is not None else DECISION_POLICY_VERSION
@@ -763,6 +1141,11 @@ def _persist_public_decision(
             action_code=plan_response.action_code,
             training_type_code=plan_response.training_type_code,
             body_focus_code=plan_response.body_focus_code,
+            # Recorded so replaying this decision returns the name the user was
+            # actually shown, rather than leaving the client to invent one.
+            routine_name=plan_response.routine_name,
+            routine_name_reason_codes=plan_response.routine_name_reason_codes,
+            routine_naming_rule_version=plan_response.routine_naming_rule_version,
             requested_duration_minutes=plan_response.requested_duration_minutes,
             duration_adjustment_source_code=response.duration_adjustment_source_code,
             estimated_duration_seconds=plan_response.estimated_duration_seconds,
@@ -792,7 +1175,8 @@ def _persist_public_decision(
         )
         for item in plan_response.items:
             exercise = catalog[item.exercise_id]
-            prescription = compiled_by_id[item.exercise_id].prescription
+            compiled_item = compiled_by_id[item.exercise_id]
+            prescription = compiled_item.prescription
             session.add(
                 PlanItem(
                     id=item.plan_item_id,
@@ -803,7 +1187,15 @@ def _persist_public_decision(
                     tier_code=item.tier_code,
                     sets=item.sets,
                     reps=item.reps,
-                    work_seconds_per_set=prescription.work_seconds_per_set,
+                    # The resolved figure, not the raw prescription. A repetition-based
+                    # prescription carries no work_seconds_per_set of its own -- it is
+                    # reps times the catalog's seconds-per-rep basis, which is what
+                    # `work_seconds` two lines down is already totalled from. Storing
+                    # the raw None left the column empty on nearly every MAIN block and
+                    # made those plans unreorderable.
+                    work_seconds_per_set=resolved_work_seconds_per_set(
+                        prescription, compiled_item.catalog_record
+                    ),
                     rest_seconds_per_set=prescription.rest_seconds_between_sets,
                     work_seconds=item.work_seconds,
                     rest_seconds=item.rest_seconds,
@@ -815,16 +1207,28 @@ def _persist_public_decision(
             )
     session.flush()
     evaluation_status = response.safety_status_code
+    excluded_exercise_ids = (
+        [
+            str(exercise_id)
+            for exercise_id in bundle.root_snapshot.constraint_envelope.excluded_exercise_ids
+        ]
+        if bundle is not None
+        else []
+    )
     session.add(
         SafetyReview(
             id=uuid4(),
             decision_run_id=run.id,
             plan_candidate_id=candidate.id,
             safety_status_code=evaluation_status,
-            vetoed=evaluation_status == "BLOCKED",
+            vetoed=(
+                response.safety_summary.vetoed
+                if response.safety_summary is not None
+                else evaluation_status == "BLOCKED"
+            ),
             ruleset_version=run.safety_rule_version,
             reason_codes=response.safety_summary.reason_codes if response.safety_summary else [],
-            excluded_exercise_ids=[],
+            excluded_exercise_ids=excluded_exercise_ids,
             public_guidance=response.guidance.code if response.guidance else None,
         )
     )
@@ -832,21 +1236,17 @@ def _persist_public_decision(
         DecisionExplanationRecord(
             id=uuid4(),
             decision_run_id=run.id,
-            source_code="TEMPLATE",
-            summary=response.summary,
-            reason_codes=response.reason_codes,
-            agent_summaries=[],
-            safety_summary=(
-                response.safety_summary.model_dump(mode="json") if response.safety_summary else {}
-            ),
-            final_adjustment_reason=None,
-            coaching_style_code=assembly.coaching_style_code,
-            template_version=_TEMPLATE_VERSION,
-            prompt_version=None,
-            model_code=None,
-            fallback_reason_code=(
-                "V3_DETERMINISTIC_FALLBACK" if bundle and bundle.fallback_used else "V3_TEMPLATE"
-            ),
+            source_code=explanation.source_code.value,
+            summary=explanation.summary,
+            reason_codes=list(explanation.reason_codes),
+            agent_summaries=explanation.agent_summaries_payload(),
+            safety_summary=explanation.safety_summary_payload(),
+            final_adjustment_reason=explanation.final_adjustment_reason,
+            coaching_style_code=explanation.coaching_style_code,
+            template_version=explanation.template_version,
+            prompt_version=explanation.prompt_version,
+            model_code=explanation.model_code,
+            fallback_reason_code=explanation.fallback_reason_code,
             created_at=now,
         )
     )
@@ -939,14 +1339,30 @@ class SqlAlchemyV3RegenerationRepository:
         session: Session,
         *,
         current_versions: V3RegenerationVersionSnapshot,
+        narration_provider: NarrationProviderPort | None = None,
     ) -> None:
         self._session = session
         self._current_versions = current_versions
+        self._narration_provider = narration_provider
         self._locked_run: DecisionRun | None = None
 
     def lock_regeneration_source(
         self, *, user_id: UUID, decision_id: UUID
     ) -> V3StoredRegenerationSource | None:
+        local_date = self._session.scalar(
+            select(DecisionRun.local_date).where(
+                DecisionRun.id == decision_id, DecisionRun.user_id == user_id
+            )
+        )
+        if local_date is None:
+            return None
+        # Deliberately identical to DailyContextRepository's key. Check-in edits and
+        # regenerations then spend the shared budget serially across their transactions.
+        lock_input = f"{user_id}:{local_date.isoformat()}".encode()
+        lock_key = int.from_bytes(hashlib.sha256(lock_input).digest()[:8], "big", signed=True)
+        self._session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key}
+        )
         run = self._session.scalar(
             select(DecisionRun)
             .where(DecisionRun.id == decision_id, DecisionRun.user_id == user_id)
@@ -973,6 +1389,22 @@ class SqlAlchemyV3RegenerationRepository:
                 DecisionRun.status_code == "COMPLETED",
             )
         )
+        day_regenerations = self._session.scalar(
+            select(func.count(DecisionRun.id)).where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == run.local_date,
+                DecisionRun.status_code == "COMPLETED",
+                DecisionRun.regeneration_sequence.is_not(None),
+                DecisionRun.regeneration_sequence > 0,
+            )
+        )
+        context_version = self._session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == run.local_date,
+            )
+        )
+        daily_adjustment_count = int(day_regenerations or 0) + max(int(context_version or 1) - 1, 0)
         plan = self._session.scalar(
             select(PlanCandidate).where(
                 PlanCandidate.decision_run_id == run.id,
@@ -984,11 +1416,16 @@ class SqlAlchemyV3RegenerationRepository:
         self._locked_run = run
         return V3StoredRegenerationSource(
             decision_id=run.id,
+            local_date=run.local_date,
             root_decision_id=run.root_decision_run_id,
             parent_decision_id=run.parent_decision_run_id,
             plan_id=plan.id,
             regeneration_sequence=run.regeneration_sequence or 0,
             successful_regeneration_count=int(count or 0),
+            daily_adjustment_count=daily_adjustment_count,
+            daily_context_is_current=(
+                context_version is not None and int(context_version) == run.daily_context_version
+            ),
             generation_mode_code=cast(Literal["ORIGINAL", "REGENERATED"], run.generation_mode_code),
             decision_engine_code=V3DecisionEngineCode(
                 run.decision_engine_code or "DETERMINISTIC_FALLBACK"
@@ -1050,7 +1487,10 @@ class SqlAlchemyV3RegenerationRepository:
             },
             application_context=V3ApplicationContext(assembly, ()),
         )
-        response = V3DecisionResponseProjector().project_success(source=source, bundle=bundle)
+        projection = V3DecisionResponseProjector(
+            narration_provider=self._narration_provider
+        ).project_success(source=source, bundle=bundle)
+        response = projection.response
         run, candidate = _persist_public_decision(
             self._session,
             user_id=user_id,
@@ -1058,6 +1498,7 @@ class SqlAlchemyV3RegenerationRepository:
             response=response,
             decision_id=bundle.decision_execution_id,
             bundle=bundle,
+            explanation=projection.explanation,
         )
         _persist_v3_bundle(self._session, run, candidate, bundle)
         self._session.add(
@@ -1088,9 +1529,11 @@ class SqlAlchemyV3RegenerationUnitOfWork:
         session_factory: Callable[[], Session],
         *,
         current_versions: V3RegenerationVersionSnapshot,
+        narration_provider: NarrationProviderPort | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._current_versions = current_versions
+        self._narration_provider = narration_provider
         self._state: ContextVar[tuple[Session, Any, SqlAlchemyV3RegenerationRepository] | None] = (
             ContextVar("v3_regeneration_uow_state", default=None)
         )
@@ -1109,7 +1552,9 @@ class SqlAlchemyV3RegenerationUnitOfWork:
         transaction = session.begin()
         transaction.__enter__()
         repository = SqlAlchemyV3RegenerationRepository(
-            session, current_versions=self._current_versions
+            session,
+            current_versions=self._current_versions,
+            narration_provider=self._narration_provider,
         )
         self._state.set((session, transaction, repository))
         return self

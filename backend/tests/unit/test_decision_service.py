@@ -353,7 +353,7 @@ def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> 
     snapshot = repository.persisted["input_snapshot"]  # type: ignore[index]
     assert "date_of_birth" not in str(snapshot)
     assert "age" not in snapshot.get("profile", {})
-    assert snapshot["profile"]["attention_area_codes"] == []
+    assert "attention_area_codes" not in snapshot["profile"]
 
 
 def test_decision_reuses_completed_result_for_a_new_idempotency_key() -> None:
@@ -389,7 +389,7 @@ def test_decision_creates_again_when_the_daily_context_version_changes() -> None
     assert repository.persist_count == 2
 
 
-def test_attention_areas_are_canonical_snapshot_inputs_and_apply_caution() -> None:
+def test_profile_attention_areas_do_not_affect_decision_input_or_safety() -> None:
     base_context = _context()
     rule_set = _approved_rule_set(SafetyRuleEffectCode.CAUTION)
     first_repository = FakeRepository(
@@ -421,20 +421,21 @@ def test_attention_areas_are_canonical_snapshot_inputs_and_apply_caution() -> No
     reordered_snapshot = reordered_repository.persisted["input_snapshot"]  # type: ignore[index]
     assert first_repository.assembly.context.attention_area_codes == ("KNEE", "SHOULDER")
     assert first_snapshot == reordered_snapshot
-    assert first_snapshot["profile"]["attention_area_codes"] == ["KNEE", "SHOULDER"]
+    assert "attention_area_codes" not in first_snapshot["profile"]
     assert (
         first_repository.persisted["input_hash"]  # type: ignore[index]
         == reordered_repository.persisted["input_hash"]  # type: ignore[index]
     )
     assert (
         first_repository.persisted["input_hash"]  # type: ignore[index]
-        != different_repository.persisted["input_hash"]  # type: ignore[index]
+        == different_repository.persisted["input_hash"]  # type: ignore[index]
     )
     assert first_repository.persisted["result"] == reordered_repository.persisted["result"]  # type: ignore[index]
-    assert first_repository.persisted["result"] != empty_repository.persisted["result"]  # type: ignore[index]
-    assert first_repository.persisted["result"].status_code.value == "REVISE"  # type: ignore[index]
-    assert first_repository.persisted["result"].safety_status_code.value == "REVISE"  # type: ignore[index]
-    assert first_repository.persisted["result"].final_action_code.value == "DOWNSHIFT"  # type: ignore[index]
+    for repository in (first_repository, different_repository, empty_repository):
+        result = repository.persisted["result"]  # type: ignore[index]
+        assert result.status_code.value == "PASS"
+        assert result.safety_status_code.value == "PASS"
+        assert result.final_action_code.value == "KEEP"
 
 
 def test_one_missing_proposal_makes_whole_decision_failed_without_plan() -> None:
@@ -533,7 +534,10 @@ def test_moderate_fatigue_returns_duration_preserving_downshift() -> None:
 
 
 def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -> None:
-    context = _context(discomforts=(("KNEE", "MODERATE"),))
+    context = replace(
+        _context(discomforts=(("KNEE", "MODERATE"),)),
+        pains=(("KNEE", 6, "MODERATE", "pain-intensity-action-v2"),),
+    )
     repository = FakeRepository(
         context,
         safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.EXCLUDE),
@@ -553,6 +557,7 @@ def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -
     assert prepared.adjusted_candidates[-1].candidate.exercise_ids == (
         str(ALTERNATIVE_EXERCISE_ID),
     )
+    assert prepared.adjusted_candidates[-1].items[0].intensity_code == "LOW"
     safety_proposal = next(
         proposal
         for proposal in repository.persisted["proposals"]  # type: ignore[index]

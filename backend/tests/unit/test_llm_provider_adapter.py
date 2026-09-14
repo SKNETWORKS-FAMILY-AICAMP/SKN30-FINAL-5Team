@@ -107,6 +107,9 @@ def test_enabled_settings_build_the_openai_adapter() -> None:
     assert call["headers"]["Authorization"] == f"Bearer {API_KEY}"
     assert call["timeout_seconds"] == 1.5
     assert call["body"]["model"] == "gpt-test-1"
+    output_format = call["body"]["text"]["format"]
+    assert output_format["type"] == "json_schema"
+    assert output_format["schema"]["properties"]["sentences"]["required"] == ["SUMMARY"]
     assert completion.model_code == "gpt-test-1"
     assert completion.sentences == {"SUMMARY": "좋습니다."}
 

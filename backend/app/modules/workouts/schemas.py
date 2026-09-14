@@ -2,8 +2,17 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
+from backend.app.domain.rules.feedback_adjustment import DifficultyReasonCode
 from backend.app.domain.rules.safety import AdverseReactionCode, BodyAreaCode
 from backend.app.domain.rules.workout_execution import WorkoutNotCompletedReasonCode
 from backend.app.modules.checkins.codes import DiscomfortSeverityCode
@@ -22,6 +31,9 @@ class DecisionSelectionRequest(BaseModel):
 class WorkoutSessionSummary(BaseModel):
     session_id: UUID
     status_code: Literal["PLANNED"]
+    completion_code: Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED"] | None = None
+    execution_state_code: str | None = None
+    target_duration_seconds: int | None = None
 
 
 class DecisionSelectionResponse(BaseModel):
@@ -51,6 +63,13 @@ class WorkoutSessionStartResponse(BaseModel):
     started_at: datetime
     items: list[WorkoutSessionItemResponse]
     current_plan_item_id: UUID | None
+    completion_code: None = None
+    execution_state_code: Literal["RUNNING"]
+    target_duration_seconds: int
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
+    is_resumable: Literal[False]
 
 
 class WorkoutSessionItemUpdateRequest(BaseModel):
@@ -83,6 +102,45 @@ class WorkoutTimerEventResponse(BaseModel):
     client_recorded_at: datetime
     created_at: datetime
     session_status_code: Literal["IN_PROGRESS"]
+    execution_state_code: Literal["RUNNING", "PAUSED"]
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
+
+
+class WorkoutSessionStopRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stopped_at: AwareDatetime
+    stop_reason_code: Literal[
+        "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
+    ]
+    not_completed_reason_code: WorkoutNotCompletedReasonCode | None = None
+    """Why the user stopped, in the vocabulary the weekly report learns from.
+
+    A resumable stop leaves the session open, so a user who never comes back
+    leaves it with no recorded reason at all -- and the closed-week report needs
+    one for a session with no completed block. `stop_reason_code` cannot supply
+    it: it names the execution transition (which of the two stops happened), and
+    only `PAIN_OR_ABNORMAL_RESPONSE` carries product meaning. This field is the
+    user's own answer, and it replaces any reason an earlier stop recorded.
+
+    Optional so the pause-and-stop clients that already call this endpoint keep
+    working; they simply record no reason, exactly as they do today.
+    """
+
+
+class WorkoutSessionStopResponse(BaseModel):
+    session_id: UUID
+    completion_code: Literal["PARTIAL", "NOT_COMPLETED"] | None
+    execution_state_code: Literal["STOPPED_RESUMABLE", "STOPPED_SAFETY"]
+    stop_reason_code: Literal[
+        "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
+    ]
+    is_resumable: bool
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
 
 
 class WorkoutAdditionalActivityRequest(BaseModel):
@@ -112,39 +170,24 @@ class WorkoutDiscomfortInput(BaseModel):
 
 
 class WorkoutSafetyEventRequest(BaseModel):
+    """The stop reason is the whole request.
+
+    No timestamp either: the server clock decides when the stop happened, so a client
+    cannot backdate a safety event onto another local date.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    occurred_at: AwareDatetime
-    discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
-    adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
-
-    @field_validator("discomforts")
-    @classmethod
-    def reject_duplicate_body_areas(
-        cls, value: list[WorkoutDiscomfortInput]
-    ) -> list[WorkoutDiscomfortInput]:
-        if len({item.body_area_code for item in value}) != len(value):
-            raise ValueError("body_area_code must not be duplicated")
-        return value
-
-    @field_validator("adverse_reaction_codes")
-    @classmethod
-    def reject_duplicate_reactions(
-        cls, value: list[AdverseReactionCode]
-    ) -> list[AdverseReactionCode]:
-        if len(set(value)) != len(value):
-            raise ValueError("adverse_reaction_codes must not contain duplicates")
-        return value
+    stop_reason_code: Literal["PAIN_OR_ABNORMAL_RESPONSE"]
 
 
 class WorkoutSafetyEventResponse(BaseModel):
     event_id: UUID
-    instruction_code: Literal["SHOW_CAUTION", "STOP_SESSION", "STOP_AND_SEEK_HELP"]
-    resulting_action_code: Literal["REST", "STOP_AND_SEEK_HELP"] | None
-    session_status_code: Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"]
-    guidance_code: str
+    result_code: Literal["SESSION_STOPPED", "STOP_AND_SEEK_HELP"]
+    execution_state_code: Literal["STOPPED_SAFETY"]
+    completion_code: Literal["PARTIAL", "NOT_COMPLETED"]
+    is_resumable: Literal[False]
     guidance: str
-    pressure_notifications_allowed: bool
 
 
 class WorkoutSessionFinishRequest(BaseModel):
@@ -162,6 +205,9 @@ class WorkoutSessionFinishResponse(BaseModel):
     total_item_count: int
     actual_elapsed_seconds: int
     estimated_calories_burned: float | None
+    calorie_source_code: Literal["MET_ESTIMATE", "UNAVAILABLE"]
+    completion_code: Literal["COMPLETED", "PARTIAL"]
+    execution_state_code: Literal["COMPLETED"]
 
 
 class WorkoutSessionNotCompletedRequest(BaseModel):
@@ -179,17 +225,44 @@ class WorkoutSessionNotCompletedResponse(BaseModel):
     completed_item_count: Literal[0]
     total_item_count: int
     penalty_applied: Literal[False]
+    completion_code: Literal["NOT_COMPLETED"]
+    execution_state_code: Literal["COMPLETED"]
 
 
 class WorkoutFeedbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     difficulty_code: Literal["EASY", "APPROPRIATE", "HARD"]
+    difficulty_reason_codes: list[DifficultyReasonCode] = Field(default_factory=list)
     fatigue_code: MachineCode | None = None
     satisfaction_code: MachineCode | None = None
     pain_occurred: bool
     discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
     adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def reject_reasons_outside_hard(self) -> "WorkoutFeedbackRequest":
+        """Reasons belong to `HARD` only, and stay optional during the rollout.
+
+        The reasons pick which axis the next routine lowers (`DOMAIN_RULES.md` 6.1), and
+        ADR-0018 makes them required for `HARD`. That step is deliberately not taken here:
+        clients in the field still post `HARD` with no reasons, and `DOMAIN_RULES.md` 1.1
+        requires the additive API change to land before new writes are enforced. Making it
+        required now would reject the feedback those clients already send. A later release
+        promotes this to required once the client sends it and compatibility is verified;
+        until then a `HARD` row without reasons simply yields no adjustment.
+
+        Reasons sent alongside `EASY` or `APPROPRIATE` are rejected rather than dropped,
+        because storing a row that does not match what was sent would make the decision
+        irreproducible from its own input.
+        """
+
+        reasons = self.difficulty_reason_codes
+        if self.difficulty_code != "HARD" and reasons:
+            raise ValueError("difficulty_reason_codes is only allowed when difficulty_code is HARD")
+        if len(set(reasons)) != len(reasons):
+            raise ValueError("difficulty_reason_codes must not contain duplicates")
+        return self
 
     @field_validator("discomforts")
     @classmethod
@@ -212,7 +285,10 @@ class WorkoutFeedbackRequest(BaseModel):
 
 class WorkoutFeedbackResponse(BaseModel):
     session_id: UUID
-    session_status_code: Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"]
+    session_status_code: Literal[
+        "IN_PROGRESS", "COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"
+    ]
+    """`IN_PROGRESS` means the session was stopped but can still be resumed today."""
     created_at: datetime
     guidance_code: str | None
     guidance: str | None
@@ -261,6 +337,11 @@ class WorkoutSessionDetailResponse(BaseModel):
     total_item_count: int
     requested_duration_minutes: int
     items: list[WorkoutSessionItemResult]
+    # What a client needs to restore the workout screen without replaying the item list
+    # itself. `current_plan_item_id` is the next block to perform, and is null once the
+    # session has ended, whatever is still pending.
+    completed_plan_item_ids: list[UUID] = Field(default_factory=list)
+    current_plan_item_id: UUID | None = None
     feedback: WorkoutFeedbackSummary | None
     not_completed_reason_code: str | None
     started_at: datetime | None
@@ -285,6 +366,8 @@ __all__ = [
     "WorkoutSessionItemUpdateResponse",
     "WorkoutSessionStartRequest",
     "WorkoutSessionStartResponse",
+    "WorkoutSessionStopRequest",
+    "WorkoutSessionStopResponse",
     "WorkoutSessionNotCompletedRequest",
     "WorkoutSessionNotCompletedResponse",
     "WorkoutSessionItemResult",

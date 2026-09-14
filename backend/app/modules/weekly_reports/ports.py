@@ -45,6 +45,21 @@ class WeeklySessionEvidence:
     selected_action_code: str
     feedback_difficulty_code: str | None = None
     pain_occurred: bool | None = None
+    # Time actually spent working, not elapsed time. AGENTS.md section 7 keeps
+    # official completion away from the clock, and the reported total has to be
+    # measured the same way, so paused and idle time never counts.
+    progress_seconds: int = 0
+    # None means the run predates calorie estimation or lacked the weight it
+    # needs. It is not zero, and a report must not present it as zero.
+    estimated_calories_burned: float | None = None
+    # One entry per planned block, so a movement repeated across blocks is
+    # weighted by how much of the session it actually occupied.
+    training_type_codes: tuple[str, ...] = ()
+    intensity_codes: tuple[str, ...] = ()
+    exercise_names: tuple[str, ...] = ()
+    stop_reason_code: str | None = None
+    fatigue_level_code: str | None = None
+    daily_pain_present: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +78,7 @@ class ReportValues:
     partial_count: int
     not_completed_count: int
     stopped_for_safety: int
+    safety_stopped_session_count: int
     primary_miss_reason_code: str | None
     completion_rate: float
     persistence_rate: float
@@ -75,6 +91,20 @@ class ReportValues:
     next_action: str
     agent_summaries: dict[str, Any] | None
     summary: str
+    total_workout_seconds: int
+    total_estimated_calories_burned: float | None
+    average_intensity_code: str | None
+    most_performed_training_type_code: str | None
+    most_performed_exercise_name: str | None
+    completed_count_change: int | None
+    highlight_codes: list[str]
+    improvement_codes: list[str]
+    routine_difficulty_code: str | None
+    condition_summary: dict[str, Any]
+    outcome_reason_summary: dict[str, dict[str, int]]
+    recommendation_action_counts: dict[str, int]
+    next_week_recommendation: dict[str, str]
+    coach_message: str
     report_policy_version: str
     generated_at: datetime
 
@@ -88,6 +118,7 @@ class WeeklyReportNarrationInput:
     template_summary: str
     template_decision_summary: str
     template_next_action: str
+    template_next_week_recommendation: dict[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +129,7 @@ class WeeklyReportNarration:
     decision_summary: str
     next_action: str
     source_code: str
+    next_week_recommendation: dict[str, str]
     model_code: str | None = None
     prompt_version: str | None = None
     fallback_reason_code: str | None = None
@@ -158,6 +190,16 @@ class WeeklyReportRepositoryPort(Protocol):
     def get_week_evidence(
         self, session: Session, user_id: UUID, week_start: date, week_end: date
     ) -> tuple[WeeklySessionEvidence, ...]: ...
+
+    def get_prior_week_completed_count(
+        self, session: Session, user_id: UUID, week_start: date
+    ) -> int | None:
+        """Completed sessions in the closest earlier reported week.
+
+        None when there is no earlier report, which is not the same as zero: a
+        first week has nothing to compare against and must not read as a decline.
+        """
+        ...
 
     def get_report_for_week(self, session: Session, week_id: UUID) -> StoredReport | None: ...
 

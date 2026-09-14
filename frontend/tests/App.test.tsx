@@ -61,13 +61,41 @@ describe('App boot navigation', () => {
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
+  it('renders the mascot house against the current device viewport when requested', async () => {
+    const bootResolver = jest.fn(async () => 'Auth' as const);
+
+    await render(
+      <App
+        bootResolver={bootResolver}
+        previewMode="mascot-house"
+        previewViewport="device"
+      />,
+    );
+
+    const canvasStyle = StyleSheet.flatten(
+      screen.getByTestId('preview-app-canvas').props.style,
+    );
+    const frameStyle = StyleSheet.flatten(
+      screen.getByTestId('preview-canvas-frame').props.style,
+    );
+
+    expect(screen.queryByTestId('preview-controls')).toBeNull();
+    expect(canvasStyle.transform).toEqual([{ scale: 1 }]);
+    expect(frameStyle.width).toBe('100%');
+    expect(frameStyle.borderRadius).toBe(0);
+    expect(canvasStyle.borderWidth).toBe(0);
+    expect(await screen.findByTestId('mascot-house-content')).toBeOnTheScreen();
+    expect(bootResolver).not.toHaveBeenCalled();
+  });
+
   it('keeps the splash visible in explicit local preview mode', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 
     await render(<App bootResolver={bootResolver} splashPreview />);
 
-    expect(screen.getByRole('header', { name: '헬끼' })).toBeOnTheScreen();
-    expect(screen.getByTestId('splash-island')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'HELKKI' })).toBeOnTheScreen();
+    expect(screen.getByTestId('splash-mascot')).toBeOnTheScreen();
+    expect(screen.queryByTestId('splash-island')).toBeNull();
     expect(screen.queryByTestId('question-mark')).toBeNull();
     expect(bootResolver).not.toHaveBeenCalled();
   });
@@ -81,12 +109,17 @@ describe('App boot navigation', () => {
       screen.getByRole('header', { name: 'Preview Gallery' }),
     ).toBeOnTheScreen();
     expect(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '운동 체크인' }),
     ).toBeOnTheScreen();
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
   it.each([
+    {
+      mode: 'app-status' as const,
+      label: 'App status (actual)',
+      readyText: 'EXPO_PUBLIC_API_BASE_URL',
+    },
     {
       mode: 'auth' as const,
       label: 'Auth (mock)',
@@ -96,6 +129,21 @@ describe('App boot navigation', () => {
       mode: 'background_test' as const,
       label: 'background_test (mock)',
       readyText: '집 꾸미기',
+    },
+    {
+      mode: 'banana-catch' as const,
+      label: 'Banana catch (actual)',
+      readyText: '30초 동안 바나나를 받아요!',
+    },
+    {
+      mode: 'kikki-runner' as const,
+      label: 'Kkikki runner (prototype)',
+      readyText: '끼끼와 바나나 도시를 달려요!',
+    },
+    {
+      mode: 'kikki-merge' as const,
+      label: 'Kkikki merge (prototype)',
+      readyText: '아기 끼끼를 챔피언 끼끼로!',
     },
     {
       mode: 'account' as const,
@@ -113,9 +161,14 @@ describe('App boot navigation', () => {
       readyText: '집 꾸미기',
     },
     {
+      mode: 'notifications' as const,
+      label: 'Home (API)',
+      readyText: '운동을 준비해볼까요?',
+    },
+    {
       mode: 'loading' as const,
       label: 'Page loading (API)',
-      readyText: '오늘 상태를 불러오는 중이에요',
+      readyText: '헬끼 준비 중이에요 조금만 기다려주세요!',
     },
     {
       mode: 'session' as const,
@@ -146,7 +199,13 @@ describe('App boot navigation', () => {
     expect(await screen.findByText(readyText)).toBeOnTheScreen();
     expect(
       screen.getByText(
-        `단독 진입: ?preview=${mode === 'session-result' ? 'workout' : mode}`,
+        `단독 진입: ?preview=${
+          mode === 'session-result'
+            ? 'workout'
+            : mode === 'notifications'
+              ? 'home'
+              : mode
+        }`,
       ),
     ).toBeOnTheScreen();
     expect(bootResolver).not.toHaveBeenCalled();
@@ -159,7 +218,7 @@ describe('App boot navigation', () => {
     },
     { mode: 'profile' as const, heading: '프로필 등록' },
     { mode: 'signup' as const, heading: '회원가입' },
-    { mode: 'home' as const, heading: '안녕하세요, 헬끼님!' },
+    { mode: 'home' as const, heading: '헬끼님, 오늘도 반가워요!' },
     {
       mode: 'home-map' as const,
       heading: '목표 4회',

@@ -1,3 +1,5 @@
+import { RoutineSections } from '../../components/RoutineSections';
+import { CloseButton } from '../../components/CloseButton';
 /**
  * The home screen: the product's entry point.
  *
@@ -119,6 +121,7 @@ export type PreviousHomeScreenProps = {
 
   /** Set once the user chose REST today; suppresses every workout prompt. */
   restToday?: boolean;
+  safetyGuidance?: string;
 
   /** Profile default, used for the first check-in of the day. */
   defaultDurationMinutes?: number;
@@ -131,7 +134,6 @@ export type PreviousHomeScreenProps = {
   staleContext?: boolean;
   onRetryCheckin?: () => void;
 
-  onCreateRoutine?: () => void;
   onSubmitCheckin?: (draft: HomeCheckinDraft) => void;
   onStartWorkout?: () => void;
   onChooseRest?: () => void;
@@ -178,10 +180,8 @@ function HomeScreenContent({
   actionError = null,
   staleContext = false,
   onRetryCheckin,
-  onCreateRoutine,
   onSubmitCheckin,
   onStartWorkout,
-  onChooseRest,
   onRequestAiRevision,
   onSubmitUserEdits,
   onNavigateTab,
@@ -211,11 +211,8 @@ function HomeScreenContent({
     decision?.options.find(
       (option) => option.option_code === 'FINAL_ROUTINE',
     ) ?? null;
-  const restOption =
-    decision?.options.find((option) => option.option_code === 'REST') ?? null;
-
   const startingDuration =
-    context?.requested_duration_minutes ??
+    context?.available_time_minutes ??
     defaultDurationMinutes ??
     routineDay?.requested_duration_minutes ??
     HOME_DURATION_CHOICES[1];
@@ -265,15 +262,11 @@ function HomeScreenContent({
             {restToday ? (
               <RestCard />
             ) : routine === null ? (
-              <NoRoutineCard
-                onCreateRoutine={onCreateRoutine}
-                pending={busy === 'checkin'}
-                useJua={useJua}
-              />
+              <NoRoutineCard onRetry={onRetry} useJua={useJua} />
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="오늘 루틴 체크인"
+                accessibilityLabel="운동 체크인"
                 onPress={() => setSheet('checkin')}
                 style={({ pressed }) => [
                   styles.checkinButton,
@@ -281,9 +274,7 @@ function HomeScreenContent({
                 ]}
               >
                 <Text style={[styles.checkinLabel, useJua && styles.juaLabel]}>
-                  {context === null
-                    ? '오늘 루틴 체크인🍌'
-                    : '체크인 다시 하기🍌'}
+                  {context === null ? '운동 체크인🍌' : '체크인 다시 하기🍌'}
                 </Text>
                 <Text style={styles.checkinArrow}>›</Text>
               </Pressable>
@@ -346,22 +337,6 @@ function HomeScreenContent({
                 onStart={onStartWorkout}
                 useJua={useJua}
               />
-            ) : null}
-
-            {/*
-              The REST opt-out lives outside the routine card because a safety
-              veto leaves no plan to attach it to, and the user must still be
-              able to take it.
-            */}
-            {!restToday && restOption !== null ? (
-              <View style={formStyles.restOption}>
-                <Button
-                  label="오늘은 쉬기"
-                  tone="secondary"
-                  disabled={!restOption.selectable || busy === 'starting'}
-                  onPress={onChooseRest}
-                />
-              </View>
             ) : null}
           </>
         )}
@@ -583,25 +558,22 @@ function WeeklyProgressCard({
 }
 
 function NoRoutineCard({
-  onCreateRoutine,
-  pending,
+  onRetry,
   useJua,
 }: {
-  onCreateRoutine?: () => void;
-  pending: boolean;
+  onRetry?: () => void;
   useJua: boolean;
 }) {
   return (
     <Card style={styles.messageCard}>
-      <Text style={styles.messageTitle}>기본 루틴이 아직 없어요</Text>
+      <Text style={styles.messageTitle}>기본 루틴을 불러오지 못했어요</Text>
       <Text style={styles.messageText}>
-        프로필을 바탕으로 검수된 운동만 사용해 기본 루틴을 만들어요.
+        서버에 저장된 기본 루틴을 다시 불러와 주세요.
       </Text>
       <Button
-        label={pending ? '만드는 중…' : '기본 루틴 만들기'}
+        label="다시 불러오기"
         labelStyle={useJua ? styles.juaLabel : undefined}
-        disabled={pending}
-        onPress={onCreateRoutine}
+        onPress={onRetry}
       />
     </Card>
   );
@@ -610,7 +582,7 @@ function NoRoutineCard({
 function EmptyRoutineCard({ hasContext }: { hasContext: boolean }) {
   return (
     <Card style={styles.messageCard}>
-      <Text style={styles.messageTitle}>아직 오늘의 운동이 없어요</Text>
+      <Text style={styles.messageTitle}>아직 추천 운동이 없어요</Text>
       <Text style={styles.messageText}>
         {hasContext
           ? '체크인은 저장했어요. 다시 체크인하면 오늘의 최종 루틴을 받을 수 있어요.'
@@ -706,15 +678,19 @@ function RoutineCard({
       </View>
 
       <View style={styles.routineList}>
-        {items.map((item) => (
-          <View key={item.id} style={styles.routineRow}>
-            <Text style={styles.routineItemText}>
-              {item.name}
-              {item.prescription ? ` · ${item.prescription}` : ''}
-            </Text>
-            <View style={styles.routineDot} />
-          </View>
-        ))}
+        <RoutineSections
+          items={items}
+          getPhase={(item) => item.phaseCode}
+          renderItem={(item) => (
+            <View key={item.id} style={styles.routineRow}>
+              <Text style={styles.routineItemText}>
+                {item.name}
+                {item.prescription ? ` · ${item.prescription}` : ''}
+              </Text>
+              <View style={styles.routineDot} />
+            </View>
+          )}
+        />
       </View>
 
       {adjusted ? (
@@ -849,14 +825,7 @@ function SheetFrame({
           <Text accessibilityRole="header" style={styles.sheetTitle}>
             {title}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="닫기"
-            onPress={onClose}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable>
+          <CloseButton accessibilityLabel="닫기" onPress={onClose} />
         </View>
         {children}
       </View>
@@ -1169,14 +1138,18 @@ function EditRoutineSheet({
           <Text style={styles.checkinSectionTitle}>
             현재 계획 {routine === null ? '' : `v${routine.version}`}
           </Text>
-          {items.map((item) => (
-            <View key={item.id} style={styles.editRow}>
-              <Text style={styles.editNameInput}>{item.name}</Text>
-              <Text style={styles.editPrescription}>
-                {item.prescription ?? '시간 자유'}
-              </Text>
-            </View>
-          ))}
+          <RoutineSections
+            items={items}
+            getPhase={(item) => item.phaseCode}
+            renderItem={(item) => (
+              <View key={item.id} style={styles.editRow}>
+                <Text style={styles.editNameInput}>{item.name}</Text>
+                <Text style={styles.editPrescription}>
+                  {item.prescription ?? '시간 자유'}
+                </Text>
+              </View>
+            )}
+          />
           {/*
             Exercise names, order and prescriptions are the server's output. The
             contract refuses arbitrary exercise edits, and letting the client
@@ -1189,13 +1162,6 @@ function EditRoutineSheet({
         </View>
 
         <View style={styles.editActions}>
-          <Button
-            label="닫기"
-            labelStyle={styles.resetLabel}
-            onPress={onClose}
-            style={styles.resetButton}
-            tone="secondary"
-          />
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSave }}
@@ -1857,19 +1823,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -10,
-    marginRight: -12,
-    marginBottom: -10,
-  },
-  closeText: {
-    color: colors.textMuted,
-    fontSize: 22,
   },
   sheetIntro: {
     marginTop: 4,

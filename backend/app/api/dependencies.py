@@ -13,8 +13,11 @@ from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
+from backend.app.db.repositories.notification import NotificationRepository
 from backend.app.db.repositories.profile import ProfileRepository
+from backend.app.db.repositories.reward import RewardRepository
 from backend.app.db.repositories.routine import RoutineRepository
+from backend.app.db.repositories.social_auth import SocialOAuthRepository
 from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
 from backend.app.db.repositories.workout import WorkoutRepository
@@ -22,7 +25,11 @@ from backend.app.modules.account_deletion.ports import AccountDeletionRepository
 from backend.app.modules.catalog.service import ExerciseMediaUrlPort, ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.execution_profile import DecisionCreationServicePort
-from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
+from backend.app.modules.decisions.ports import (
+    DecisionRepositoryPort,
+    NarrationProviderPort,
+    PlanRevisionRepositoryPort,
+)
 from backend.app.modules.decisions.v3_regeneration import (
     V3EngineDisabledError,
     V3RegenerationCommand,
@@ -43,8 +50,17 @@ from backend.app.modules.identity.service import (
     CurrentUserService,
     DeletionLifecycleUserService,
 )
+from backend.app.modules.notifications.ports import NotificationRepositoryPort
+from backend.app.modules.notifications.service import NotificationService
 from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
+from backend.app.modules.rewards.ports import RewardRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
+from backend.app.modules.social_auth.ports import (
+    FirebaseCustomTokenIssuer,
+    GoogleOAuthPort,
+    KakaoOAuthPort,
+    SocialOAuthRepositoryPort,
+)
 from backend.app.modules.weekly_plans.ports import WeeklyPlanRepositoryPort
 from backend.app.modules.weekly_reports.ports import (
     WeeklyReportNarrationAgentPort,
@@ -55,7 +71,10 @@ from backend.app.modules.workouts.ports import WorkoutRepositoryPort
 _bearer_scheme = HTTPBearer(auto_error=False)
 _catalog_repository = CatalogRepository()
 _identity_repository = IdentityRepository()
+_social_oauth_repository = SocialOAuthRepository()
+_notification_repository = NotificationRepository()
 _profile_repository = ProfileRepository()
+_reward_repository = RewardRepository()
 _routine_repository = RoutineRepository()
 _daily_context_repository = DailyContextRepository()
 _decision_repository = DecisionRepository()
@@ -93,6 +112,26 @@ def get_identity_repository() -> IdentityRepositoryPort:
     return _identity_repository
 
 
+def get_social_oauth_repository() -> SocialOAuthRepositoryPort:
+    return _social_oauth_repository
+
+
+def get_kakao_oauth_client(request: Request) -> KakaoOAuthPort:
+    return request.app.state.kakao_oauth_client
+
+
+def get_google_oauth_client(request: Request) -> GoogleOAuthPort:
+    return request.app.state.google_oauth_client
+
+
+def get_firebase_custom_token_issuer(request: Request) -> FirebaseCustomTokenIssuer:
+    return request.app.state.firebase_custom_token_issuer
+
+
+def get_notification_repository() -> NotificationRepositoryPort:
+    return _notification_repository
+
+
 def get_catalog_repository() -> ExerciseReadRepositoryPort:
     return _catalog_repository
 
@@ -109,6 +148,10 @@ def get_profile_repository() -> ProfileRepositoryPort:
     return _profile_repository
 
 
+def get_reward_repository() -> RewardRepositoryPort:
+    return _reward_repository
+
+
 def get_routine_repository() -> RoutineRepositoryPort:
     return _routine_repository
 
@@ -118,6 +161,10 @@ def get_daily_context_repository() -> DailyContextRepositoryPort:
 
 
 def get_decision_repository() -> DecisionRepositoryPort:
+    return _decision_repository
+
+
+def get_plan_revision_repository() -> PlanRevisionRepositoryPort:
     return _decision_repository
 
 
@@ -186,7 +233,16 @@ def get_current_user(
 
     service = CurrentUserService(verifier, repository)
     try:
-        return service.authenticate(session, credentials.credentials)
+        current_user = service.authenticate(session, credentials.credentials)
+        if current_user.previous_last_active_at is not None:
+            NotificationService(
+                _notification_repository, _workout_repository
+            ).record_return_notification(
+                session,
+                current_user.user_id,
+                previous_last_active_at=current_user.previous_last_active_at,
+            )
+        return current_user
     except InvalidFirebaseTokenError:
         raise AppError(
             status_code=HTTPStatus.UNAUTHORIZED,
@@ -265,10 +321,15 @@ __all__ = [
     "get_birthdate_cipher",
     "get_db_session",
     "get_firebase_token_verifier",
+    "get_firebase_custom_token_issuer",
+    "get_kakao_oauth_client",
+    "get_social_oauth_repository",
     "get_exercise_media_url_provider",
     "get_identity_repository",
     "get_narration_provider",
+    "get_notification_repository",
     "get_profile_repository",
+    "get_reward_repository",
     "get_routine_repository",
     "get_workout_repository",
     "get_weekly_report_repository",

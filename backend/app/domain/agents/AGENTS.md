@@ -13,7 +13,9 @@
   coordinator, and integrity validation on the compiled plan is the only deterministic gate on
   coordinator output. Do not reintroduce a check upstream of the coordinator.
 - The coordinator selects candidate IDs and cannot remove a safety veto.
-- Missing or failed required proposals fail closed through the accepted version's deterministic fallback or
-  terminal status; partial proposals never bypass safety.
+- ADR-0021: Training remains required and must be `READY`. Recovery and Feasibility may pass a valid
+  `NEEDS_INPUT` proposal to the coordinator because their content is advisory. Missing proposals, explicit
+  `FAILED`, provider/timeout/schema/domain failures, and invalid proposal identity still fail closed through
+  deterministic fallback or terminal status. Partial proposals never bypass safety.
 - Store proposals separately from coordinator and final decision records.
 - Changes require unit, golden scenario, reproducibility, and safety veto tests.

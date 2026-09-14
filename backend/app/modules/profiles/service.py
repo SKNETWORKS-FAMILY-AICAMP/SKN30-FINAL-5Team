@@ -1,11 +1,12 @@
 import hashlib
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE, BodyAreaCode
 from backend.app.modules.profiles.age import (
     AgeRequirementNotMetError,
     InvalidBirthdateError,
@@ -15,10 +16,14 @@ from backend.app.modules.profiles.age import (
 )
 from backend.app.modules.profiles.codes import (
     CONSENT_RESPONSE_SCHEMA_VERSION,
+    FIXED_COACHING_STYLE_CODE,
     ONBOARDING_RESPONSE_SCHEMA_VERSION,
     PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
-    CoachingStyleCode,
+    EligibilityResultCode,
     MutationEndpointCode,
+)
+from backend.app.modules.profiles.legal import (
+    validate_submitted_terms_version,
 )
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
@@ -26,6 +31,7 @@ from backend.app.modules.profiles.ports import (
     BirthdateEncryptionError,
     MeProfileRecord,
     OnboardingProfileValues,
+    ProfileImageUrlProvider,
     ProfileRepositoryPort,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
@@ -39,6 +45,7 @@ from backend.app.modules.profiles.schemas import (
     MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
+    PersistentPainInput,
     ProfileSettingsUpdateRequest,
     ProfileSettingsUpdateResponse,
 )
@@ -72,8 +79,8 @@ class StaleProfileError(Exception):
     """The expected profile version no longer matches the stored version."""
 
 
-class InvalidProfileSettingsError(Exception):
-    """The merged profile settings violate a cross-field invariant."""
+class MedicalExerciseRestrictionError(Exception):
+    """The user needs individual medical exercise management outside this MVP."""
 
 
 def _utc_now() -> datetime:
@@ -85,6 +92,25 @@ def _request_hash(payload: dict[str, object]) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+# Settings fields the API still accepts but no longer applies. A deployed client
+# that sends one gets a successful no-op for that field rather than a 422. There is
+# no longer a column behind any of them: migrations 0049 and 0050 dropped the
+# storage once a full release had gone by without a writer.
+#
+# `coaching_style_code`: every user shares one narration context.
+# The rest: ADR-0017 stopped collecting sex, height and workout location. Location
+# is now a Daily Check-in input, so the profile is no longer its source of truth.
+_IGNORED_SETTINGS_FIELDS = frozenset(
+    {
+        "coaching_style_code",
+        "preferred_location_code",
+        "available_location_codes",
+        "height_cm",
+        "sex_code",
+    }
+)
+
+
 class ProfileService:
     def __init__(
         self,
@@ -94,7 +120,9 @@ class ProfileService:
         primary_goal_codes: tuple[str, ...],
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
+        terms_version: str | None = None,
         stale_routines: StaleRoutinePort | None = None,
+        profile_image_url_provider: ProfileImageUrlProvider | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._repository = repository
@@ -103,7 +131,9 @@ class ProfileService:
         self._primary_goal_codes = frozenset(primary_goal_codes)
         self._experience_level_codes = frozenset(experience_level_codes)
         self._consent_policy_version = consent_policy_version
+        self._terms_version = terms_version
         self._clock = clock
+        self._profile_image_url_provider = profile_image_url_provider
 
     def _require_onboarding_configuration(self) -> tuple[BirthdateCipher, str]:
         if (
@@ -195,23 +225,20 @@ class ProfileService:
     @staticmethod
     def _profile_settings_changes(
         request: ProfileSettingsUpdateRequest,
-        current: ProfileSettingsRecord,
         protected_birthdate: str | None,
     ) -> ProfileSettingsChanges:
-        payload = request.model_dump(mode="json", exclude_unset=True)
-        preferred_location = str(
-            payload.get("preferred_location_code", current.preferred_location_code)
-        )
-        available_locations = tuple(
-            str(code)
-            for code in payload.get("available_location_codes", current.available_location_codes)
-        )
-        if preferred_location not in available_locations:
-            raise InvalidProfileSettingsError
+        # Ignored fields are dropped before anything reads the payload, so a
+        # deployed client that still sends them cannot trip a cross-field rule
+        # over values the service is not going to apply.
+        payload = {
+            field_name: value
+            for field_name, value in request.model_dump(mode="json", exclude_unset=True).items()
+            if field_name not in _IGNORED_SETTINGS_FIELDS
+        }
         relationship_fields = {
-            "available_location_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
+            "persistent_pains",
         }
         scalar_values = {
             field_name: value
@@ -221,19 +248,22 @@ class ProfileService:
         return ProfileSettingsChanges(
             protected_birthdate=protected_birthdate,
             scalar_values=scalar_values,
-            available_location_codes=(
-                available_locations
-                if "available_location_codes" in request.model_fields_set
-                else None
-            ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
-                if "attention_area_codes" in request.model_fields_set
+                if "attention_area_codes" in payload
                 else None
             ),
             preferred_exercise_type_codes=(
                 tuple(str(code) for code in payload["preferred_exercise_type_codes"])
-                if "preferred_exercise_type_codes" in request.model_fields_set
+                if "preferred_exercise_type_codes" in payload
+                else None
+            ),
+            persistent_pains=(
+                tuple(
+                    (str(item.body_area_code), item.intensity_score)
+                    for item in request.persistent_pains or []
+                )
+                if "persistent_pains" in payload
                 else None
             ),
         )
@@ -245,20 +275,51 @@ class ProfileService:
 
         profile = None
         if record.profile is not None:
+            # One decryption serves both the age and the birthdate the owner
+            # sees in the settings editor.
+            birthdate = self._derive_birthdate(user_id, record.profile)
             profile = MeProfile(
                 nickname=record.profile.nickname,
-                age=self._derive_age(user_id, record.profile),
+                profile_image_url=(
+                    self._profile_image_url_provider.create_url(
+                        record.profile.profile_image_object_key
+                    )
+                    if self._profile_image_url_provider is not None
+                    and record.profile.profile_image_object_key is not None
+                    else None
+                ),
+                age=self._derive_age(record.profile, birthdate),
+                date_of_birth=birthdate,
+                weight_kg=record.profile.weight_kg,
                 primary_goal_code=record.profile.primary_goal_code,
                 experience_level_code=record.profile.experience_level_code,
                 timezone=record.profile.timezone,
-                preferred_location_code=record.profile.preferred_location_code,
-                available_location_codes=list(record.profile.available_location_codes),
+                # Retired response fields. Nothing stores a location, a style, a sex
+                # or a height any more, but a deployed client still reads the first
+                # three off this object, so they report the fixed values the service
+                # applies instead of disappearing mid-release. FE-5 and FE-8 remove
+                # the last readers; the fields go with the release after that.
+                preferred_location_code=DEFAULT_LOCATION_CODE.value,
+                available_location_codes=[DEFAULT_LOCATION_CODE.value],
                 default_requested_duration_minutes=(
                     record.profile.default_requested_duration_minutes
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
-                coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
+                coaching_style_code=FIXED_COACHING_STYLE_CODE,
                 attention_area_codes=list(record.profile.attention_area_codes),
+                persistent_pains=(
+                    [
+                        PersistentPainInput(
+                            body_area_code=BodyAreaCode(body_area_code),
+                            intensity_score=intensity_score,
+                        )
+                        for body_area_code, intensity_score in record.profile.persistent_pains
+                    ]
+                    if record.profile.persistent_pains
+                    else None
+                    if record.profile.attention_area_codes
+                    else []
+                ),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
                 created_at=record.profile.created_at,
@@ -271,11 +332,12 @@ class ProfileService:
             premium_status_code=record.premium_status_code,
             ai_trial_started_at=record.ai_trial_started_at,
             ai_trial_ends_at=record.ai_trial_ends_at,
+            banana_balance=record.banana_balance,
             profile=profile,
         )
 
-    def _derive_age(self, user_id: UUID, profile: MeProfileRecord) -> int | None:
-        """Derive the age, returning null rather than failing the read.
+    def _derive_birthdate(self, user_id: UUID, profile: MeProfileRecord) -> date | None:
+        """Decrypt the stored birthdate, returning null rather than failing the read.
 
         A deployment without a birthdate cipher, or a value this deployment
         cannot authenticate, must still be able to serve the profile.
@@ -283,13 +345,22 @@ class ProfileService:
         if self._birthdate_cipher is None:
             return None
         try:
-            birthdate = self._birthdate_cipher.decrypt(user_id, profile.protected_birthdate)
+            return self._birthdate_cipher.decrypt(user_id, profile.protected_birthdate)
+        except (BirthdateDecryptionError, InvalidBirthdateError):
+            return None
+
+    def _derive_age(self, profile: MeProfileRecord, birthdate: date | None) -> int | None:
+        """Derive the age from an already decrypted birthdate.
+
+        A stored timezone this deployment cannot resolve must not fail the read
+        either, so an unusable one yields a null age and leaves the birthdate
+        itself intact.
+        """
+        if birthdate is None:
+            return None
+        try:
             return calculate_age(birthdate, profile.timezone, at=self._clock())
-        except (
-            BirthdateDecryptionError,
-            InvalidBirthdateError,
-            InvalidTimezoneError,
-        ):
+        except (InvalidBirthdateError, InvalidTimezoneError):
             return None
 
     def upsert_onboarding(
@@ -309,15 +380,9 @@ class ProfileService:
         user_id: UUID,
         request: OnboardingUpsertRequest,
     ) -> None:
-        """Apply the established underage-account handling before a wider flow."""
+        """Validate the new-onboarding age scope without changing account status."""
 
-        now = self._clock()
-        try:
-            evaluate_age_eligibility(request.date_of_birth, request.timezone, at=now)
-        except AgeRequirementNotMetError:
-            with session.begin():
-                self._repository.disable_user_for_age(session, user_id, now)
-            raise
+        evaluate_age_eligibility(request.date_of_birth, request.timezone, at=self._clock())
 
     def upsert_onboarding_in_transaction(
         self,
@@ -339,29 +404,38 @@ class ProfileService:
             raise InvalidOnboardingCodeError
         if not request.consents.general_personal_data or not request.consents.sensitive_data:
             raise RequiredConsentMissingError
+        # The deployment decides which revision users accept. Until one is
+        # approved this is a no-op, so the setting can ship without a
+        # coordinated client release.
+        validate_submitted_terms_version(request.terms_version, approved=self._terms_version)
+        if request.medical_exercise_restriction:
+            raise MedicalExerciseRestrictionError
 
         try:
             protected_birthdate = cipher.encrypt(user_id, request.date_of_birth)
         except BirthdateEncryptionError:
             raise ProfileConfigurationError from None
 
+        weekly_target_sessions = (
+            request.weekly_target_sessions or request.desired_weekly_workout_count
+        )
+        assert weekly_target_sessions is not None
         profile_values = OnboardingProfileValues(
             nickname=request.nickname,
             primary_goal_code=request.primary_goal_code,
             experience_level_code=request.experience_level_code,
             timezone=request.timezone,
-            preferred_location_code=request.preferred_location_code,
-            available_location_codes=tuple(
-                request.available_location_codes or (request.preferred_location_code,)
-            ),
+            # The request still carries a location, a coaching style, a sex and a
+            # height for write compatibility. None of them is stored: ADR-0017 and
+            # the single-style decision removed the columns behind them.
             default_requested_duration_minutes=request.default_requested_duration_minutes,
-            desired_weekly_workout_count=request.desired_weekly_workout_count,
-            coaching_style_code=request.coaching_style_code,
-            height_cm=request.height_cm,
+            desired_weekly_workout_count=weekly_target_sessions,
             weight_kg=request.weight_kg,
-            sex_code=request.sex_code,
             attention_area_codes=tuple(request.attention_area_codes),
             preferred_exercise_type_codes=tuple(request.preferred_exercise_type_codes),
+            medical_exercise_restriction=request.medical_exercise_restriction,
+            eligibility_result_code=EligibilityResultCode.ELIGIBLE,
+            weekly_target_sessions=weekly_target_sessions,
         )
 
         self._repository.acquire_idempotency_lock(
@@ -395,11 +469,21 @@ class ProfileService:
             consent_policy_version,
             now,
         )
+        self._repository.record_terms_agreement(session, user_id, request.terms_version, now)
+        self._repository.replace_persistent_pains(
+            session,
+            user_id,
+            tuple(
+                (str(item.body_area_code), item.intensity_score)
+                for item in request.persistent_pains
+            ),
+            now,
+        )
         response = OnboardingResponse(
             user_id=record.user_id,
             onboarding_completed=True,
             profile_version=record.profile_version,
-            coaching_style_code=CoachingStyleCode(record.coaching_style_code),
+            coaching_style_code=FIXED_COACHING_STYLE_CODE,
             ai_trial_started_at=record.ai_trial_started_at,
             ai_trial_ends_at=record.ai_trial_ends_at,
             premium_status_code=record.premium_status_code,
@@ -542,19 +626,36 @@ class ProfileService:
                 protected_birthdate = self._protected_birthdate_for_update(
                     user_id, request, current, now
                 )
-                changes = self._profile_settings_changes(request, current, protected_birthdate)
+                changes = self._profile_settings_changes(request, protected_birthdate)
                 profile_version, updated_at = self._repository.update_profile_settings(
                     session, user_id, changes, now
                 )
-                # A routine is built to the profile default. Leaving one behind
-                # that targets the old duration makes every daily decision reject
-                # it and the user sees REST forever with no way out.
+                # A routine is built to the profile goal and default duration.
+                # Retire an incompatible version in the same transaction so Home's
+                # existing ROUTINE_NOT_FOUND recovery creates the next routine from
+                # the freshly persisted profile instead of returning stale content.
+                new_goal = changes.scalar_values.get("primary_goal_code")
                 new_duration = changes.scalar_values.get("default_requested_duration_minutes")
-                if self._stale_routines is not None and isinstance(new_duration, int):
-                    self._stale_routines.archive_routines_with_other_duration(
+                goal_changed = isinstance(new_goal, str) and new_goal != current.primary_goal_code
+                duration_changed = (
+                    isinstance(new_duration, int)
+                    and new_duration != current.default_requested_duration_minutes
+                )
+                if self._stale_routines is not None and (goal_changed or duration_changed):
+                    effective_goal = changes.scalar_values.get(
+                        "primary_goal_code", current.primary_goal_code
+                    )
+                    effective_duration = changes.scalar_values.get(
+                        "default_requested_duration_minutes",
+                        current.default_requested_duration_minutes,
+                    )
+                    assert isinstance(effective_goal, str)
+                    assert isinstance(effective_duration, int)
+                    self._stale_routines.archive_routines_incompatible_with_profile(
                         session,
                         user_id,
-                        requested_duration_minutes=new_duration,
+                        primary_goal_code=effective_goal,
+                        requested_duration_minutes=effective_duration,
                     )
                 response = ProfileSettingsUpdateResponse(
                     profile_version=profile_version,
@@ -572,8 +673,8 @@ class ProfileService:
                 )
             return response
         except AgeRequirementNotMetError:
-            with session.begin():
-                self._repository.disable_user_for_age(session, user_id, now)
+            # D3 does not yet define what to do with an existing profile that
+            # becomes out of scope, so this endpoint must not disable it.
             raise
 
 
@@ -581,7 +682,7 @@ __all__ = [
     "IdempotencyKeyReusedError",
     "InvalidBirthdateError",
     "InvalidOnboardingCodeError",
-    "InvalidProfileSettingsError",
+    "MedicalExerciseRestrictionError",
     "InvalidTimezoneError",
     "ProfileConfigurationError",
     "ProfileNotFoundError",

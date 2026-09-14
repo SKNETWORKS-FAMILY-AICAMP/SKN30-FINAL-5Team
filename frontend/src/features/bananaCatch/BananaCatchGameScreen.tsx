@@ -14,6 +14,11 @@ import { imageAssets } from '../../assets';
 import { colors, shadows, spacing } from '../../components/theme';
 import { BananaGlyph } from '../house/HouseArt';
 import {
+  IDLE_MINI_GAME_REWARD_STATE,
+  miniGameRewardMessage,
+  type MiniGameRewardState,
+} from '../house/miniGameReward';
+import {
   BANANA_HALF_WIDTH,
   BANANA_CATCH_TICK_MS,
   PLAYER_HALF_WIDTH,
@@ -32,6 +37,7 @@ const CATCHER_BOTTOM_RATIO = 0.05;
 const BASKET_LIP_RATIO_IN_ASSET = 0.56;
 const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
 const DEFAULT_CATCH_LINE_Y = 0.75;
+const GAME_HORIZONTAL_INSET = '4%' as const;
 
 export function bananaCatchLayoutMetrics(width: number, height: number) {
   const safeWidth = Math.max(1, width);
@@ -71,7 +77,21 @@ const COLLECTING_MASCOT_ASSETS = [
   },
 ];
 
-export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
+export function BananaCatchGameScreen({
+  onBack,
+  onPlayed,
+  rewardState = IDLE_MINI_GAME_REWARD_STATE,
+}: {
+  onBack: () => void;
+  /**
+   * Fired once the round actually finishes, with the score it reached.
+   *
+   * The score rides along so the house can claim the shared daily bonus; the
+   * payout and once-a-day limit are the server's to decide.
+   */
+  onPlayed?: (score: number) => void;
+  rewardState?: MiniGameRewardState;
+}) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
   const arenaWidth = useRef(1);
@@ -97,6 +117,13 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
     }, BANANA_CATCH_TICK_MS);
     return () => clearInterval(timer);
   }, [game.status, paused]);
+
+  const playCounted = useRef(false);
+  useEffect(() => {
+    if (game.status !== 'finished' || playCounted.current) return;
+    playCounted.current = true;
+    onPlayed?.(game.score);
+  }, [game.score, game.status, onPlayed]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -136,21 +163,20 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
         style={styles.safeArea}
         testID="banana-catch-safe-area"
       >
-        <View style={styles.header}>
+        <View style={styles.header} testID="banana-catch-header">
           <Pressable
             accessibilityLabel="끼끼의 집으로 돌아가기"
             accessibilityRole="button"
             onPress={onBack}
             style={styles.headerButton}
           >
-            <Text style={styles.headerButtonText}>‹</Text>
+            <View style={styles.backChevron} testID="banana-catch-back-icon" />
           </Pressable>
 
           <View style={styles.titleBlock}>
             <Text accessibilityRole="header" style={styles.title}>
               바나나 받아라!
             </Text>
-            <Text style={styles.subtitle}>하늘에서 오는 바나나를 잡아봐요</Text>
           </View>
 
           <View
@@ -244,18 +270,18 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
               onAction={start}
               title="30초 동안 바나나를 받아요!"
             >
-              화면을 누르거나 드래그해서 끼끼를 움직여요. 놓쳐도 점수는 줄지
-              않아요.
+              화면을 누르거나 드래그해서 끼끼를 움직여서 바나나를 받아보세요!
             </GameCard>
           ) : null}
 
           {game.status === 'finished' ? (
             <GameCard
-              actionLabel="한 번 더"
-              onAction={start}
-              title={`바나나 ${game.score}개를 받았어요!`}
+              actionLabel="확인"
+              actionPending={rewardState.status === 'pending'}
+              onAction={onBack}
+              title={`바나나 ${game.score}개를 모았어요!`}
             >
-              원하는 만큼 다시 놀 수 있어요.
+              {miniGameRewardMessage(rewardState)}
             </GameCard>
           ) : null}
 
@@ -276,11 +302,13 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
 
 function GameCard({
   actionLabel,
+  actionPending = false,
   children,
   onAction,
   title,
 }: {
   actionLabel: string;
+  actionPending?: boolean;
   children: string;
   onAction: () => void;
   title: string;
@@ -293,10 +321,16 @@ function GameCard({
         <Text style={styles.cardBody}>{children}</Text>
         <Pressable
           accessibilityRole="button"
+          disabled={actionPending}
           onPress={onAction}
-          style={styles.startButton}
+          style={[
+            styles.startButton,
+            actionPending && styles.startButtonPending,
+          ]}
         >
-          <Text style={styles.startButtonText}>{actionLabel}</Text>
+          <Text style={styles.startButtonText}>
+            {actionPending ? '확인 중' : actionLabel}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -321,13 +355,12 @@ const styles = StyleSheet.create({
   header: {
     zIndex: 6,
     width: '100%',
-    maxWidth: 430,
     minHeight: 76,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: GAME_HORIZONTAL_INSET,
   },
   headerButton: {
     width: 44,
@@ -338,15 +371,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
     ...shadows.card,
   },
-  headerButtonText: {
-    marginTop: -3,
-    color: colors.text,
-    fontSize: 36,
-    lineHeight: 38,
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.text,
+    transform: [{ rotate: '45deg' }],
   },
   titleBlock: { flex: 1 },
   title: { color: colors.text, fontSize: 21, fontWeight: '900' },
-  subtitle: { color: colors.textSub, fontSize: 11, fontWeight: '600' },
   score: {
     minWidth: 64,
     minHeight: 58,
@@ -451,6 +485,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 24,
   },
+  startButtonPending: { opacity: 0.56 },
   startButtonText: { color: colors.text, fontSize: 16, fontWeight: '900' },
   timerValue: { color: colors.textSub, fontSize: 12, fontWeight: '800' },
 });

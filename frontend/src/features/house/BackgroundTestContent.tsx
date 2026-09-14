@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * 끼끼의 집 — the scene itself.
  *
@@ -41,15 +42,10 @@ import Svg, {
 import { InlineFeedback } from '../../components/primitives';
 import { useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
-import {
-  BananaGlyph,
-  GiftGlyph,
-  HouseArtView,
-  HouseMarkGlyph,
-  StarGlyph,
-} from './HouseArt';
+import { BananaGlyph, HouseArtView, StarGlyph } from './HouseArt';
 import {
   HOUSE_BACKDROP_FALLBACK,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   houseRoomArt,
@@ -57,6 +53,7 @@ import {
 import {
   CHEAPEST_ITEM_COST,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
   houseSpeech,
   type HouseItemId,
   type HousePose,
@@ -74,11 +71,8 @@ export type BackgroundTestFeedback = {
   onRetry?: () => void;
 };
 
-/**
- * The controls stay phone-width however wide the window gets. Past this the
- * extra room goes to the scene, not to stretched buttons.
- */
-const CONTENT_MAX_WIDTH = 430;
+/** Matches the Large phone preview's inset without fixing the layout to its pixels. */
+const HOUSE_HORIZONTAL_INSET = '4%' as const;
 
 /**
  * The requested scene zoom relative to the former full-screen `cover` size.
@@ -133,7 +127,6 @@ export function BackgroundTestContent({
   footer,
   nickname,
   onBuyItem,
-  onClaimGift,
   onDismissFeedback,
   onFeed,
   onPet,
@@ -145,7 +138,6 @@ export function BackgroundTestContent({
   footer?: ReactNode;
   nickname: string;
   onBuyItem: (itemId: HouseItemId) => void;
-  onClaimGift: () => void;
   onDismissFeedback: () => void;
   onFeed: () => void;
   onPet: () => void;
@@ -188,31 +180,23 @@ export function BackgroundTestContent({
                 style={styles.chip}
                 testID="house-decorate-action"
               >
-                <HouseMarkGlyph size={22} color={colors.brandOutline} />
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  pointerEvents="none"
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseDecorateButtonArt}
+                    style={styles.decorateButtonArt}
+                  />
+                </View>
                 <Text style={styles.chipValue}>집 꾸미기</Text>
               </Pressable>
             </View>
 
             <View style={styles.railRight}>
-              <Pressable
-                accessibilityLabel={
-                  view.giftAvailable
-                    ? '오늘의 선물 받기'
-                    : '오늘의 선물, 이미 받았어요'
-                }
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !view.giftAvailable }}
-                disabled={!view.giftAvailable}
-                onPress={onClaimGift}
-                style={[styles.chip, !view.giftAvailable && styles.spent]}
-                testID="house-gift-button"
-              >
-                <GiftGlyph size={22} />
-                <Text style={styles.chipValue}>
-                  {view.giftAvailable ? '오늘의 선물' : '받았어요'}
-                </Text>
-              </Pressable>
-
               {view.visitStreakDays > 1 ? (
                 <View style={styles.streakChip} testID="house-visit-streak">
                   <StarGlyph size={14} />
@@ -262,15 +246,11 @@ export function BackgroundTestContent({
                         <Text style={styles.retryLabel}>다시 시도</Text>
                       </Pressable>
                     )}
-                    <Pressable
+                    <CloseButton
                       accessibilityLabel="알림 닫기"
-                      accessibilityRole="button"
                       onPress={onDismissFeedback}
-                      style={styles.dismissButton}
                       testID="house-feedback-dismiss"
-                    >
-                      <Text style={styles.dismissLabel}>닫기</Text>
-                    </Pressable>
+                    />
                   </View>
                 }
                 message={feedback.message}
@@ -295,16 +275,14 @@ export function BackgroundTestContent({
             >
               <FeedButton enabled={view.canFeed} onPress={onFeed} />
               <Pressable
-                accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
+                accessibilityLabel={HOUSE_BONDING_COPY.actionAccessibilityLabel}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !view.canPet }}
-                disabled={!view.canPet}
                 onPress={onPet}
-                style={[styles.petButton, !view.canPet && styles.spent]}
+                style={styles.petButton}
                 testID="house-pet-action"
               >
                 <Text style={styles.petLabel}>
-                  쓰다듬기 · 바나나 {HOUSE_ACTION_COST.pet}개
+                  {HOUSE_BONDING_COPY.actionLabel}
                 </Text>
               </Pressable>
 
@@ -612,14 +590,7 @@ function DecoratePanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
-        <Pressable
-          accessibilityLabel="집 꾸미기 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        <CloseButton accessibilityLabel="집 꾸미기 닫기" onPress={onClose} />
       </View>
 
       <ScrollView
@@ -729,10 +700,9 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: HOUSE_HORIZONTAL_INSET,
     paddingTop: spacing.sm,
   },
   topBar: {
@@ -766,6 +736,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     minWidth: 84,
+    minHeight: 44,
     alignItems: 'center',
     gap: 3,
     borderRadius: 14,
@@ -783,6 +754,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  decorateButtonArt: {
+    width: 28,
+    height: 28,
   },
   streakChip: {
     flexDirection: 'row',
@@ -880,20 +855,6 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     color: colors.warningText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  dismissButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: 'rgba(255, 255, 255, 0.62)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  dismissLabel: {
-    color: colors.textSub,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1009,17 +970,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 2,
-  },
-  closeButton: {
-    borderRadius: radii.control,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  closeLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '600',
   },
   itemGrid: {
     flexDirection: 'row',

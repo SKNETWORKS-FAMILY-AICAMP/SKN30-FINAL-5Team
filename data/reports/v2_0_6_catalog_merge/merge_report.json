@@ -1,0 +1,54 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "policy": {
+    "canonical_normalized_catalog_is_output": true,
+    "latest_snapshot_wins_for_duplicate_stable_code": true,
+    "met_provenance_overlays_latest_catalog_values": true,
+    "met_source_only": true,
+    "met_unresolved_values_remain_blank": true,
+    "rank_not_generated_or_used": true,
+    "generated_snapshot_is_not_human_editable": true
+  },
+  "inputs": {
+    "existing_canonical_catalog": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+      "records_before_merge": 240,
+      "duplicate_stable_codes_last_wins": []
+    },
+    "latest_catalog_snapshot": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/generated/exercise-catalog-v2.0.6-draft/review_catalog/exercise_catalog_merged_draft.json",
+      "sha256": "6a112496e9776621db7bc6a8defa7b5afdf0f27f32f6eba6b1ece50548a47461",
+      "records_after_last_wins": 240,
+      "duplicate_stable_codes_last_wins": []
+    },
+    "met_provenance": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_provenance.csv",
+      "sha256": "c70becd4ac83ac0f15b3cfeda1d39787c3b17965af34b18891a58cc96c23e985",
+      "records_after_last_wins": 240,
+      "duplicate_stable_codes_last_wins": []
+    },
+    "compendium_subset": {
+      "path": "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl",
+      "sha256": "a75dd242d8897ae11906ec60d426593c1fdcc389382bcda960dacbf32cd8478e",
+      "activity_records": 20
+    }
+  },
+  "counts": {
+    "expected_records": 240,
+    "records_written": 240,
+    "added": 0,
+    "replaced": 0,
+    "unchanged": 240,
+    "dropped_existing_not_in_latest": 0,
+    "met_mapping_success": 2,
+    "met_unmapped": 238,
+    "met_ambiguous_or_unclear": 92,
+    "met_review_required": 240
+  },
+  "dropped_existing_stable_codes": [],
+  "outputs": {
+    "normalized_catalog": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "merge_changes": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_catalog_merge/merge_changes.csv"
+  }
+}

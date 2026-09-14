@@ -4,12 +4,28 @@ PROFILE_CODE_SET_VERSION = "profile-mvp-v1"
 CONSENT_RESPONSE_SCHEMA_VERSION = "consent-response-v1"
 ONBOARDING_RESPONSE_SCHEMA_VERSION = "onboarding-response-v1"
 PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION = "profile-settings-response-v1"
+PROFILE_IMAGE_RESPONSE_SCHEMA_VERSION = "profile-image-response-v1"
+
+
+class EligibilityResultCode(StrEnum):
+    ELIGIBLE = "ELIGIBLE"
+    OUT_OF_SCOPE_AGE = "OUT_OF_SCOPE_AGE"
+    OUT_OF_SCOPE_MEDICAL_MANAGEMENT = "OUT_OF_SCOPE_MEDICAL_MANAGEMENT"
 
 
 class CoachingStyleCode(StrEnum):
     SUPPORTIVE = "SUPPORTIVE"
     CONCISE = "CONCISE"
     ENERGETIC = "ENERGETIC"
+
+
+# Every user receives the same narration context. The style was collected at
+# onboarding but never reached a template: `decisions.explanations` only carried
+# the value through to the narration prompt, so three stored values produced one
+# behaviour. Requests may still send a style for write compatibility; the value is
+# ignored. Migration 0049 dropped the column, so this constant is now the only
+# source of the style, including the value both responses still report.
+FIXED_COACHING_STYLE_CODE = CoachingStyleCode.SUPPORTIVE
 
 
 class ConsentTypeCode(StrEnum):
@@ -29,14 +45,19 @@ class MutationEndpointCode(StrEnum):
     ONBOARDING = "PUT_ME_ONBOARDING"
     CONSENTS = "PUT_ME_CONSENTS"
     PROFILE_SETTINGS = "PATCH_ME_PROFILE"
+    PROFILE_IMAGE_UPLOAD = "POST_ME_PROFILE_IMAGE"
+    PROFILE_IMAGE_DELETE = "DELETE_ME_PROFILE_IMAGE"
 
 
 __all__ = [
     "CONSENT_RESPONSE_SCHEMA_VERSION",
+    "FIXED_COACHING_STYLE_CODE",
     "ONBOARDING_RESPONSE_SCHEMA_VERSION",
     "PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION",
+    "PROFILE_IMAGE_RESPONSE_SCHEMA_VERSION",
     "PROFILE_CODE_SET_VERSION",
     "CoachingStyleCode",
+    "EligibilityResultCode",
     "ConsentEventCode",
     "ConsentTypeCode",
     "MutationEndpointCode",

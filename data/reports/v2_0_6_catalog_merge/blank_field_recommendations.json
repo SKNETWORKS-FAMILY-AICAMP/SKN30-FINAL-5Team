@@ -1,0 +1,191 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "catalog": {
+    "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "records": 240
+  },
+  "policy": {
+    "no_inference": true,
+    "no_rank_usage": true,
+    "met_direct_source_only": true,
+    "safety_columns_not_filled": true
+  },
+  "blank_fields": [
+    {
+      "column_name": "default_rest_seconds",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Fill only from reviewed dosage policy; do not copy by category.",
+      "evidence_source": "explicit dosage review evidence"
+    },
+    {
+      "column_name": "default_seconds_per_rep",
+      "empty_count": 202,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Fill only from reviewed dosage policy; do not calculate from timing or difficulty.",
+      "evidence_source": "explicit dosage review evidence"
+    },
+    {
+      "column_name": "default_transition_seconds",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Fill only from reviewed transition policy; no blanket default.",
+      "evidence_source": "explicit dosage review evidence"
+    },
+    {
+      "column_name": "default_work_seconds",
+      "empty_count": 205,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Fill only from reviewed exercise dosage policy or explicit source value; no default substitution.",
+      "evidence_source": "explicit dosage review evidence"
+    },
+    {
+      "column_name": "difficulty_code",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Require explicit difficulty review; never use rank or infer from equipment/body focus.",
+      "evidence_source": "difficulty review evidence; rank prohibited"
+    },
+    {
+      "column_name": "equipment_codes",
+      "empty_count": 1,
+      "recommendation_code": "EXACT_SOURCE_MAPPING",
+      "recommended_action": "For the single blank row, map the exact raw equipment label through the controlled vocabulary mapper and retain unresolved values blank.",
+      "evidence_source": "data/raw/gym_visual/exercises.json exact source_identity"
+    },
+    {
+      "column_name": "family_code",
+      "empty_count": 167,
+      "recommendation_code": "KEEP_BLANK_UNTIL_FAMILY_REVIEW",
+      "recommended_action": "Representative/family confirmation is excluded; do not derive from exercise name or movement category alone.",
+      "evidence_source": "separate family review artifact required"
+    },
+    {
+      "column_name": "form_cues_review_status",
+      "empty_count": 167,
+      "recommendation_code": "REVIEW_REQUIRED",
+      "recommended_action": "Mark existing imported cues as REVIEW_REQUIRED until content review evidence exists.",
+      "evidence_source": "content review evidence"
+    },
+    {
+      "column_name": "form_cues_source",
+      "empty_count": 167,
+      "recommendation_code": "EXACT_SOURCE_PROVENANCE",
+      "recommended_action": "Record the exact raw source identity/path for existing form cues; do not rewrite cue content in this step.",
+      "evidence_source": "data/raw/gym_visual/exercises.json exact source_identity"
+    },
+    {
+      "column_name": "general_pool_included",
+      "empty_count": 167,
+      "recommendation_code": "SOURCE_REVIEW_REQUIRED",
+      "recommended_action": "Identify a direct source mapping and preserve blank values until reviewed; no inference or defaulting.",
+      "evidence_source": "field-specific source evidence"
+    },
+    {
+      "column_name": "instruction_content_version",
+      "empty_count": 167,
+      "recommendation_code": "GENERATOR_METADATA",
+      "recommended_action": "Set only when the content generator/version is explicitly applied and audited.",
+      "evidence_source": "content naturalization audit"
+    },
+    {
+      "column_name": "instruction_summary_ko",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_CONTENT_REVIEW_REQUIRED",
+      "recommended_action": "Create a reviewed user-facing summary from exact source steps; do not treat raw Korean text as approved copy.",
+      "evidence_source": "data/raw/gym_visual/exercises.json instruction_steps.ko"
+    },
+    {
+      "column_name": "location_codes",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Fill only when source or explicit location review supports HOME/GYM/OUTDOOR; do not infer from equipment.",
+      "evidence_source": "explicit location evidence"
+    },
+    {
+      "column_name": "primary_body_area_codes",
+      "empty_count": 167,
+      "recommendation_code": "SOURCE_MAPPING_REVIEW_REQUIRED",
+      "recommended_action": "Map raw body_part/muscle evidence to controlled codes with explicit primary selection; do not copy body_focus_code.",
+      "evidence_source": "data/raw/gym_visual/exercises.json exact source_identity"
+    },
+    {
+      "column_name": "primary_movement_pattern_code",
+      "empty_count": 167,
+      "recommendation_code": "SOURCE_REVIEW_REQUIRED",
+      "recommended_action": "Identify a direct source mapping and preserve blank values until reviewed; no inference or defaulting.",
+      "evidence_source": "field-specific source evidence"
+    },
+    {
+      "column_name": "record_type",
+      "empty_count": 167,
+      "recommendation_code": "KEEP_BLANK_UNTIL_REPRESENTATIVE_REVIEW",
+      "recommended_action": "Do not decide representative/variant record type in this task.",
+      "evidence_source": "separate representative review"
+    },
+    {
+      "column_name": "recovery_eligible",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Require explicit recovery eligibility review; do not infer from mobility/body focus.",
+      "evidence_source": "recovery review evidence"
+    },
+    {
+      "column_name": "representative_stable_code",
+      "empty_count": 240,
+      "recommendation_code": "KEEP_BLANK",
+      "recommended_action": "Representative selection is excluded from this task.",
+      "evidence_source": "separate representative review"
+    },
+    {
+      "column_name": "review_status_code",
+      "empty_count": 167,
+      "recommendation_code": "REVIEW_GATE",
+      "recommended_action": "Set REVIEW_REQUIRED when the row has been assembled but remains unreviewed; never promote to DOMAIN_APPROVED automatically.",
+      "evidence_source": "review gate evidence"
+    },
+    {
+      "column_name": "secondary_body_area_codes",
+      "empty_count": 168,
+      "recommendation_code": "SOURCE_MAPPING_REVIEW_REQUIRED",
+      "recommended_action": "Map only explicitly supported secondary muscles to controlled codes; do not infer from primary or body focus.",
+      "evidence_source": "data/raw/gym_visual/exercises.json exact source_identity"
+    },
+    {
+      "column_name": "safety_relevant_body_area_codes",
+      "empty_count": 240,
+      "recommendation_code": "KEEP_BLANK",
+      "recommended_action": "Excluded from this task; fill only after a direct source value and separate safety review.",
+      "evidence_source": "no direct source mapping accepted in this task"
+    },
+    {
+      "column_name": "timing_mode_code",
+      "empty_count": 167,
+      "recommendation_code": "HUMAN_REVIEW_REQUIRED",
+      "recommended_action": "Confirm REPS vs DURATION from reviewed execution/dosage evidence; do not infer from MET or name.",
+      "evidence_source": "explicit dosage review evidence"
+    },
+    {
+      "column_name": "met_value",
+      "empty_count": 238,
+      "recommendation_code": "KEEP_BLANK_UNLESS_DIRECT_COMPENDIUM_MATCH",
+      "recommended_action": "Use only direct activity evidence from the designated Compendium; no estimate, category transfer, or intensity inference.",
+      "evidence_source": "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl"
+    },
+    {
+      "column_name": "met_source_code",
+      "empty_count": 238,
+      "recommendation_code": "KEEP_BLANK_WITH_MET",
+      "recommended_action": "Populate only together with a directly matched met_value and exact source_id.",
+      "evidence_source": "designated Compendium source_id"
+    },
+    {
+      "column_name": "met_source_activity_code",
+      "empty_count": 238,
+      "recommendation_code": "KEEP_BLANK_WITH_MET",
+      "recommended_action": "Populate only together with a directly matched met_value and exact activity_code.",
+      "evidence_source": "designated Compendium activity_code"
+    }
+  ]
+}

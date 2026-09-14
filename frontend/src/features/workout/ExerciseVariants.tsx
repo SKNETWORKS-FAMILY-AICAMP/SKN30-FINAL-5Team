@@ -3,8 +3,8 @@
  *
  * This UI never changes the active routine or workout session. The backend
  * owns which equipment requirements and EQUIPMENT relationships are approved.
- * The action is available for any exercise with required equipment, while the
- * variant section is rendered only when reviewed variants exist.
+ * The action is available only in a HOME context and only when the server
+ * returns at least one reviewed variant.
  */
 
 import { useEffect, useRef } from 'react';
@@ -30,8 +30,10 @@ export function ExerciseVariantsAction({
   actionStyle,
   actionTextStyle,
   api,
+  disabled = false,
   exerciseId,
   exerciseName,
+  locationCode,
   autoOpen = false,
   label = '장비',
   onOpen,
@@ -40,21 +42,70 @@ export function ExerciseVariantsAction({
   actionStyle?: StyleProp<ViewStyle>;
   actionTextStyle?: StyleProp<TextStyle>;
   api: VariantApi;
+  disabled?: boolean;
   exerciseId: string;
   exerciseName: string;
+  /** Undefined preserves the backend's legacy HOME-compatible behavior. */
+  locationCode?: string;
   autoOpen?: boolean;
   label?: string;
   onOpen: (response: ExerciseVariantsResponse) => void;
   presentation?: 'pill' | 'text';
+}) {
+  if (!supportsEquipmentVariants(locationCode)) {
+    return null;
+  }
+
+  return (
+    <HomeExerciseVariantsAction
+      actionStyle={actionStyle}
+      actionTextStyle={actionTextStyle}
+      api={api}
+      autoOpen={autoOpen}
+      disabled={disabled}
+      exerciseId={exerciseId}
+      exerciseName={exerciseName}
+      label={label}
+      locationCode={locationCode}
+      onOpen={onOpen}
+      presentation={presentation}
+    />
+  );
+}
+
+function HomeExerciseVariantsAction({
+  actionStyle,
+  actionTextStyle,
+  api,
+  disabled,
+  exerciseId,
+  exerciseName,
+  locationCode,
+  autoOpen,
+  label,
+  onOpen,
+  presentation,
+}: {
+  actionStyle?: StyleProp<ViewStyle>;
+  actionTextStyle?: StyleProp<TextStyle>;
+  api: VariantApi;
+  disabled: boolean;
+  exerciseId: string;
+  exerciseName: string;
+  locationCode?: string;
+  autoOpen: boolean;
+  label: string;
+  onOpen: (response: ExerciseVariantsResponse) => void;
+  presentation: 'pill' | 'text';
 }) {
   const getExerciseVariants = api.getExerciseVariants;
   const openedAutomatically = useRef(false);
   const { state, reload } = useAsyncData<ExerciseVariantsResponse>(
     (signal) =>
       getExerciseVariants
-        ? getExerciseVariants(exerciseId, signal)
+        ? getExerciseVariants(exerciseId, locationCode, signal)
         : Promise.resolve(emptyVariants(exerciseId)),
-    [getExerciseVariants, exerciseId],
+    [getExerciseVariants, exerciseId, locationCode],
   );
 
   useEffect(() => {
@@ -62,7 +113,7 @@ export function ExerciseVariantsAction({
       !autoOpen ||
       openedAutomatically.current ||
       state.status !== 'ready' ||
-      !hasRequiredEquipment(state.data.source_required_equipment_codes)
+      state.data.items.length === 0
     ) {
       return;
     }
@@ -95,6 +146,8 @@ export function ExerciseVariantsAction({
         accessibilityHint={state.message}
         accessibilityLabel={`${exerciseName} 장비 안내 다시 확인`}
         accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         onPress={reload}
         style={({ pressed }) => [
           presentation === 'pill' ? styles.action : styles.textAction,
@@ -110,7 +163,7 @@ export function ExerciseVariantsAction({
     );
   }
 
-  if (!hasRequiredEquipment(state.data.source_required_equipment_codes)) {
+  if (state.data.items.length === 0) {
     return null;
   }
 
@@ -118,6 +171,8 @@ export function ExerciseVariantsAction({
     <Pressable
       accessibilityLabel={`${exerciseName} ${label} 보기`}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={() => onOpen(state.data)}
       style={({ pressed }) => [
         presentation === 'pill' ? styles.action : styles.textAction,
@@ -140,25 +195,18 @@ export function ExerciseVariantsContent({
 
   return (
     <View style={styles.content} testID="exercise-variants-content">
-      <View style={styles.sourceCard}>
-        <Text style={styles.sectionTitle}>원래 운동의 필요 장비</Text>
-        <Text style={styles.equipmentText}>
-          {equipmentSummary(response.source_required_equipment_codes)}
-        </Text>
-      </View>
-
       {hasVariants ? (
         <View style={styles.variantSection} testID="exercise-variants-list">
-          <Text style={styles.intro}>
-            장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.
-          </Text>
-
           {response.items.map((item) => (
             <View key={item.exercise_id} style={styles.variantCard}>
               <Text style={styles.variantName}>{item.exercise_name}</Text>
-              <Text style={styles.variantEquipment}>
-                필요 장비: {equipmentSummary(item.required_equipment_codes)}
-              </Text>
+              {item.required_equipment_codes.some(
+                (code) => code !== 'BODYWEIGHT',
+              ) ? (
+                <Text style={styles.variantEquipment}>
+                  준비물: {equipmentSummary(item.required_equipment_codes)}
+                </Text>
+              ) : null}
               <Text style={styles.summary}>{item.instruction_summary}</Text>
               {item.form_cues.map((cue, index) => (
                 <View
@@ -171,15 +219,26 @@ export function ExerciseVariantsContent({
               ))}
             </View>
           ))}
-
-          <Text style={styles.notice}>
-            이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지
-            않아요.
-          </Text>
         </View>
       ) : null}
     </View>
   );
+}
+
+export function equipmentGuideTitle(
+  response: ExerciseVariantsResponse,
+): string {
+  const codes = response.source_required_equipment_codes.filter(
+    (code) => code !== 'BODYWEIGHT',
+  );
+  if (codes.length === 0) return '장비가 없을 때';
+  const equipment = codes.map(equipmentLabel).join(' · ');
+  const last = equipment.charCodeAt(equipment.length - 1);
+  const particle =
+    last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0
+      ? '이'
+      : '가';
+  return `${equipment}${particle} 없을 때`;
 }
 
 function emptyVariants(exerciseId: string): ExerciseVariantsResponse {
@@ -200,8 +259,8 @@ function equipmentSummary(codes: readonly string[]): string {
   return equipmentCodes.map(equipmentLabel).join(', ');
 }
 
-function hasRequiredEquipment(codes: readonly string[]): boolean {
-  return codes.some((code) => code !== 'BODYWEIGHT');
+function supportsEquipmentVariants(locationCode?: string): boolean {
+  return locationCode === undefined || locationCode === 'HOME';
 }
 
 const styles = StyleSheet.create({

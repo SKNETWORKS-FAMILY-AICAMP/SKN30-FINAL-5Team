@@ -1,0 +1,104 @@
+{
+  "architectures": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "by_category": {
+        "complex": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.8,
+          "plan_delivery_rate": 1.0,
+          "runs": 5
+        },
+        "conflict": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 0.5,
+          "plan_delivery_rate": 1.0,
+          "runs": 2
+        },
+        "moderate": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 2
+        },
+        "simple": {
+          "constraint_satisfaction_rate": 1.0,
+          "critical_failures": 0,
+          "llm_plan_rate": 1.0,
+          "plan_delivery_rate": 1.0,
+          "runs": 3
+        }
+      },
+      "constraint_satisfaction_rate": 1.0,
+      "cost_inputs": {
+        "average_llm_calls_per_run": 4.0833,
+        "average_tokens_per_run": 23325.2,
+        "estimated_cost": null,
+        "estimated_cost_note": "Omitted deliberately. docs/runbooks/v3-shadow-evaluation.md forbids writing a cost without an approved pricing reference.",
+        "input_tokens": 237192,
+        "llm_calls": 49,
+        "output_tokens": 42710
+      },
+      "critical_failures": 0,
+      "judge": {
+        "deterministic_failures_not_scored": 0,
+        "feasibility": null,
+        "mean": null,
+        "no_plan_not_scored": 0,
+        "overall_quality": null,
+        "personalization": null,
+        "scored_runs": 0
+      },
+      "label": "C. Multi-Agent + RAG",
+      "latency": {
+        "p50_ms": 35297,
+        "p95_ms": 56531
+      },
+      "llm_plan_rate": 0.8333,
+      "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+      "outcomes": {
+        "counts": {
+          "CONTRACT": 0,
+          "DECLINED": 0,
+          "GATE": 2,
+          "PLAN": 10,
+          "PROVIDER": 0
+        },
+        "decline_rate": 0.0,
+        "note": "DECLINED is available to the multi-agent path only: a baseline output schema has no status field and requires at least one prescription. rejected_rate is the architecture-symmetric part.",
+        "plan_rate": 0.8333,
+        "rejected_rate": 0.1667,
+        "run_count": 12
+      },
+      "plan_delivery_rate": 1.0,
+      "run_count": 12,
+      "safety_compliance_rate": 1.0,
+      "structured_output_success_rate": 1.0,
+      "workflow_completion_rate": 1.0
+    }
+  ],
+  "dataset": "smoke",
+  "fairness_conditions": {
+    "downstream_gate": "identical compiler, integrity validator and deterministic fallback",
+    "embedding": "not re-run per architecture; the pool is composed once per case",
+    "evaluation_dataset": "identical",
+    "exercise_data": "identical synthetic catalog",
+    "llm_model": "identical: one provider object is built once and shared",
+    "output_schema": "identical up to proposal_references and repair_attempt, which only a multi-agent run can supply",
+    "prompt": "the baseline instruction is composed from the four shipped role prompts",
+    "temperature": "identical: fixed by build_openai_demo_chat_model",
+    "tool_scope": "A sees only the fields the output schema requires; B and C see the same full pool projection",
+    "user_input": "identical: the same EvaluationCase list, in the same order",
+    "vector_db": "identical ExercisePoolSnapshot per case; PostgreSQL decides eligibility"
+  },
+  "judge_blind": true,
+  "notes": [
+    "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
+    "The baselines get no repair round; the multi-agent path does. Every paid multi-agent run in PHASE 4 used zero repairs, so the asymmetry had no measured effect, but it favours C.",
+    "A PlanSpec structurally requires three proposal references, so a baseline plan reaches the shipped compiler through a contract adapter that invents no advice. See runners/single_agent.py."
+  ],
+  "repeats": 1
+}

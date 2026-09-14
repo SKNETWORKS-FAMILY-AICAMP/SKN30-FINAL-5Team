@@ -1,4 +1,49 @@
-import type { WorkoutPlan, WorkoutPlanItem } from './types';
+import type {
+  PlanItemOrderRequest,
+  PlanItemPrescriptionEdit,
+  PlanPhaseCode,
+  RoutineDay,
+  WorkoutPlan,
+  WorkoutPlanItem,
+} from './types';
+import { bodyFocusLabel, trainingTypeLabel } from './labels';
+
+function fallbackRoutineTitle(plan: {
+  body_focus_code: string | null;
+  training_type_code: string;
+}): string {
+  // CARDIO and MOBILITY are both a body focus and a training type. Joining the
+  // two labels blindly restated the same code twice -- '유산소 유산소 루틴', and
+  // for MOBILITY the maps even disagree on the word, giving '가동성 스트레칭
+  // 루틴'. One code means one word, which is the rule the server's
+  // build_plan_name already applies to the name it decides.
+  const focus =
+    plan.body_focus_code === null ||
+    plan.body_focus_code === plan.training_type_code
+      ? ''
+      : bodyFocusLabel(plan.body_focus_code);
+  return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
+}
+
+function serverRoutineTitle(value: string | null | undefined): string | null {
+  const title = value?.trim();
+  return title ? title : null;
+}
+
+/** Prefer the BM-5 server name while keeping historical plan compatibility. */
+export function routineTitleFromPlan(plan: WorkoutPlan): string {
+  return serverRoutineTitle(plan.routine_name) ?? fallbackRoutineTitle(plan);
+}
+
+/** Routine templates use the same server-owned naming and legacy fallback. */
+export function routineTitleFromDay(day: RoutineDay): string {
+  return serverRoutineTitle(day.routine_name) ?? fallbackRoutineTitle(day);
+}
+
+/** Plans written before the phase field existed were all MAIN. */
+export function planItemPhaseCode(item: WorkoutPlanItem): PlanPhaseCode {
+  return item.phase_code ?? 'MAIN';
+}
 
 /**
  * Keep every plan consumer on the same stable exercise order. The API's
@@ -44,19 +89,26 @@ export function moveArrayItem<T>(
   return items;
 }
 
-/** Move one exercise and renumber the complete plan as one atomic value. */
+/**
+ * Move one exercise and renumber the complete plan as one atomic value.
+ *
+ * A move that crosses a `WARMUP`/`MAIN`/`COOLDOWN` boundary is refused rather
+ * than sent to the server, which rejects it as `PHASE_BOUNDARY_VIOLATION`
+ * (ADR-0018 D5).
+ */
 export function moveWorkoutPlanItem(
   plan: WorkoutPlan,
   from: number,
   to: number,
 ): WorkoutPlan {
   const items = orderedWorkoutPlanItems(plan.items);
+  const source = items[from];
+  const target = items[to];
   if (
-    from < 0 ||
-    from >= items.length ||
-    to < 0 ||
-    to >= items.length ||
-    from === to
+    source === undefined ||
+    target === undefined ||
+    from === to ||
+    planItemPhaseCode(source) !== planItemPhaseCode(target)
   ) {
     return plan;
   }
@@ -69,5 +121,88 @@ export function moveWorkoutPlanItem(
       ...item,
       sequence: index + 1,
     })),
+  };
+}
+
+/**
+ * One set's work, in seconds.
+ *
+ * `work_seconds` is the item total across every set. Reading it as the per-set
+ * figure showed a 2 x 30s plank as "2세트 x 1분", and it is also the number a
+ * duration edit replaces, so it has to be the per-set one. The server now sends
+ * it; the division is the fallback for a plan stored before it did, and it is
+ * exact because the total was written as sets x per-set.
+ */
+export function planItemWorkSecondsPerSet(item: WorkoutPlanItem): number {
+  if (
+    item.work_seconds_per_set !== undefined &&
+    item.work_seconds_per_set !== null
+  ) {
+    return item.work_seconds_per_set;
+  }
+  return item.sets > 0 ? Math.round(item.work_seconds / item.sets) : 0;
+}
+
+/**
+ * Apply the user's set and repetition edits to the plan the whole app reads,
+ * so the routine card and the running workout cannot disagree about what was
+ * prescribed. Edits for unknown items are ignored.
+ */
+export function applyPlanItemPrescriptions(
+  plan: WorkoutPlan,
+  edits: readonly PlanItemPrescriptionEdit[],
+): WorkoutPlan {
+  if (edits.length === 0) {
+    return plan;
+  }
+  const byId = new Map(edits.map((edit) => [edit.plan_item_id, edit]));
+  let changed = false;
+  const items = plan.items.map((item) => {
+    const edit = byId.get(item.plan_item_id);
+    if (edit === undefined) {
+      return item;
+    }
+    const workSecondsPerSet =
+      edit.workSecondsPerSet ?? planItemWorkSecondsPerSet(item);
+    if (
+      edit.sets === item.sets &&
+      edit.reps === item.reps &&
+      workSecondsPerSet === planItemWorkSecondsPerSet(item)
+    ) {
+      return item;
+    }
+    changed = true;
+    return {
+      ...item,
+      sets: edit.sets,
+      reps: edit.reps,
+      work_seconds_per_set: workSecondsPerSet,
+      // Kept consistent with the per-set figure so the optimistic plan totals
+      // the same way the server's answer will.
+      work_seconds: edit.sets * workSecondsPerSet,
+    };
+  });
+  return changed ? { ...plan, items } : plan;
+}
+
+export function workoutPlanRevision(plan: WorkoutPlan): number {
+  return plan.plan_revision ?? 0;
+}
+
+/**
+ * The order endpoint needs the complete movable set. Completed blocks are
+ * history and stay in their performed positions on the server.
+ */
+export function planItemOrderRequest(
+  plan: WorkoutPlan,
+  completedPlanItemIds: readonly string[] = [],
+): PlanItemOrderRequest {
+  const completed = new Set(completedPlanItemIds);
+  return {
+    expected_plan_id: plan.plan_id,
+    expected_plan_revision: workoutPlanRevision(plan),
+    ordered_plan_item_ids: orderedWorkoutPlanItems(plan.items)
+      .filter((item) => !completed.has(item.plan_item_id))
+      .map((item) => item.plan_item_id),
   };
 }

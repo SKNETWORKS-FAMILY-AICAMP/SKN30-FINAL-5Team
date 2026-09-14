@@ -90,6 +90,12 @@ def _exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         default_transition_seconds=15,
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
+        # The real pool snapshot carries the catalog's phase projection, and the
+        # snapshot loader reserves candidates for each phase. A synthetic record
+        # without it cannot be placed in a warmup or a cooldown, so the
+        # deterministic fallback had no valid session to build from a fixture.
+        phase_codes=("WARMUP", "MAIN", "COOLDOWN"),
+        role_eligibility_code="CORE",
         equipment_codes=("BODYWEIGHT",),
         location_codes=("HOME",),
         prescription_reference_codes=("synthetic-prescription-v1",),

@@ -107,7 +107,7 @@ type LoginScreenProps = {
   notice?: string | null;
   onRetry?: () => void;
   onSignUp?: () => void;
-  onSocialPress?: (provider: string) => void;
+  onSocialPress?: (provider: 'Google' | 'Kakao') => unknown;
   onSubmit?: (email: string, password: string) => unknown;
   previewState?: LoginPreviewState;
 };
@@ -138,6 +138,25 @@ function LoginScreenContent({
     }
     await auth.signIn(email, password);
   });
+  const [activeSocialProvider, setActiveSocialProvider] = useState<
+    'Google' | 'Kakao' | null
+  >(null);
+  const social = useAsyncAction(async (provider: 'Google' | 'Kakao') => {
+    setActiveSocialProvider(provider);
+    try {
+      if (!auth) {
+        await Promise.resolve(onSocialPress?.(provider));
+        return;
+      }
+      if (provider === 'Google') {
+        await auth.signInWithGoogle();
+        return;
+      }
+      await auth.signInWithKakao();
+    } finally {
+      setActiveSocialProvider(null);
+    }
+  });
   const handleSubmit = useCallback(() => {
     if (!auth) {
       onSubmit?.(email, password);
@@ -145,6 +164,7 @@ function LoginScreenContent({
     }
     setValidation(null);
     submit.clearError();
+    social.clearError();
     if (!email.trim()) {
       setValidation('이메일을 입력해주세요.');
       return;
@@ -154,10 +174,18 @@ function LoginScreenContent({
       return;
     }
     void submit.run();
-  }, [auth, email, onSubmit, password, submit]);
+  }, [auth, email, onSubmit, password, social, submit]);
+  const handleSocialPress = useCallback(
+    (provider: 'Google' | 'Kakao') => {
+      setValidation(null);
+      submit.clearError();
+      void social.run(provider);
+    },
+    [social, submit],
+  );
   const isApiFlow = auth !== undefined;
   const isLoading = previewState === 'loading' || submit.pending;
-  const isSocialLoading = previewState === 'social-loading';
+  const isSocialLoading = previewState === 'social-loading' || social.pending;
   const authFonts = useAuthFonts();
   const useLocalHeadingFont = authFonts.loaded && !authFonts.failed;
 
@@ -227,6 +255,9 @@ function LoginScreenContent({
         {submit.error ? (
           <InlineFeedback message={submit.error} tone="error" />
         ) : null}
+        {social.error ? (
+          <InlineFeedback message={social.error} tone="error" />
+        ) : null}
 
         <View style={styles.form}>
           <TextField
@@ -279,7 +310,7 @@ function LoginScreenContent({
           ) : null}
 
           <Button
-            disabled={isLoading}
+            disabled={isLoading || isSocialLoading}
             label={isLoading ? '로그인 중...' : '로그인'}
             labelStyle={isLoading ? styles.loadingButtonLabel : undefined}
             leading={
@@ -308,43 +339,35 @@ function LoginScreenContent({
           </View>
         </View>
 
-        {!isApiFlow ? (
-          <>
-            <View style={styles.dividerRow}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerLabel}>
-                {fixture.linkedProvider ? '연결한 계정으로 로그인' : '또는'}
-              </Text>
-              <View style={styles.divider} />
-            </View>
+        <View style={styles.dividerRow}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerLabel}>
+            {fixture.linkedProvider ? '연결한 계정으로 로그인' : '또는'}
+          </Text>
+          <View style={styles.divider} />
+        </View>
 
-            <View style={styles.socialGroup}>
-              <SocialButton
-                label={
-                  fixture.linkedProvider === 'Google'
-                    ? 'Google로 로그인'
-                    : 'Google로 계속하기'
-                }
-                mark="G"
-                onPress={() => onSocialPress?.('Google')}
-                selected={fixture.linkedProvider === 'Google'}
-                tone="google"
-              />
-              <SocialButton
-                label="카카오로 계속하기"
-                mark="K"
-                onPress={() => onSocialPress?.('카카오')}
-                tone="kakao"
-              />
-              <SocialButton
-                label="네이버로 계속하기"
-                mark="N"
-                onPress={() => onSocialPress?.('네이버')}
-                tone="naver"
-              />
-            </View>
-          </>
-        ) : null}
+        <View style={styles.socialGroup}>
+          <SocialButton
+            disabled={isLoading || isSocialLoading}
+            label={
+              fixture.linkedProvider === 'Google'
+                ? 'Google로 로그인'
+                : 'Google로 계속하기'
+            }
+            mark="G"
+            onPress={() => handleSocialPress('Google')}
+            selected={fixture.linkedProvider === 'Google'}
+            tone="google"
+          />
+          <SocialButton
+            disabled={isLoading || isSocialLoading}
+            label="카카오로 계속하기"
+            mark="K"
+            onPress={() => handleSocialPress('Kakao')}
+            tone="kakao"
+          />
+        </View>
 
         <Text style={styles.terms}>
           계속하면 서비스 이용약관과 개인정보 처리방침에 동의하게 됩니다.
@@ -355,7 +378,11 @@ function LoginScreenContent({
         <View accessible accessibilityRole="alert" style={styles.busyOverlay}>
           <Card style={styles.busyCard}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.busyTitle}>Google 인증 중...</Text>
+            <Text style={styles.busyTitle}>
+              {activeSocialProvider === 'Kakao'
+                ? '카카오 인증 중...'
+                : 'Google 인증 중...'}
+            </Text>
             <Text style={styles.busyMessage}>
               인증 후 프로필 등록 여부를 확인해요
             </Text>
@@ -393,26 +420,27 @@ function CheckRow({
 }
 
 function SocialButton({
+  disabled,
   label,
   mark,
   onPress,
   selected = false,
   tone,
 }: {
+  disabled?: boolean;
   label: string;
   mark: string;
   onPress: () => void;
   selected?: boolean;
-  tone: 'google' | 'kakao' | 'naver';
+  tone: 'google' | 'kakao';
 }) {
   const isGoogle = tone === 'google';
 
   return (
     <Button
+      disabled={disabled}
       label={label}
-      labelStyle={
-        tone === 'naver' ? styles.socialLightLabel : styles.socialDarkLabel
-      }
+      labelStyle={styles.socialDarkLabel}
       leading={
         <View style={[styles.socialMark, toneStyles[tone].mark]}>
           <Text style={[styles.socialMarkText, toneStyles[tone].markText]}>
@@ -441,11 +469,6 @@ const toneStyles = {
     button: { backgroundColor: '#FEE500' },
     mark: { backgroundColor: '#FEE500' },
     markText: { color: '#191600' },
-  }),
-  naver: StyleSheet.create({
-    button: { backgroundColor: '#03C75A' },
-    mark: { backgroundColor: '#03C75A' },
-    markText: { color: colors.surface },
   }),
 } as const;
 
@@ -642,11 +665,6 @@ const styles = StyleSheet.create({
   },
   socialDarkLabel: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  socialLightLabel: {
-    color: colors.surface,
     fontSize: 15,
     fontWeight: '600',
   },

@@ -11,8 +11,8 @@ def after_entry(state: V3GraphState) -> Literal["parallel_agents", "terminal"]:
     return "terminal" if state.get("entry_failure_code") else "parallel_agents"
 
 
-def after_agents(state: V3GraphState) -> Literal["coordinator_initial", "fallback"]:
-    return "fallback" if state.get("failure_codes") else "coordinator_initial"
+def after_agents(state: V3GraphState) -> Literal["coordinator_agent", "fallback"]:
+    return "fallback" if state.get("failure_codes") else "coordinator_agent"
 
 
 def after_validation(

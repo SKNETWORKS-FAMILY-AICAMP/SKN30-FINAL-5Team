@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from copy import copy
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -155,13 +156,16 @@ class Projector:
 
     def project_terminal(self, **kwargs):
         del kwargs
-        return self.projected.model_copy(
-            update={"action_code": "REST", "safety_status_code": "BLOCKED"}
+        return SimpleNamespace(
+            response=self.projected.model_copy(
+                update={"action_code": "REST", "safety_status_code": "BLOCKED"}
+            ),
+            explanation=object(),
         )
 
     def project_success(self, **kwargs):
         del kwargs
-        return self.projected
+        return SimpleNamespace(response=self.projected, explanation=object())
 
 
 def build(*, envelope=None, runtime_error=None, fail_persist=False):
@@ -203,6 +207,7 @@ def test_safety_veto_never_calls_provider() -> None:
     service, repository, runtime, _, _ = build(envelope=veto)
     result = asyncio.run(service.create(object(), uuid4(), command_request(), uuid4()))
     assert result.action_code == "REST"
+    assert service._exercise_pool_loader.calls == 0  # type: ignore[attr-defined]
     assert runtime.calls == 0
     assert len(repository.terminals) == 1
 

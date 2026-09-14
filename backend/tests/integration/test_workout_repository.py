@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db import models as db_models
 from backend.app.db.base import Base
+from backend.app.db.models.catalog import Exercise
 from backend.app.db.models.decision import (
     DecisionOption,
     DecisionRun,
@@ -22,7 +23,6 @@ from backend.app.db.models.decision import (
 )
 from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
@@ -31,6 +31,7 @@ from backend.app.db.models.workout import (
     WorkoutAdditionalActivity,
     WorkoutFeedback,
     WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDifficultyReason,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
     WorkoutSafetyEventAdverseReaction,
@@ -57,6 +58,7 @@ from backend.scripts.demo_seed import seed_catalog
 
 _ = db_models
 NOW = datetime(2026, 8, 14, 1, 0, tzinfo=UTC)
+LATER = datetime(2026, 8, 14, 2, 0, tzinfo=UTC)
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
@@ -81,6 +83,7 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             WorkoutFeedback.__table__,
             WorkoutFeedbackDiscomfort.__table__,
             WorkoutFeedbackAdverseReaction.__table__,
+            WorkoutFeedbackDifficultyReason.__table__,
             WorkoutSkipFeedback.__table__,
         ],
     )
@@ -254,7 +257,22 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
         assert completed_history.last_completed_local_date == date(2026, 8, 14)
         assert completed_history.not_completed_history_count == 0
 
-        repository.create_feedback(
+        repository.upsert_feedback(
+            session,
+            session_id=workout_session_id,
+            difficulty_code="HARD",
+            fatigue_code="MODERATE",
+            satisfaction_code="SATISFIED",
+            pain_occurred=False,
+            discomforts=(("KNEE", "MILD"),),
+            adverse_reaction_codes=("DIZZINESS",),
+            difficulty_reason_codes=("VOLUME_HIGH",),
+            now=NOW,
+        )
+        # Answering again after resuming replaces the row and its children
+        # outright: keeping the first answer's discomforts alongside the second
+        # answer would store a combination the user never gave.
+        repository.upsert_feedback(
             session,
             session_id=workout_session_id,
             difficulty_code="APPROPRIATE",
@@ -263,9 +281,18 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             pain_occurred=False,
             discomforts=(),
             adverse_reaction_codes=(),
-            now=NOW,
+            difficulty_reason_codes=(),
+            now=LATER,
         )
-        assert repository.feedback_exists(session, workout_session_id)
+        stored = session.get(WorkoutFeedback, workout_session_id)
+        assert stored is not None
+        assert stored.difficulty_code == "APPROPRIATE"
+        assert stored.discomforts == []
+        assert stored.adverse_reactions == []
+        assert stored.difficulty_reasons == []
+        # `created_at` keeps the first answer's time; only `updated_at` moves.
+        # (Compared relatively because SQLite drops the tzinfo on read.)
+        assert stored.updated_at > stored.created_at
 
         repository.finish_session(
             session,
@@ -274,7 +301,7 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             ended_at=NOW,
             actual_elapsed_seconds=None,
         )
-        repository.create_skip_feedback(
+        repository.upsert_skip_feedback(
             session,
             session_id=workout_session_id,
             reason_code="TIME_SHORTAGE",
@@ -289,14 +316,9 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             event_id=uuid4(),
             session_id=workout_session_id,
             occurred_at=NOW,
-            instruction_code="STOP_AND_SEEK_HELP",
-            resulting_action_code="STOP_AND_SEEK_HELP",
-            session_status_code="STOPPED_FOR_SAFETY",
-            guidance_code="SERIOUS_ADVERSE_REACTION_STOP",
-            reason_code="EMERGENCY_ADVERSE_REACTION",
+            result_code="STOP_AND_SEEK_HELP",
+            completion_code="NOT_COMPLETED",
             rule_version="1.0.0",
-            discomforts=(),
-            adverse_reaction_codes=("CHEST_DISCOMFORT",),
             now=NOW,
         )
         assert repository.is_pressure_notification_suppressed(session, user_id, date(2026, 8, 14))
@@ -354,18 +376,13 @@ def _add_postgres_user(session: Session) -> UUID:
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=30,
                 desired_weekly_workout_count=3,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=175.0,
                 weight_kg=70.0,
-                sex_code="PREFER_NOT_TO_SAY",
                 code_set_version="profile-mvp-v1",
                 profile_version=1,
             )
         )
-        session.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
         session.add_all(
             UserEquipment(user_id=user_id, equipment_code=code)
             for code in ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
@@ -426,6 +443,51 @@ def _create_workout_session(
     )
     assert selection.workout_session is not None
     return selection.workout_session.session_id
+
+
+@pytest.mark.integration
+def test_calorie_source_reads_approved_met_provenance_from_selected_catalog_row(
+    postgres_session: Session,
+) -> None:
+    user_id = _add_postgres_user(postgres_session)
+    context_id = _prepare_context(postgres_session, user_id)
+    workout_session_id = _create_workout_session(postgres_session, user_id, context_id)
+
+    with postgres_session.begin():
+        workout_item = (
+            postgres_session.query(WorkoutSessionItem)
+            .filter(WorkoutSessionItem.workout_session_id == workout_session_id)
+            .order_by(WorkoutSessionItem.id)
+            .first()
+        )
+        assert workout_item is not None
+        workout_item.status_code = "COMPLETED"
+        workout_item.completed_at = NOW
+        plan_item = postgres_session.get(PlanItem, workout_item.plan_item_id)
+        assert plan_item is not None
+        exercise = postgres_session.get(Exercise, plan_item.exercise_id)
+        assert exercise is not None
+        exercise.met_value = 6.0
+        exercise.met_source_code = "ADULT_COMPENDIUM_PDF_2024"
+        exercise.met_source_activity_code = "02050"
+        exercise.met_mapping_method_code = "DIRECT"
+        exercise.met_review_status_code = "DOMAIN_APPROVED"
+        exercise.met_policy_version = "v2.0.6-met-compendium-direct-similar-1.0.0"
+
+    source = WorkoutRepository().get_calorie_estimate_source(
+        postgres_session, user_id, workout_session_id
+    )
+
+    assert source is not None
+    assert len(source.completed_blocks) == 1
+    block = source.completed_blocks[0]
+    assert block.met_value == 6.0
+    assert block.met_source_code == "ADULT_COMPENDIUM_PDF_2024"
+    assert block.met_source_activity_code == "02050"
+    assert block.met_mapping_method_code == "DIRECT"
+    assert block.met_review_status_code == "DOMAIN_APPROVED"
+    assert block.met_policy_version == "v2.0.6-met-compendium-direct-similar-1.0.0"
+    assert block.catalog_version_code
 
 
 @pytest.mark.integration
@@ -502,6 +564,7 @@ def test_postgresql_workout_log_reads_are_owner_scoped_and_stably_paginated(
                         satisfaction_code="SATISFIED",
                         pain_occurred=True,
                         created_at=NOW,
+                        updated_at=NOW,
                     )
                 )
             if index == 2:

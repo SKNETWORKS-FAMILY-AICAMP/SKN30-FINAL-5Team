@@ -14,7 +14,11 @@ from backend.app.api.dependencies import (
 )
 from backend.app.core.errors import AppError
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
-from backend.app.modules.checkins.schemas import DailyContextResponse, DailyContextUpsertRequest
+from backend.app.modules.checkins.schemas import (
+    DailyContextDefaultsResponse,
+    DailyContextResponse,
+    DailyContextUpsertRequest,
+)
 from backend.app.modules.checkins.service import (
     AvailabilitySlotOutOfRangeError,
     DailyContextNotFoundError,
@@ -23,6 +27,7 @@ from backend.app.modules.checkins.service import (
     ProfileTimezoneMissingError,
     StaleContextError,
 )
+from backend.app.modules.decisions.daily_adjustment import DailyAdjustmentLimitReachedError
 from backend.app.modules.identity.service import CurrentUser
 
 router = APIRouter(prefix="/daily-contexts", tags=["daily-contexts"])
@@ -67,6 +72,12 @@ def _translate_error(exc: Exception) -> AppError:
             status_code=HTTPStatus.CONFLICT,
             code="IDEMPOTENCY_KEY_REUSED",
             message="동일한 멱등성 키를 다른 요청에 사용할 수 없습니다.",
+        )
+    if isinstance(exc, DailyAdjustmentLimitReachedError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="DAILY_ADJUSTMENT_LIMIT_REACHED",
+            message="오늘의 체크인 수정과 재추천 가능 횟수를 모두 사용했습니다.",
         )
     if isinstance(exc, AvailabilitySlotOutOfRangeError):
         return AppError(
@@ -116,6 +127,7 @@ def replace_daily_context(
         DailyContextNotFoundError,
         StaleContextError,
         IdempotencyKeyReusedError,
+        DailyAdjustmentLimitReachedError,
         AvailabilitySlotOutOfRangeError,
         ProfileTimezoneMissingError,
         IntegrityError,
@@ -135,6 +147,16 @@ def get_daily_context(
         return DailyContextService(repository).get(session, current_user.user_id, local_date)
     except (DailyContextNotFoundError, SQLAlchemyError) as exc:
         raise _translate_error(exc) from None
+
+
+@router.get("/{local_date}/defaults", response_model=DailyContextDefaultsResponse)
+def get_daily_context_defaults(
+    local_date: date,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[DailyContextRepositoryPort, Depends(get_daily_context_repository)],
+) -> DailyContextDefaultsResponse:
+    return DailyContextService(repository).defaults(session, current_user.user_id, local_date)
 
 
 __all__ = ["router"]

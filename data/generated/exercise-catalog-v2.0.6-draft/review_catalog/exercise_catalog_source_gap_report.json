@@ -1,0 +1,191 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "source": {
+    "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "sha256": "fcfe76f5dbf03802759aea36417dc46019728e232ddf608980d4022cfb5cdeb7"
+  },
+  "record_count": 237,
+  "fields": {
+    "body_focus_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#body_focus_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "default_rest_seconds": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#default_rest_seconds",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "default_seconds_per_rep": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#default_seconds_per_rep",
+      "normalized_value_count": 174,
+      "empty_output_count": 63
+    },
+    "default_transition_seconds": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#default_transition_seconds",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "default_work_seconds": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#default_work_seconds",
+      "normalized_value_count": 63,
+      "empty_output_count": 174
+    },
+    "difficulty_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#difficulty_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "equipment_codes": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#equipment_codes",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "family_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#family_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "form_cues_ko": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#form_cues_ko",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "form_cues_review_status": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#form_cues_review_status",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "form_cues_source": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#form_cues_source",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "general_pool_included": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#general_pool_included",
+      "normalized_value_count": 72,
+      "empty_output_count": 165
+    },
+    "instruction_content_version": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#instruction_content_version",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "instruction_summary_ko": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#instruction_summary_ko",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "location_codes": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#location_codes",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "name_en": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#name_en",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "name_ko": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#name_ko",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "primary_body_area_codes": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#primary_body_area_codes",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "primary_movement_pattern_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#primary_movement_pattern_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "record_type": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#record_type",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "recovery_eligible": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#recovery_eligible",
+      "normalized_value_count": 72,
+      "empty_output_count": 165
+    },
+    "representative_stable_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#representative_stable_code",
+      "normalized_value_count": 75,
+      "empty_output_count": 162
+    },
+    "review_status_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#review_status_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "secondary_body_area_codes": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#secondary_body_area_codes",
+      "normalized_value_count": 185,
+      "empty_output_count": 52
+    },
+    "safety_relevant_body_area_codes": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#safety_relevant_body_area_codes",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "source_identity": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#source_identity",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "source_track": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#source_track",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "stable_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#stable_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "timing_mode_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#timing_mode_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "training_type_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#training_type_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_value": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_value",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_source_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_source_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_source_activity_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_source_activity_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_mapping_method_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_mapping_method_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_review_status_code": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_review_status_code",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    },
+    "met_policy_version": {
+      "source": "normalized_catalog:/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv#met_policy_version",
+      "normalized_value_count": 237,
+      "empty_output_count": 0
+    }
+  }
+}

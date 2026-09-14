@@ -620,9 +620,18 @@ class V3DecisionRepository:
         if retrieval.retrieval_latency_ms is not None and retrieval.retrieval_latency_ms < 0:
             raise ValueError("retrieval_latency_ms must be non-negative")
         succeeded = retrieval.retrieval_status_code == "VECTOR_RETRIEVAL_SUCCEEDED"
-        if envelope.envelope_schema_version != "constraint-envelope-v3":
+        if envelope.envelope_schema_version not in {
+            "constraint-envelope-v3",
+            "constraint-envelope-v4",
+        }:
             raise ValueError("unsupported envelope schema version")
-        if pool.pool_schema_version != "exercise-pool-snapshot-v4":
+        # v5 adds the catalog family code the pool record now carries. v4 stays
+        # accepted the way constraint-envelope-v3 did through its own bump, so a
+        # root artifact written before the field existed is still readable.
+        if pool.pool_schema_version not in {
+            "exercise-pool-snapshot-v4",
+            "exercise-pool-snapshot-v5",
+        }:
             raise ValueError("unsupported pool schema version")
         if (
             retrieval.request_schema_version != "exercise-retrieval-request-v1"

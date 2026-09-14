@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Literal, Protocol, Self, cast
 from uuid import UUID
@@ -177,11 +177,14 @@ class V3StoredRegenerationSource(_FrozenContract):
     """
 
     decision_id: UUID
+    local_date: date
     root_decision_id: UUID
     parent_decision_id: UUID | None = None
     plan_id: UUID
     regeneration_sequence: int = Field(ge=0, le=2)
     successful_regeneration_count: int = Field(ge=0, le=2)
+    daily_adjustment_count: int = Field(ge=0)
+    daily_context_is_current: bool = True
     generation_mode_code: Literal["ORIGINAL", "REGENERATED"]
     decision_engine_code: V3DecisionEngineCode
     terminal_status_code: GraphTerminalStatusCode
@@ -353,6 +356,14 @@ class V3RegenerationService:
             raise V3StaleRegenerationError()
         if source.successful_regeneration_count >= 2:
             raise V3RegenerationLimitReachedError()
+        # Keep the existing lineage limit and additionally close the loophole where a
+        # check-in revision creates a fresh root whose sequence starts again at zero.
+        if source.daily_adjustment_count >= 2:
+            raise V3RegenerationLimitReachedError()
+        if not source.daily_context_is_current:
+            # A check-in edit starts a new root. Reusing the older snapshot could ignore
+            # newly reported pain or abnormal-response input, so it must fail closed.
+            raise V3RegenerationContextStaleError()
         envelope = source.root_snapshot.constraint_envelope
         if (
             source.terminal_status_code is not GraphTerminalStatusCode.COMPLETED

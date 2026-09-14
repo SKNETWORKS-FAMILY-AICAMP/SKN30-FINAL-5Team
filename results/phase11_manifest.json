@@ -1,0 +1,59 @@
+{
+  "cost": {
+    "amount": null,
+    "note": "Not calculated without an approved pricing reference."
+  },
+  "phase": "PHASE 11 final outputs",
+  "required_artifact_count": 7,
+  "required_artifacts": [
+    {
+      "path": "results/evaluation_summary.json",
+      "sha256": "a856ad249fe9a97383ab391b16d90dcea7f54b0c7804b37e42c4830ed7bfa085",
+      "size_bytes": 15111
+    },
+    {
+      "path": "results/evaluation_cases.csv",
+      "sha256": "207c13beb203f783d3d574675929d54edf27751228f4c4ac33c93d098ecd8b6b",
+      "size_bytes": 24748
+    },
+    {
+      "path": "results/retrieval_metrics.json",
+      "sha256": "4628752d5e08868103721c32ba97d3c3f5134778e3171220f47d8156b65e0e6b",
+      "size_bytes": 4245
+    },
+    {
+      "path": "results/agent_metrics.json",
+      "sha256": "d953a6cb6bb408a3d02122f059932b81cd0870adc7e96aa7c8342215f2e378b4",
+      "size_bytes": 1536
+    },
+    {
+      "path": "results/architecture_comparison.csv",
+      "sha256": "e77567a31c5069639cafc5dbc192a1f259f9264769cd41afe454a978d7aa73a3",
+      "size_bytes": 665
+    },
+    {
+      "path": "results/latency_metrics.json",
+      "sha256": "9aa46759927ffd07bb016617d66f8850634997a5ba2f6c651358ce7a11e1a82c",
+      "size_bytes": 299
+    },
+    {
+      "path": "results/failed_cases.json",
+      "sha256": "d1475ed1e0c68d33171faa23e48c3918657f55ea84f211a5a55fe8b6ef48fcc3",
+      "size_bytes": 2138
+    }
+  ],
+  "source_artifacts": {
+    "architecture_comparison": "results/comparison/comparison.json",
+    "failure_evaluation": "results/phase9/performance_failure.json",
+    "human_calibration": "results/human_calibration/calibration_summary.json",
+    "multi_agent": "results/paid/evaluation_summary.json"
+  },
+  "status": "COMPLETE",
+  "supplemental_artifacts": [
+    {
+      "path": "results/category_metrics.csv",
+      "sha256": "e0658f01a0cc0d62742f094336c87cc9a6252e1226ccb9c6c26e30a4bbc098d6",
+      "size_bytes": 1025
+    }
+  ]
+}

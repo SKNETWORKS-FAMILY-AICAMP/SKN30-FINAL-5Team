@@ -9,12 +9,14 @@ from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
+    UserPersistentPain,
     UserPreferredExerciseType,
     UserProfile,
+    UserTermsAgreement,
 )
+from backend.app.db.models.reward import BananaWallet
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.profiles.codes import (
     PROFILE_CODE_SET_VERSION,
@@ -29,6 +31,7 @@ from backend.app.modules.profiles.ports import (
     MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
+    ProfileImageRecord,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
 )
@@ -48,17 +51,8 @@ class ProfileRepository:
                 primary_goal_code=profile.primary_goal_code,
                 experience_level_code=profile.experience_level_code,
                 timezone=profile.timezone,
-                preferred_location_code=profile.preferred_location_code,
-                available_location_codes=tuple(
-                    session.scalars(
-                        select(UserAvailableLocation.location_code)
-                        .where(UserAvailableLocation.user_id == user_id)
-                        .order_by(UserAvailableLocation.location_code)
-                    )
-                ),
                 default_requested_duration_minutes=profile.default_requested_duration_minutes,
                 desired_weekly_workout_count=profile.desired_weekly_workout_count,
-                coaching_style_code=profile.coaching_style_code,
                 attention_area_codes=tuple(
                     session.scalars(
                         select(UserAttentionArea.body_area_code)
@@ -69,6 +63,17 @@ class ProfileRepository:
                         .order_by(UserAttentionArea.body_area_code)
                     )
                 ),
+                persistent_pains=tuple(
+                    (str(body_area_code), int(intensity_score))
+                    for body_area_code, intensity_score in session.execute(
+                        select(
+                            UserPersistentPain.body_area_code,
+                            UserPersistentPain.intensity_score,
+                        )
+                        .where(UserPersistentPain.user_id == user_id)
+                        .order_by(UserPersistentPain.body_area_code)
+                    )
+                ),
                 preferred_exercise_type_codes=tuple(
                     session.scalars(
                         select(UserPreferredExerciseType.exercise_type_code)
@@ -76,6 +81,8 @@ class ProfileRepository:
                         .order_by(UserPreferredExerciseType.exercise_type_code)
                     )
                 ),
+                profile_image_object_key=profile.profile_image_object_key,
+                weight_kg=profile.weight_kg,
                 profile_version=profile.profile_version,
                 created_at=profile.created_at,
                 updated_at=profile.updated_at,
@@ -86,8 +93,47 @@ class ProfileRepository:
             premium_status_code=user.premium_status_code,
             ai_trial_started_at=user.ai_trial_started_at,
             ai_trial_ends_at=user.ai_trial_ends_at,
+            banana_balance=session.scalar(
+                select(BananaWallet.balance).where(BananaWallet.user_id == user_id)
+            )
+            or 0,
             profile=profile_record,
         )
+
+    def get_profile_image_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileImageRecord | None:
+        profile = session.scalar(
+            select(UserProfile).where(UserProfile.user_id == user_id).with_for_update()
+        )
+        if profile is None:
+            return None
+        return ProfileImageRecord(
+            profile.profile_image_object_key,
+            profile.profile_version,
+            profile.updated_at,
+        )
+
+    def update_profile_image(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        object_key: str | None,
+        content_type: str | None,
+        byte_size: int | None,
+        now: datetime,
+    ) -> tuple[int, datetime]:
+        profile = session.get(UserProfile, user_id)
+        if profile is None:
+            raise RuntimeError("locked profile does not exist")
+        profile.profile_image_object_key = object_key
+        profile.profile_image_content_type = content_type
+        profile.profile_image_byte_size = byte_size
+        profile.profile_version += 1
+        profile.updated_at = now
+        session.flush()
+        return profile.profile_version, profile.updated_at
 
     def acquire_idempotency_lock(
         self,
@@ -162,13 +208,12 @@ class ProfileRepository:
                 primary_goal_code=values.primary_goal_code,
                 experience_level_code=values.experience_level_code,
                 timezone=values.timezone,
-                preferred_location_code=values.preferred_location_code,
                 default_requested_duration_minutes=values.default_requested_duration_minutes,
                 desired_weekly_workout_count=values.desired_weekly_workout_count,
-                coaching_style_code=values.coaching_style_code,
-                height_cm=values.height_cm,
                 weight_kg=values.weight_kg,
-                sex_code=values.sex_code,
+                medical_exercise_restriction=values.medical_exercise_restriction,
+                eligibility_result_code=values.eligibility_result_code,
+                weekly_target_sessions=values.weekly_target_sessions,
                 code_set_version=PROFILE_CODE_SET_VERSION,
                 profile_version=1,
                 created_at=now,
@@ -181,29 +226,21 @@ class ProfileRepository:
             profile.primary_goal_code = values.primary_goal_code
             profile.experience_level_code = values.experience_level_code
             profile.timezone = values.timezone
-            profile.preferred_location_code = values.preferred_location_code
             profile.default_requested_duration_minutes = values.default_requested_duration_minutes
             profile.desired_weekly_workout_count = values.desired_weekly_workout_count
-            profile.coaching_style_code = values.coaching_style_code
-            profile.height_cm = values.height_cm
             profile.weight_kg = values.weight_kg
-            profile.sex_code = values.sex_code
+            profile.medical_exercise_restriction = values.medical_exercise_restriction
+            profile.eligibility_result_code = values.eligibility_result_code
+            profile.weekly_target_sessions = values.weekly_target_sessions
             profile.profile_version += 1
             profile.updated_at = now
 
-        session.execute(
-            delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
-        )
         session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
         session.execute(
             delete(UserPreferredExerciseType).where(UserPreferredExerciseType.user_id == user_id)
         )
         session.add_all(
             [
-                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
-                for code in values.available_location_codes
-            ]
-            + [
                 UserAttentionArea(
                     id=uuid4(),
                     user_id=user_id,
@@ -231,7 +268,6 @@ class ProfileRepository:
         return OnboardingRecord(
             user_id=user_id,
             profile_version=profile.profile_version,
-            coaching_style_code=profile.coaching_style_code,
             ai_trial_started_at=user.ai_trial_started_at,
             ai_trial_ends_at=user.ai_trial_ends_at,
             premium_status_code=user.premium_status_code,
@@ -253,20 +289,9 @@ class ProfileRepository:
             primary_goal_code=profile.primary_goal_code,
             experience_level_code=profile.experience_level_code,
             timezone=profile.timezone,
-            preferred_location_code=profile.preferred_location_code,
-            available_location_codes=tuple(
-                session.scalars(
-                    select(UserAvailableLocation.location_code)
-                    .where(UserAvailableLocation.user_id == user_id)
-                    .order_by(UserAvailableLocation.location_code)
-                )
-            ),
             default_requested_duration_minutes=profile.default_requested_duration_minutes,
             desired_weekly_workout_count=profile.desired_weekly_workout_count,
-            coaching_style_code=profile.coaching_style_code,
-            height_cm=profile.height_cm,
             weight_kg=profile.weight_kg,
-            sex_code=profile.sex_code,
             attention_area_codes=tuple(
                 session.scalars(
                     select(UserAttentionArea.body_area_code)
@@ -303,14 +328,6 @@ class ProfileRepository:
         for field_name, value in changes.scalar_values.items():
             setattr(profile, field_name, value)
 
-        if changes.available_location_codes is not None:
-            session.execute(
-                delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
-            )
-            session.add_all(
-                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
-                for code in changes.available_location_codes
-            )
         if changes.attention_area_codes is not None:
             session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
             session.add_all(
@@ -338,11 +355,58 @@ class ProfileRepository:
                 )
                 for code in changes.preferred_exercise_type_codes
             )
+        if changes.persistent_pains is not None:
+            # An explicit write through the canonical pain contract migrates the
+            # profile away from legacy attention areas. Clearing these rows is
+            # essential when the canonical value is [], otherwise the next read
+            # would resurrect a pain the user explicitly removed.
+            session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
+            self.replace_persistent_pains(session, user_id, changes.persistent_pains, now)
 
         profile.profile_version += 1
         profile.updated_at = now
         session.flush()
         return profile.profile_version, profile.updated_at
+
+    def record_terms_agreement(
+        self, session: Session, user_id: UUID, terms_version: str, now: datetime
+    ) -> None:
+        existing = session.scalar(
+            select(UserTermsAgreement.id).where(
+                UserTermsAgreement.user_id == user_id,
+                UserTermsAgreement.terms_version == terms_version,
+            )
+        )
+        if existing is None:
+            session.add(
+                UserTermsAgreement(
+                    id=uuid4(),
+                    user_id=user_id,
+                    terms_version=terms_version,
+                    terms_agreed_at=now,
+                    created_at=now,
+                )
+            )
+
+    def replace_persistent_pains(
+        self,
+        session: Session,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None:
+        session.execute(delete(UserPersistentPain).where(UserPersistentPain.user_id == user_id))
+        session.add_all(
+            UserPersistentPain(
+                id=uuid4(),
+                user_id=user_id,
+                body_area_code=body_area_code,
+                intensity_score=intensity_score,
+                created_at=now,
+                updated_at=now,
+            )
+            for body_area_code, intensity_score in pains
+        )
 
     def get_consents(self, session: Session, user_id: UUID) -> tuple[ConsentRecord, ...]:
         rows = session.scalars(

@@ -48,3 +48,23 @@ export const ONBOARDING_WEEKLY_COUNT = {
   max: 7,
   step: 1,
 } as const;
+
+// Onboarding and my page must offer the same coaching styles under the same
+// names, so both screens read the labels from here.
+export const ONBOARDING_COACHING_STYLE_OPTIONS = [
+  {
+    code: 'SUPPORTIVE',
+    label: '차근차근',
+    description: '응원과 함께 편안하게 운동을 안내해요.',
+  },
+  {
+    code: 'CONCISE',
+    label: '딱 필요한 만큼',
+    description: '꼭 필요한 내용만 간단하게 알려드려요.',
+  },
+  {
+    code: 'ENERGETIC',
+    label: '힘차게',
+    description: '밝고 에너지 넘치게 운동을 함께해요.',
+  },
+] as const;

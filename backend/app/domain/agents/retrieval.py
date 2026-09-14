@@ -21,8 +21,8 @@ EXERCISE_RETRIEVAL_REQUEST_SCHEMA_VERSION: Final[Literal["exercise-retrieval-req
 EXERCISE_RETRIEVAL_RESULT_SCHEMA_VERSION: Final[Literal["exercise-retrieval-result-v1"]] = (
     "exercise-retrieval-result-v1"
 )
-EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v4"]] = (
-    "exercise-pool-snapshot-v4"
+EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v5"]] = (
+    "exercise-pool-snapshot-v5"
 )
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -72,6 +72,70 @@ class RetrievalFailureCode(StrEnum):
 
 class RetrievalAuditCode(StrEnum):
     DETERMINISTIC_POOL_FALLBACK_USED = "DETERMINISTIC_POOL_FALLBACK_USED"
+
+
+class ExerciseFittVolumeRange(BaseModel):
+    """Approved selectable volume range frozen into the agent pool snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    min_sets: int = Field(gt=0)
+    max_sets: int = Field(gt=0)
+    min_reps: int = Field(gt=0)
+    max_reps: int = Field(gt=0)
+    default_sets: int = Field(gt=0)
+    default_reps: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> Self:
+        if self.min_sets > self.max_sets or self.min_reps > self.max_reps:
+            raise ValueError("FITT range minimum cannot exceed maximum")
+        if not self.min_sets <= self.default_sets <= self.max_sets:
+            raise ValueError("FITT default_sets must be within the approved range")
+        if not self.min_reps <= self.default_reps <= self.max_reps:
+            raise ValueError("FITT default_reps must be within the approved range")
+        return self
+
+
+class ExerciseFittContext(BaseModel):
+    """Reviewed FITT projection; it contains no user or raw-health data."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    source_code: str
+    policy_version: str
+    review_status_code: str
+    template_id: str | None = None
+    frequency_code: str | None = None
+    intensity_code: str | None = None
+    time_mode_code: str | None = None
+    type_code: str | None = None
+    volume: ExerciseFittVolumeRange | None = None
+
+    @field_validator(
+        "source_code",
+        "policy_version",
+        "review_status_code",
+        "template_id",
+        "frequency_code",
+        "intensity_code",
+        "time_mode_code",
+        "type_code",
+    )
+    @classmethod
+    def validate_codes(cls, value: str | None, info: ValidationInfo) -> str | None:
+        if value is None:
+            return None
+        return _validate_machine_reference(value, field_name=info.field_name or "FITT field")
+
+    @model_validator(mode="after")
+    def validate_review_state(self) -> Self:
+        if self.review_status_code == "DOMAIN_APPROVED":
+            if self.template_id is None or self.frequency_code is None or self.type_code is None:
+                raise ValueError("approved FITT context requires template and F/I/T metadata")
+        elif self.volume is not None:
+            raise ValueError("unapproved FITT context cannot provide a selectable volume range")
+        return self
 
 
 def _validate_machine_reference(value: str, *, field_name: str) -> str:
@@ -311,6 +375,10 @@ class ExercisePoolExerciseRecord(BaseModel):
     catalog_version: str
     content_version: str
     stable_code: str
+    # The reviewed movement family. Near-identical variants share one code, so a
+    # plan can offer one of them instead of stacking all three. None means the
+    # catalog records no family, and those exercises never group together.
+    family_code: str | None = None
     training_type_code: str
     body_focus_code: str
     movement_pattern_codes: tuple[str, ...]
@@ -323,6 +391,9 @@ class ExercisePoolExerciseRecord(BaseModel):
     default_work_seconds: int | None = Field(default=None, gt=0)
     default_rest_seconds: int = Field(ge=0)
     default_transition_seconds: int = Field(ge=10, le=20)
+    # A missing range deliberately means REVIEW_REQUIRED to downstream plan
+    # construction; it must not be filled from difficulty or a name heuristic.
+    fitt_context: ExerciseFittContext | None = None
     recovery_eligible: bool
     goal_codes: tuple[str, ...]
     # The reviewed phases this exercise is approved for and the role it plays in
@@ -382,7 +453,31 @@ class ExercisePoolExerciseRecord(BaseModel):
                 raise ValueError("DURATION timing requires work seconds without seconds per rep")
         else:
             raise ValueError("timing_mode_code must be REPS or DURATION")
+        if self.fitt_context is not None and self.fitt_context.time_mode_code not in {
+            None,
+            self.timing_mode_code,
+        }:
+            raise ValueError("FITT timing mode must match the catalog timing mode")
         return self
+
+    def approved_fitt_volume(self) -> ExerciseFittVolumeRange | None:
+        """Return the reviewed selectable range, or None when none covers this exercise.
+
+        A reviewed range does not exist for every catalog entry, and the absence
+        of one is not a licence to infer a volume: callers fall back to the
+        Recovery ceiling, which is the bound that applies either way. Returning
+        None rather than raising keeps "no approved range" distinguishable from
+        "an approved range this plan broke", which are different findings.
+        """
+
+        context = self.fitt_context
+        if (
+            context is None
+            or context.review_status_code != "DOMAIN_APPROVED"
+            or context.volume is None
+        ):
+            return None
+        return context.volume
 
 
 class RetrievalMetadata(BaseModel):
@@ -482,11 +577,20 @@ def _snapshot_hash_payload(
     vector_ranked_exercise_ids: tuple[UUID, ...],
     retrieval_metadata: RetrievalMetadata,
 ) -> dict[str, object]:
+    exercise_payloads = []
+    for exercise in exercises:
+        payload = exercise.model_dump(mode="json")
+        # FITT is additive agent context.  Omitting its absent value preserves
+        # the hash of snapshots created before this projection existed; a real
+        # reviewed FITT context remains part of every new snapshot's lineage.
+        if payload.get("fitt_context") is None:
+            payload.pop("fitt_context", None)
+        exercise_payloads.append(payload)
     return {
         "schema_version": EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION,
         "catalog_version": catalog_version,
         "constraint_envelope_hash": constraint_envelope_hash,
-        "exercises": [exercise.model_dump(mode="json") for exercise in exercises],
+        "exercises": exercise_payloads,
         "mandatory_exercise_ids": [str(value) for value in mandatory_exercise_ids],
         "vector_ranked_exercise_ids": [str(value) for value in vector_ranked_exercise_ids],
         "retrieval_metadata": retrieval_metadata.model_dump(mode="json"),
@@ -527,7 +631,7 @@ class ExercisePoolSnapshot(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["exercise-pool-snapshot-v4"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
+    schema_version: Literal["exercise-pool-snapshot-v5"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
     catalog_version: str
     constraint_envelope_hash: str
     exercises: tuple[ExercisePoolExerciseRecord, ...] = Field(min_length=1)

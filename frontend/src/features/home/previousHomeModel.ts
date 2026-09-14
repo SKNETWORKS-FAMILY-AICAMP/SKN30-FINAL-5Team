@@ -13,6 +13,7 @@ import {
   trainingTypeLabel,
 } from '../../api/labels';
 import type {
+  PlanPhaseCode,
   DailyContextResponse,
   DiscomfortSeverityCode,
   FatigueLevelCode,
@@ -41,6 +42,7 @@ export type HomeRoutineItem = {
   id: string;
   name: string;
   prescription?: string;
+  phaseCode?: PlanPhaseCode;
 };
 
 /**
@@ -125,18 +127,18 @@ export function checkinDraftFromContext(
 ): HomeCheckinDraft {
   return {
     fatigueLevelCode: context.fatigue_level_code,
-    requestedDurationMinutes: context.requested_duration_minutes,
+    requestedDurationMinutes: context.available_time_minutes,
     sleepHours:
       context.sleep_minutes === null || context.sleep_minutes === undefined
         ? ''
         : String(Math.round((context.sleep_minutes / 60) * 10) / 10),
     discomforts: Object.fromEntries(
-      context.discomforts.map((entry) => [
+      (context.discomforts ?? []).map((entry) => [
         entry.body_area_code,
         entry.severity_code,
       ]),
     ),
-    adverseReactionCodes: [...context.adverse_reaction_codes],
+    adverseReactionCodes: [...(context.adverse_reaction_codes ?? [])],
   };
 }
 
@@ -177,6 +179,7 @@ export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
   return orderedWorkoutPlanItems(plan.items).map((item) => ({
     id: item.plan_item_id,
     name: item.exercise_name,
+    phaseCode: item.phase_code,
     prescription: prescriptionFor(item.sets, item.reps, item.work_seconds),
   }));
 }
@@ -187,6 +190,7 @@ export function routineItemsFromDay(day: RoutineDay): HomeRoutineItem[] {
     .map((item) => ({
       id: item.id,
       name: item.exercise_name,
+      phaseCode: item.phase_code,
       prescription: prescriptionFor(
         item.sets,
         item.reps,

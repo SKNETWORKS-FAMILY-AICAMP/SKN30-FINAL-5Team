@@ -27,6 +27,35 @@ COPY data/generated/exercise-catalog-v2.0.1-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.1-final/backend_bundle
 COPY data/generated/exercise-catalog-v2.0.4-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.4-final/backend_bundle
+COPY data/generated/exercise-catalog-v2.0.6-final/backend_bundle \
+    ./data/generated/exercise-catalog-v2.0.6-final/backend_bundle
+# The integrated home bundle's approval registry names its review evidence, and the loader
+# refuses to serve reviewed content unless those files are on disk. They sit
+# outside the bundle directory, so shipping only the bundle still failed the
+# gate with REVIEW_ARTIFACT_MISSING. Copy the named artifacts and nothing more:
+# data/reports as a whole is several megabytes of unrelated analysis output.
+# backend/tests/unit/test_home_equipment_bundle_validation.py keeps this list
+# and the registry in step.
+COPY data/reports/home_equipment_substitution_guides_v1_validation.json \
+    data/reports/resistance_band_bodyweight_variant_gap_report_v1.json \
+    ./data/reports/
+
+# The final integrated bundle serves exercise-detail guides and is also the
+# only hash-pinned staging/production import input. Shipping it whole keeps the
+# runtime provider and promotion CLI on the exact same reviewed bytes.
+COPY data/generated/integrated-catalog-v2.0.7-final/backend_bundle \
+    ./data/generated/integrated-catalog-v2.0.7-final/backend_bundle
+
+# `backend.app.domain.rules.fitt` opens these three reviewed references while
+# building the agent pool on the V3 decision path, not only during a promotion
+# command, so leaving them out of the image makes every V3 routine creation
+# raise FileNotFoundError. Copy exactly the three files the module opens:
+# data/normalized as a whole is several megabytes of pipeline intermediates.
+# backend/tests/unit/test_fitt_policy.py keeps this list and the module in step.
+COPY data/normalized/catalog_enrichment_v3_fitt.csv \
+    data/normalized/fitt_template_v1.csv \
+    data/normalized/v2_0_7_fitt_stable_code_mapping.csv \
+    ./data/normalized/
 
 RUN chown -R app:app /app
 

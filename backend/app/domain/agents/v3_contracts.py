@@ -12,12 +12,31 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic_core import to_jsonable_python
 
-from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
+from backend.app.domain.agents.retrieval import (
+    ExercisePoolExerciseRecord,
+    ExercisePoolSnapshot,
+)
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
+from backend.app.domain.rules.plan_shape import (
+    MAX_MAIN_BLOCKS_PER_EXERCISE,
+    has_consecutive_main_repetition,
+)
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
+# v4 adds the feedback adjustment axis. The version describes the payload actually
+# emitted, so an envelope carrying no adjustment stays v3 and keeps its old hash: a
+# stored envelope is the only evidence a past decision can be replayed against
+# (`AGENTS.md` 12), and rewriting every existing hash to record an absent field would
+# invalidate that evidence for no gain.
+ConstraintEnvelopeSchemaVersion = Literal["constraint-envelope-v3", "constraint-envelope-v4"]
 CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v3"]] = (
     "constraint-envelope-v3"
+)
+CONSTRAINT_ENVELOPE_ADJUSTED_SCHEMA_VERSION: Final[Literal["constraint-envelope-v4"]] = (
+    "constraint-envelope-v4"
+)
+FEEDBACK_ADJUSTMENT_SCHEMA_VERSION: Final[Literal["feedback-adjustment-v1"]] = (
+    "feedback-adjustment-v1"
 )
 RECOVERY_CEILING_SCHEMA_VERSION: Final[Literal["recovery-ceiling-v1"]] = "recovery-ceiling-v1"
 REGENERATION_CONTEXT_SCHEMA_VERSION: Final[Literal["regeneration-context-v1"]] = (
@@ -32,8 +51,8 @@ SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION: Final[Literal["specialist-agent-propos
 LLM_INVOCATION_METADATA_SCHEMA_VERSION: Final[Literal["llm-invocation-metadata-v1"]] = (
     "llm-invocation-metadata-v1"
 )
-V3_COORDINATOR_INPUT_SCHEMA_VERSION: Final[Literal["v3-coordinator-input-v1"]] = (
-    "v3-coordinator-input-v1"
+V3_COORDINATOR_INPUT_SCHEMA_VERSION: Final[Literal["v3-coordinator-input-v2"]] = (
+    "v3-coordinator-input-v2"
 )
 PLAN_SPEC_SCHEMA_VERSION: Final[Literal["plan-spec-v1"]] = "plan-spec-v1"
 
@@ -58,6 +77,25 @@ class V3ProposalStatusCode(StrEnum):
     READY = "READY"
     NEEDS_INPUT = "NEEDS_INPUT"
     FAILED = "FAILED"
+
+
+class TrainingNeedsInputReasonCode(StrEnum):
+    """Stable explanation allowed when Training cannot author a plan.
+
+    A validated specialist input has already ruled out absent or inconsistent
+    shared contracts.  The remaining honest result is therefore deliberately
+    narrow: the deterministic planner could not prove that a valid candidate
+    exists.  ``UNPROVEN`` is not an assertion that no plan exists.
+    """
+
+    DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN = "TRAINING.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
+
+
+class TrainingPlanFeasibilityCode(StrEnum):
+    """Conservative preflight evidence supplied to the Training adapter."""
+
+    CANDIDATE_AVAILABLE = "DETERMINISTIC_PLAN_CANDIDATE_AVAILABLE"
+    UNPROVEN = "DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN"
 
 
 class PlanActionCode(StrEnum):
@@ -128,6 +166,7 @@ class RecoveryCeiling(BaseModel):
     maximum_repetitions_per_set: int | None = Field(default=None, gt=0)
     maximum_work_seconds_per_set: int | None = Field(default=None, gt=0)
     minimum_rest_seconds_between_sets: int | None = Field(default=None, ge=0)
+    per_exercise_volume_ceilings: tuple[ExerciseVolumeCeiling, ...] = ()
 
     @field_validator("policy_version")
     @classmethod
@@ -139,13 +178,64 @@ class RecoveryCeiling(BaseModel):
     def validate_code_sets(cls, values: tuple[str, ...], info: ValidationInfo) -> tuple[str, ...]:
         return _canonical_codes(values, field_name=info.field_name or "recovery codes")
 
+    @field_validator("per_exercise_volume_ceilings")
+    @classmethod
+    def validate_per_exercise_ceilings(
+        cls, values: tuple[ExerciseVolumeCeiling, ...]
+    ) -> tuple[ExerciseVolumeCeiling, ...]:
+        ids = tuple(value.exercise_id for value in values)
+        if len(ids) != len(set(ids)) or ids != tuple(sorted(ids, key=str)):
+            raise ValueError("per_exercise_volume_ceilings must use unique canonical UUID order")
+        return values
+
+
+class ExerciseVolumeCeiling(BaseModel):
+    """Recovery's per-exercise cap, derived from an approved FITT upper bound."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    exercise_id: UUID
+    maximum_sets_per_exercise: int = Field(gt=0)
+    maximum_repetitions_per_set: int = Field(gt=0)
+
+
+def _per_exercise_volume_ceiling(
+    ceiling: RecoveryCeiling, exercise_id: UUID
+) -> ExerciseVolumeCeiling | None:
+    return next(
+        (item for item in ceiling.per_exercise_volume_ceilings if item.exercise_id == exercise_id),
+        None,
+    )
+
+
+class FeedbackAdjustmentEnvelope(BaseModel):
+    """Which axis the last `HARD` feedback lowers, carried so the plan is replayable.
+
+    The ladder that picks the axis lives in `domain/rules/feedback_adjustment.py`. This is
+    only its frozen result: keeping it inside the envelope means the adjustment is part of
+    the hashed constraint set a coordinator cannot argue with, rather than a side input
+    that could differ between the decision and its replay.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal["feedback-adjustment-v1"] = FEEDBACK_ADJUSTMENT_SCHEMA_VERSION
+    axis_code: str
+    reason_codes: tuple[str, ...] = Field(min_length=1)
+    policy_version: str
+
+    @field_validator("axis_code", "policy_version")
+    @classmethod
+    def validate_machine_code(cls, value: str) -> str:
+        return _machine_code(value, field_name="feedback adjustment code")
+
 
 class ConstraintEnvelope(BaseModel):
     """Immutable projection of deterministic Safety, duration, and feasibility constraints."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["constraint-envelope-v3"] = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
+    schema_version: ConstraintEnvelopeSchemaVersion = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
     requested_duration_minutes: int = Field(gt=0)
     primary_goal_code: str
     allowed_location_codes: tuple[str, ...] = Field(min_length=1)
@@ -158,6 +248,8 @@ class ConstraintEnvelope(BaseModel):
     policy_version: str
     catalog_version: str
     safety_rule_version: str
+    # Absent on v3 envelopes and whenever the last feedback picked no axis.
+    feedback_adjustment: FeedbackAdjustmentEnvelope | None = None
     envelope_hash: str
 
     _machine_fields: ClassVar[tuple[str, ...]] = (
@@ -202,15 +294,27 @@ class ConstraintEnvelope(BaseModel):
         return self
 
     def _hash_payload(self) -> dict[str, object]:
-        return self.model_dump(mode="json", exclude={"envelope_hash"})
+        payload = self.model_dump(mode="json", exclude={"envelope_hash"})
+        if payload.get("feedback_adjustment") is None:
+            # Absent means "no adjustment", which is the same constraint set a v3
+            # envelope described. Dropping the key keeps those hashes stable.
+            payload.pop("feedback_adjustment", None)
+        return payload
 
     @classmethod
     def create(cls, **values: object) -> Self:
-        payload = {
-            "schema_version": CONSTRAINT_ENVELOPE_SCHEMA_VERSION,
+        adjusted = values.get("feedback_adjustment") is not None
+        payload: dict[str, object] = {
+            "schema_version": (
+                CONSTRAINT_ENVELOPE_ADJUSTED_SCHEMA_VERSION
+                if adjusted
+                else CONSTRAINT_ENVELOPE_SCHEMA_VERSION
+            ),
             "safety_required_action_code": None,
             **values,
         }
+        if not adjusted:
+            payload.pop("feedback_adjustment", None)
         payload["envelope_hash"] = _canonical_hash(payload)
         return cls.model_validate(payload)
 
@@ -293,9 +397,6 @@ _PHASE_ORDER: Final[tuple[str, ...]] = ("WARMUP", "MAIN", "COOLDOWN")
 
 
 def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> None:
-    ids = tuple(value.exercise_id for value in values)
-    if len(ids) != len(set(ids)):
-        raise ValueError("exercise prescriptions must not contain duplicate exercise IDs")
     if tuple(value.sequence for value in values) != tuple(range(1, len(values) + 1)):
         raise ValueError("exercise prescriptions must use contiguous canonical sequence")
     # Preparation comes first and settling comes last. Ordering holds for any
@@ -304,6 +405,16 @@ def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> No
     ranks = [_PHASE_ORDER.index(value.phase_code) for value in values]
     if ranks != sorted(ranks):
         raise ValueError("exercise prescriptions must run WARMUP then MAIN then COOLDOWN")
+    blocks = tuple((value.exercise_id, value.phase_code) for value in values)
+    if has_consecutive_main_repetition(blocks):
+        raise ValueError("MAIN exercise repetitions must not be consecutive")
+    for phase_code in ("WARMUP", "COOLDOWN"):
+        phase_ids = tuple(value.exercise_id for value in values if value.phase_code == phase_code)
+        if len(phase_ids) != len(set(phase_ids)):
+            raise ValueError(f"{phase_code} exercise prescriptions must not repeat")
+    main_ids = tuple(value.exercise_id for value in values if value.phase_code == "MAIN")
+    if any(main_ids.count(exercise_id) > MAX_MAIN_BLOCKS_PER_EXERCISE for exercise_id in main_ids):
+        raise ValueError("MAIN exercise repetitions exceed the session block limit")
 
 
 def _pool_records(pool: ExercisePoolSnapshot) -> dict[UUID, ExercisePoolExerciseRecord]:
@@ -318,13 +429,49 @@ def _validate_prescription_constraints(
 ) -> None:
     records = _pool_records(pool)
     prescribed_ids = {item.exercise_id for item in prescriptions}
+    sets_by_exercise: dict[UUID, int] = {}
     if not prescribed_ids.issubset(records):
         raise ValueError("exercise prescription references an ID outside ExercisePoolSnapshot")
     if prescribed_ids & set(envelope.excluded_exercise_ids):
         raise ValueError("exercise prescription cannot relax Safety exclusions")
     ceiling = envelope.recovery_ceiling
     for item in prescriptions:
+        sets_by_exercise[item.exercise_id] = sets_by_exercise.get(item.exercise_id, 0) + item.sets
         record = records[item.exercise_id]
+        if (
+            ceiling.maximum_sets_per_exercise is not None
+            and item.sets > ceiling.maximum_sets_per_exercise
+        ):
+            raise ValueError("exercise prescription exceeds the Recovery sets ceiling")
+        if (
+            ceiling.maximum_repetitions_per_set is not None
+            and item.repetitions_per_set is not None
+            and item.repetitions_per_set > ceiling.maximum_repetitions_per_set
+        ):
+            raise ValueError("exercise prescription exceeds the Recovery repetitions ceiling")
+        if record.timing_mode_code == "REPS":
+            if item.repetitions_per_set is None:
+                raise ValueError("REPS exercise prescription requires repetitions")
+            # A reviewed FITT range bounds the prescription wherever one exists.
+            # Where none covers the exercise the Recovery ceiling checked above
+            # stays the operative bound, exactly as it did before FITT ranges
+            # were introduced. Treating an absent range as a violation would
+            # reject every plan rather than bound any, which bounds nothing.
+            volume = record.approved_fitt_volume()
+            if volume is not None and not volume.min_sets <= item.sets <= volume.max_sets:
+                raise ValueError("exercise prescription is outside the approved FITT sets range")
+            if volume is not None and not (
+                volume.min_reps <= item.repetitions_per_set <= volume.max_reps
+            ):
+                raise ValueError(
+                    "exercise prescription is outside the approved FITT repetitions range"
+                )
+            exercise_ceiling = _per_exercise_volume_ceiling(ceiling, item.exercise_id)
+            if exercise_ceiling is not None and (
+                item.sets > exercise_ceiling.maximum_sets_per_exercise
+                or item.repetitions_per_set > exercise_ceiling.maximum_repetitions_per_set
+            ):
+                raise ValueError("exercise prescription exceeds the per-exercise Recovery ceiling")
         if item.location_code not in envelope.allowed_location_codes:
             raise ValueError("exercise prescription uses a disallowed location")
         if item.location_code not in record.location_codes:
@@ -343,7 +490,6 @@ def _validate_prescription_constraints(
         if ceiling.allowed_load_codes and item.load_code not in ceiling.allowed_load_codes:
             raise ValueError("exercise prescription relaxes the Recovery load ceiling")
         numeric_ceilings = (
-            (item.sets, ceiling.maximum_sets_per_exercise, "sets"),
             (
                 item.repetitions_per_set,
                 ceiling.maximum_repetitions_per_set,
@@ -357,6 +503,10 @@ def _validate_prescription_constraints(
         minimum_rest = ceiling.minimum_rest_seconds_between_sets
         if minimum_rest is not None and item.rest_seconds_between_sets < minimum_rest:
             raise ValueError("exercise prescription relaxes the Recovery rest ceiling")
+    if ceiling.maximum_sets_per_exercise is not None and any(
+        sets > ceiling.maximum_sets_per_exercise for sets in sets_by_exercise.values()
+    ):
+        raise ValueError("exercise prescriptions exceed the Recovery sets ceiling")
 
 
 class SpecialistAgentInput(BaseModel):
@@ -554,11 +704,11 @@ class LLMInvocationMetadata(BaseModel):
 
 
 class CoordinatorInput(BaseModel):
-    """Canonical three-proposal input accepted by the future LLM Coordinator adapter."""
+    """Canonical three-proposal input accepted by the LLM Coordinator adapter."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["v3-coordinator-input-v1"] = V3_COORDINATOR_INPUT_SCHEMA_VERSION
+    schema_version: Literal["v3-coordinator-input-v2"] = V3_COORDINATOR_INPUT_SCHEMA_VERSION
     constraint_envelope: ConstraintEnvelope
     exercise_pool: ExercisePoolSnapshot
     proposals: tuple[SpecialistAgentProposal, ...]
@@ -581,11 +731,14 @@ class CoordinatorInput(BaseModel):
         agent_order = tuple(proposal.agent_type_code for proposal in self.proposals)
         if agent_order != SPECIALIST_AGENT_ORDER:
             raise ValueError("Coordinator requires three proposals in canonical role order")
+        training, recovery, feasibility = self.proposals
+        if training.proposal_status_code is not V3ProposalStatusCode.READY:
+            raise ValueError("Coordinator requires a READY Training proposal")
         if any(
-            proposal.proposal_status_code is not V3ProposalStatusCode.READY
-            for proposal in self.proposals
+            proposal.proposal_status_code is V3ProposalStatusCode.FAILED
+            for proposal in (recovery, feasibility)
         ):
-            raise ValueError("Coordinator cannot run with missing, failed, or non-ready proposals")
+            raise ValueError("Coordinator cannot run with a failed advisory proposal")
         if self.repair_attempt == 0 and self.repair_violation_codes:
             raise ValueError("initial Coordinator input cannot carry repair violations")
         if self.repair_attempt == 1 and not self.repair_violation_codes:
@@ -735,6 +888,7 @@ __all__ = [
     "ConstraintEnvelope",
     "CoordinatorInput",
     "ExercisePrescription",
+    "ExerciseVolumeCeiling",
     "LLMInvocationMetadata",
     "LLMInvocationStatusCode",
     "PlanActionCode",
@@ -745,5 +899,7 @@ __all__ = [
     "SpecialistAgentInput",
     "SpecialistAgentProposal",
     "SpecialistAgentTypeCode",
+    "TrainingNeedsInputReasonCode",
+    "TrainingPlanFeasibilityCode",
     "V3ProposalStatusCode",
 ]

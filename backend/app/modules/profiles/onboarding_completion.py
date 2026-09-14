@@ -10,6 +10,8 @@ from backend.app.modules.profiles.service import ProfileService
 from backend.app.modules.routines.schemas import RoutineCreateRequest
 from backend.app.modules.routines.service import RoutineService
 
+DEFAULT_INITIAL_ROUTINE_DURATION_MINUTES = 30
+
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
@@ -50,6 +52,7 @@ class OnboardingCompletionService:
                 RoutineCreateRequest(
                     effective_from=effective_from,
                     goal_code=request.primary_goal_code,
+                    requested_duration_minutes=DEFAULT_INITIAL_ROUTINE_DURATION_MINUTES,
                 ),
             )
             return response

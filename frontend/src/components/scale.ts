@@ -6,13 +6,31 @@ import {
 } from 'react';
 import { useWindowDimensions } from 'react-native';
 
+import {
+  type MeasureOverlayViewport,
+  OverlayViewportProvider,
+} from './OverlayViewport';
+
 export const BASE_W = 390;
 export const BASE_H = 844;
 export const MAX_INTERFACE_SCALE = 1.2;
+export const MIN_COMPACT_INTERFACE_SCALE = 0.78;
 export const WEB_APP_MAX_WIDTH = 640;
 
 export function getInterfaceScale(size: number, baseSize: number) {
   return Math.min(size / baseSize, MAX_INTERFACE_SCALE);
+}
+
+/**
+ * Fits dense controls inside the current viewport without tying them to a
+ * particular phone model. The floor keeps labels legible; interactive
+ * components still apply their own 44px minimum touch height.
+ */
+export function getContainedInterfaceScale(width: number, height: number) {
+  return Math.max(
+    MIN_COMPACT_INTERFACE_SCALE,
+    Math.min(1, width / BASE_W, height / BASE_H),
+  );
 }
 
 export type ScaleViewport = {
@@ -24,16 +42,26 @@ const ScaleViewportContext = createContext<ScaleViewport | null>(null);
 
 export function ScaleViewportProvider({
   children,
+  measureOverlayViewport,
   viewport,
 }: {
   children: ReactNode;
+  measureOverlayViewport?: MeasureOverlayViewport;
   viewport: ScaleViewport;
 }) {
-  return createElement(
+  const scaleProvider = createElement(
     ScaleViewportContext.Provider,
     { value: viewport },
     children,
   );
+
+  return measureOverlayViewport
+    ? createElement(
+        OverlayViewportProvider,
+        { measure: measureOverlayViewport },
+        scaleProvider,
+      )
+    : scaleProvider;
 }
 
 export function useScale() {

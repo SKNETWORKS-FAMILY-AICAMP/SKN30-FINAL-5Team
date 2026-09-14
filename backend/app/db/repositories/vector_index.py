@@ -59,6 +59,10 @@ class IndexableExerciseRecord:
     phase_codes: tuple[str, ...]
     prescription_experience_level_codes: tuple[str, ...]
     stable_code: str = ""
+    # Groups near-identical movements (the three GOOD_MORNING variants, say) so
+    # plan selection can offer one of them rather than all three. Nullable in
+    # the catalog, and a missing value must never be treated as a shared group.
+    family_code: str | None = None
     timing_mode_code: str = "REPS"
     # Reviewed timing basis from the catalog. Not part of the embedding document,
     # so adding it leaves canonical_embedding_document and the build hash intact.
@@ -184,6 +188,7 @@ class VectorIndexRepository:
                 role_eligibility_code=roles.get(exercise.id),
                 prescription_experience_level_codes=tuple(sorted(prescription_levels[exercise.id])),
                 stable_code=exercise.stable_code,
+                family_code=exercise.family_code,
                 timing_mode_code=exercise.timing_mode_code,
                 default_seconds_per_rep=exercise.default_seconds_per_rep,
                 default_work_seconds=exercise.default_work_seconds,

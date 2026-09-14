@@ -1,0 +1,5259 @@
+{
+  "status": "DRAFT",
+  "policy": {
+    "timing_mode": "instruction_description_and_movement_character",
+    "strength_rest_seconds_by_difficulty": {
+      "BEGINNER": 60,
+      "INTERMEDIATE": 90
+    },
+    "mobility": {
+      "timing_mode_code": "DURATION",
+      "work_seconds": 30,
+      "rest_seconds": 30
+    },
+    "cardio": {
+      "timing_mode_code": "DURATION",
+      "work_seconds": 60,
+      "rest_seconds": 60
+    },
+    "strength_reps": {
+      "seconds_per_rep": 4
+    },
+    "strength_duration_work_seconds": 30,
+    "transition_seconds": 15
+  },
+  "catalog_source": {
+    "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "sha256": "491f23f3c5aa4ab8e1d53caefec040e3e0a77e01af4b226aec05ea2d2fc18d00"
+  },
+  "counts": {
+    "catalog_records": 237,
+    "timing_mode_counts": {
+      "DURATION": 63,
+      "REPS": 174
+    },
+    "changed_field_counts": {
+      "timing_mode_code": 166,
+      "default_seconds_per_rep": 136,
+      "default_work_seconds": 31,
+      "default_rest_seconds": 193,
+      "default_transition_seconds": 165
+    }
+  },
+  "records": [
+    {
+      "source_identity": "1368",
+      "name_en": "ankle circles",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1369",
+      "name_en": "band two legs calf raise - (band under both legs)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0032",
+      "name_en": "barbell deadlift",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0041",
+      "name_en": "barbell front raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0116",
+      "name_en": "barbell straight leg deadlift",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0489",
+      "name_en": "hyperextension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0274",
+      "name_en": "crunch floor",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3470",
+      "name_en": "forward lunge (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3013",
+      "name_en": "low glute bridge on floor",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0140",
+      "name_en": "biceps pull-up",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0872",
+      "name_en": "reverse crunch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2368",
+      "name_en": "split squats",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1373",
+      "name_en": "bodyweight standing calf raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1494",
+      "name_en": "butterfly yoga pose",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0201",
+      "name_en": "cable pushdown",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3672",
+      "name_en": "back and forth step",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3636",
+      "name_en": "high knee against wall",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3666",
+      "name_en": "walking on incline treadmill",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2311",
+      "name_en": "walking on stepmill",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1548",
+      "name_en": "chair leg extended stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1271",
+      "name_en": "chest and front of shoulder stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0259",
+      "name_en": "close-grip push-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1760",
+      "name_en": "dumbbell goblet squat",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0334",
+      "name_en": "dumbbell lateral raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0335",
+      "name_en": "dumbbell lateral to front raise",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0372",
+      "name_en": "dumbbell preacher curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0378",
+      "name_en": "dumbbell rear fly",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0406",
+      "name_en": "dumbbell shrug",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0416",
+      "name_en": "dumbbell standing biceps curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2796",
+      "name_en": "dumbbell step-up lunge",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1167",
+      "name_en": "dynamic chest stretch (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1559",
+      "name_en": "exercise ball hip flexor stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1511",
+      "name_en": "hamstring stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0854",
+      "name_en": "weighted standing hand squeeze",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0499",
+      "name_en": "inverted row",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1346",
+      "name_en": "kneeling lat stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0198",
+      "name_en": "cable pulldown",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1352",
+      "name_en": "lower back curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1403",
+      "name_en": "neck side stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1355",
+      "name_en": "one arm against wall",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1386",
+      "name_en": "one leg donkey calf raise",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0109",
+      "name_en": "barbell standing overhead triceps extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0643",
+      "name_en": "overhead triceps stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0662",
+      "name_en": "push-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1512",
+      "name_en": "quadruped quadriceps stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0669",
+      "name_en": "rear deltoid stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1000",
+      "name_en": "band single leg reverse calf raise",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0082",
+      "name_en": "barbell reverse wrist curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2208",
+      "name_en": "roller back stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2202",
+      "name_en": "roller hip stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1585",
+      "name_en": "runners stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0688",
+      "name_en": "scapular pull-up",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0861",
+      "name_en": "cable seated row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0088",
+      "name_en": "barbell seated calf raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1390",
+      "name_en": "seated calf stretch (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1424",
+      "name_en": "seated glute stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0599",
+      "name_en": "lever seated leg curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_FLEXION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0690",
+      "name_en": "seated lower back stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2567",
+      "name_en": "seated piriformis stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0405",
+      "name_en": "dumbbell seated shoulder press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1587",
+      "name_en": "seated wide angle pose sequence",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0613",
+      "name_en": "lying (side) quads stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0721",
+      "name_en": "side wrist pull stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0763",
+      "name_en": "smith reverse calf raises",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1363",
+      "name_en": "spine stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0794",
+      "name_en": "standing lateral stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0817",
+      "name_en": "triceps stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1365",
+      "name_en": "upper back stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1377",
+      "name_en": "calf stretch with hands against wall",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1604",
+      "name_en": "world greatest stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1428",
+      "name_en": "wrist circles",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0126",
+      "name_en": "barbell wrist curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0002",
+      "name_en": "45° side bend",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0006",
+      "name_en": "alternate heel touchers",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0007",
+      "name_en": "alternate lateral pulldown",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0017",
+      "name_en": "assisted pull-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0019",
+      "name_en": "assisted triceps dip (kneeling)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0022",
+      "name_en": "barbell pullover to press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0026",
+      "name_en": "barbell bench squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0027",
+      "name_en": "barbell bent over row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0031",
+      "name_en": "barbell curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0034",
+      "name_en": "barbell decline bent arm pullover",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0035",
+      "name_en": "barbell decline close grip to skull press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0043",
+      "name_en": "barbell full squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0044",
+      "name_en": "barbell good morning",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0047",
+      "name_en": "barbell incline bench press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0049",
+      "name_en": "barbell incline row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0053",
+      "name_en": "barbell jump squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0054",
+      "name_en": "barbell lunge",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0056",
+      "name_en": "barbell lying close-grip triceps extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0058",
+      "name_en": "barbell lying lifting (on hip)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0059",
+      "name_en": "barbell lying preacher curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0063",
+      "name_en": "barbell narrow stance squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0069",
+      "name_en": "barbell overhead squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0070",
+      "name_en": "barbell preacher curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0074",
+      "name_en": "barbell rack pull",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0076",
+      "name_en": "barbell rear delt row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0085",
+      "name_en": "barbell romanian deadlift",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0090",
+      "name_en": "barbell seated good morning",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0091",
+      "name_en": "barbell seated overhead press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0094",
+      "name_en": "barbell seated twist",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0095",
+      "name_en": "barbell shrug",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0096",
+      "name_en": "barbell side bent",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0108",
+      "name_en": "barbell standing leg calf raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0111",
+      "name_en": "barbell standing rocking leg calf raise",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0117",
+      "name_en": "barbell sumo deadlift",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0121",
+      "name_en": "barbell upright row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0129",
+      "name_en": "bench dip (knees bent)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0130",
+      "name_en": "bench hip extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0137",
+      "name_en": "body-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0138",
+      "name_en": "bottoms-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_FLEXION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0158",
+      "name_en": "cable decline fly",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0159",
+      "name_en": "cable decline seated wide-grip row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0168",
+      "name_en": "cable hip adduction",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0169",
+      "name_en": "cable incline bench press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0180",
+      "name_en": "cable low seated row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0199",
+      "name_en": "cable pushdown (straight arm)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0214",
+      "name_en": "cable seated one arm alternate row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0218",
+      "name_en": "cable seated wide-grip row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0228",
+      "name_en": "cable standing hip extension",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0233",
+      "name_en": "cable standing rear delt row (with rope)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0239",
+      "name_en": "cable straight back seated row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0260",
+      "name_en": "cocoons",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0262",
+      "name_en": "cross body crunch",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0271",
+      "name_en": "crunch (on stability ball)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0272",
+      "name_en": "crunch (on stability ball, arms straight)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0276",
+      "name_en": "dead bug",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0285",
+      "name_en": "dumbbell alternate biceps curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0287",
+      "name_en": "dumbbell arnold press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0291",
+      "name_en": "dumbbell bench squat",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0292",
+      "name_en": "dumbbell one arm bent-over row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0293",
+      "name_en": "dumbbell bent over row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0299",
+      "name_en": "dumbbell cuban press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0300",
+      "name_en": "dumbbell deadlift",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0303",
+      "name_en": "dumbbell decline hammer press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0314",
+      "name_en": "dumbbell incline bench press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0317",
+      "name_en": "dumbbell incline curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0321",
+      "name_en": "dumbbell incline hammer press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0326",
+      "name_en": "dumbbell incline rear lateral raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0327",
+      "name_en": "dumbbell incline row",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0371",
+      "name_en": "dumbbell plyo squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0379",
+      "name_en": "dumbbell rear lateral raise (support head)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0389",
+      "name_en": "dumbbell seated bench extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0410",
+      "name_en": "dumbbell single leg split squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0443",
+      "name_en": "elbow-to-knee",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0456",
+      "name_en": "flexion leg sit up (bent knee)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0459",
+      "name_en": "flutter kicks",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0469",
+      "name_en": "groin crunch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0513",
+      "name_en": "jump squat",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0514",
+      "name_en": "jump squat",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0548",
+      "name_en": "kettlebell sumo high pull",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0549",
+      "name_en": "kettlebell swing",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0555",
+      "name_en": "kick out sit",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0584",
+      "name_en": "lever lateral raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0585",
+      "name_en": "lever leg extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0586",
+      "name_en": "lever lying leg curl",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0596",
+      "name_en": "lever seated fly",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0597",
+      "name_en": "lever seated hip abduction",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0598",
+      "name_en": "lever seated hip adduction",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0601",
+      "name_en": "lever seated reverse fly (parallel grip)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0602",
+      "name_en": "lever seated reverse fly",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0620",
+      "name_en": "lying leg raise flat bench",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0628",
+      "name_en": "monster walk",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0630",
+      "name_en": "mountain climber",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0635",
+      "name_en": "oblique crunches floor",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0659",
+      "name_en": "push-up (wall)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0668",
+      "name_en": "rear decline bridge",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0684",
+      "name_en": "run (equipment)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0689",
+      "name_en": "seated leg raise",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0691",
+      "name_en": "seated side crunch (wall)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0705",
+      "name_en": "side bridge",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0709",
+      "name_en": "side hip (on parallel bars)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0710",
+      "name_en": "side hip abduction",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0730",
+      "name_en": "single leg platform slide",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0740",
+      "name_en": "sled 45в° leg wide press",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0748",
+      "name_en": "smith bench press",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0749",
+      "name_en": "smith bent knee good morning",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0751",
+      "name_en": "smith close-grip bench press",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0760",
+      "name_en": "smith leg press",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0761",
+      "name_en": "smith narrow row",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0768",
+      "name_en": "smith single leg split squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0769",
+      "name_en": "smith sprint lunge",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0798",
+      "name_en": "stationary bike walk",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "CYCLING",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "0856",
+      "name_en": "weighted svend press",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1001",
+      "name_en": "band single leg split squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1259",
+      "name_en": "behind head chest stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1297",
+      "name_en": "isometric chest squeeze",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1358",
+      "name_en": "side lying floor stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1362",
+      "name_en": "sphinx",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1366",
+      "name_en": "upward facing dog",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1388",
+      "name_en": "peroneals stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1389",
+      "name_en": "posterior tibialis stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1397",
+      "name_en": "standing calves",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1407",
+      "name_en": "calf push stretch with hands against wall",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1419",
+      "name_en": "iron cross stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1423",
+      "name_en": "reverse hyper on flat bench",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1430",
+      "name_en": "chest dip (on dip-pull-up cage)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1432",
+      "name_en": "assisted standing pull-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PULL",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1460",
+      "name_en": "walking lunge",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1476",
+      "name_en": "one leg squat",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1564",
+      "name_en": "intermediate hip flexor and quad stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1687",
+      "name_en": "posterior step to overhead reach",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "VERTICAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1689",
+      "name_en": "push and pull bodyweight",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1700",
+      "name_en": "dumbbell push press",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "1771",
+      "name_en": "bodyweight kneeling triceps extension",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2133",
+      "name_en": "farmers walk",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes continuous movement or position hold",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2141",
+      "name_en": "walk elliptical cross trainer",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "ELLIPTICAL",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2203",
+      "name_en": "foam roller hamstring stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2204",
+      "name_en": "foam roller thigh stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2205",
+      "name_en": "foam roller outer thigh stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2206",
+      "name_en": "foam roller calf stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2207",
+      "name_en": "foam roller outer thigh stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2209",
+      "name_en": "foam roller calf stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2271",
+      "name_en": "left hook. boxing",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2398",
+      "name_en": "close-grip push-up (on knees)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "2571",
+      "name_en": "rocking frog stretch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3006",
+      "name_en": "resistance band seated hip abduction",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3007",
+      "name_en": "resistance band leg extension",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3011",
+      "name_en": "incline scapula push up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HORIZONTAL_PUSH",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3016",
+      "name_en": "curl-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3147",
+      "name_en": "pelvic tilt",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes continuous movement or position hold",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3195",
+      "name_en": "lever lying two-one leg curl",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_FLEXION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3201",
+      "name_en": "quarter sit-up",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3220",
+      "name_en": "astride jumps (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3221",
+      "name_en": "half knee bends (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3231",
+      "name_en": "two toe touch (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "MOBILITY",
+      "primary_movement_pattern_code": "MOBILITY_STRETCH",
+      "timing_basis": "MOBILITY stretching is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "30",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3239",
+      "name_en": "kneeling plank tap shoulder (male)",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3533",
+      "name_en": "quads",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3544",
+      "name_en": "bodyweight incline side plank",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3552",
+      "name_en": "quick feet",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes continuous movement or position hold",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "30",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3640",
+      "name_en": "knee touch crunch",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3645",
+      "name_en": "single leg bridge with outstretched leg",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "HIP_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3656",
+      "name_en": "short stride run",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "GAIT",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3662",
+      "name_en": "pike-to-cobra push-up",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "CORE_BRACE",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "90",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3667",
+      "name_en": "side lying hip adduction (male)",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "ISOLATION",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3671",
+      "name_en": "ski step",
+      "difficulty_code": "INTERMEDIATE",
+      "training_type_code": "CARDIO",
+      "primary_movement_pattern_code": "JUMP_PLYOMETRIC",
+      "timing_basis": "CARDIO continuous activity is time-based",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "DURATION",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "60",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    },
+    {
+      "source_identity": "3769",
+      "name_en": "curtsey squat",
+      "difficulty_code": "BEGINNER",
+      "training_type_code": "STRENGTH",
+      "primary_movement_pattern_code": "KNEE_DOMINANT",
+      "timing_basis": "instruction describes repeatable movement cycles",
+      "before": {
+        "timing_mode_code": "",
+        "default_seconds_per_rep": "",
+        "default_work_seconds": "",
+        "default_rest_seconds": "",
+        "default_transition_seconds": ""
+      },
+      "after": {
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": "4",
+        "default_work_seconds": "",
+        "default_rest_seconds": "60",
+        "default_transition_seconds": "15"
+      }
+    }
+  ]
+}

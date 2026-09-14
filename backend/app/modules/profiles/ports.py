@@ -28,23 +28,20 @@ class OnboardingProfileValues:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
-    height_cm: float | None
     weight_kg: float | None
-    sex_code: str | None
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
+    medical_exercise_restriction: bool
+    eligibility_result_code: str
+    weekly_target_sessions: int
 
 
 @dataclass(frozen=True)
 class OnboardingRecord:
     user_id: UUID
     profile_version: int
-    coaching_style_code: str
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
     premium_status_code: str
@@ -56,8 +53,9 @@ class OnboardingRecord:
 class MeProfileRecord:
     """Stored profile values needed to describe the authenticated user.
 
-    `protected_birthdate` stays encrypted here; only the derived age leaves the
-    service layer and the birthdate itself is never part of a response.
+    `protected_birthdate` stays encrypted here. The service layer decrypts it to
+    derive the age and to return the birthdate to its own owner; the encrypted
+    envelope itself is never part of a response. See ADR-0005.
     """
 
     nickname: str
@@ -65,16 +63,16 @@ class MeProfileRecord:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
     created_at: datetime
     updated_at: datetime
+    profile_image_object_key: str | None = None
+    weight_kg: float | None = None
+    persistent_pains: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -84,7 +82,8 @@ class MeRecord:
     premium_status_code: str
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
-    profile: MeProfileRecord | None
+    profile: MeProfileRecord | None = None
+    banana_balance: int = 0
 
 
 @dataclass(frozen=True)
@@ -108,14 +107,9 @@ class ProfileSettingsRecord:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
-    height_cm: float | None
     weight_kg: float | None
-    sex_code: str | None
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
@@ -125,18 +119,28 @@ class ProfileSettingsRecord:
 class ProfileSettingsChanges:
     protected_birthdate: str | None
     scalar_values: dict[str, object]
-    available_location_codes: tuple[str, ...] | None
     attention_area_codes: tuple[str, ...] | None
     preferred_exercise_type_codes: tuple[str, ...] | None
+    persistent_pains: tuple[tuple[str, int], ...] | None
+
+
+@dataclass(frozen=True)
+class ProfileImageRecord:
+    object_key: str | None
+    profile_version: int
+    updated_at: datetime | None = None
+
+
+class ProfileImageUrlProvider(Protocol):
+    def create_url(self, object_key: str) -> str | None: ...
 
 
 class StaleRoutinePort(Protocol):
     """Retires routines a profile edit has made unreachable.
 
-    The profile default is the target a base routine is built to. When the user
-    changes it, the stored routine keeps the old target and every daily decision
-    then rejects it as CANDIDATE_DURATION_MISMATCH, leaving the user in a
-    permanent REST loop with no way out from the UI.
+    The profile goal and default duration are targets a base routine is built
+    to. When either changes, the stored routine no longer represents the
+    current profile.
 
     Archiving rather than rebuilding keeps this inside the profile transaction:
     a rebuild depends on catalog availability and can legitimately fail, and a
@@ -144,17 +148,33 @@ class StaleRoutinePort(Protocol):
     duration. The client already offers routine creation when none is active.
     """
 
-    def archive_routines_with_other_duration(
+    def archive_routines_incompatible_with_profile(
         self,
         session: Session,
         user_id: UUID,
         *,
+        primary_goal_code: str,
         requested_duration_minutes: int,
     ) -> int: ...
 
 
 class ProfileRepositoryPort(Protocol):
     def get_me(self, session: Session, user_id: UUID) -> MeRecord | None: ...
+
+    def get_profile_image_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileImageRecord | None: ...
+
+    def update_profile_image(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        object_key: str | None,
+        content_type: str | None,
+        byte_size: int | None,
+        now: datetime,
+    ) -> tuple[int, datetime]: ...
 
     def acquire_idempotency_lock(
         self,
@@ -214,6 +234,18 @@ class ProfileRepositoryPort(Protocol):
         policy_version: str,
         now: datetime,
     ) -> tuple[ConsentRecord, ...]: ...
+
+    def record_terms_agreement(
+        self, session: Session, user_id: UUID, terms_version: str, now: datetime
+    ) -> None: ...
+
+    def replace_persistent_pains(
+        self,
+        session: Session,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None: ...
 
     def disable_user_for_age(self, session: Session, user_id: UUID, now: datetime) -> None: ...
 

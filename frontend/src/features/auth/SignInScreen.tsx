@@ -1,10 +1,9 @@
 /**
- * Real Firebase email/password sign-in and sign-up.
+ * Compact Firebase sign-in and sign-up screen used by the preview gallery.
  *
- * The backend accepts only a verified Firebase ID token, and Kakao/Naver are
- * reserved-but-unimplemented contracts, so this screen offers exactly the one
- * provider the demo can actually authenticate with. No provider is shown that
- * would not work if tapped.
+ * Email/password remains available beside the approved Google Firebase and
+ * Kakao backend-exchange paths. Every successful path ends with Firebase as
+ * the final session authority.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -70,21 +69,30 @@ export function SignInScreen({ auth, notice = null }: SignInScreenProps) {
     }
     await auth.signIn(email, password);
   });
+  const social = useAsyncAction(async (provider: 'Google' | 'Kakao') => {
+    if (provider === 'Google') {
+      await auth.signInWithGoogle();
+      return;
+    }
+    await auth.signInWithKakao();
+  });
 
   const onSubmit = useCallback(() => {
     setValidation(null);
+    social.clearError();
     if (!email.trim()) {
       setValidation('이메일을 입력해주세요.');
       return;
     }
     void submit.run(mode);
-  }, [email, mode, submit]);
+  }, [email, mode, social, submit]);
 
   const toggleMode = useCallback(() => {
     setValidation(null);
     submit.clearError();
+    social.clearError();
     setMode((current) => (current === 'signIn' ? 'signUp' : 'signIn'));
-  }, [submit]);
+  }, [social, submit]);
 
   return (
     <ScreenShell contentStyle={styles.content}>
@@ -145,6 +153,9 @@ export function SignInScreen({ auth, notice = null }: SignInScreenProps) {
       {submit.error ? (
         <InlineFeedback tone="error" message={submit.error} />
       ) : null}
+      {social.error ? (
+        <InlineFeedback tone="error" message={social.error} />
+      ) : null}
 
       {isSignUp ? (
         <Text style={styles.hint}>
@@ -159,9 +170,27 @@ export function SignInScreen({ auth, notice = null }: SignInScreenProps) {
               ? '회원가입하고 시작'
               : '로그인'
         }
-        disabled={submit.pending}
+        disabled={submit.pending || social.pending}
         onPress={onSubmit}
       />
+
+      {!isSignUp ? (
+        <View style={styles.socialActions}>
+          <Text style={styles.socialDivider}>또는</Text>
+          <Button
+            disabled={submit.pending || social.pending}
+            label="Google로 계속하기"
+            onPress={() => void social.run('Google')}
+            tone="secondary"
+          />
+          <Button
+            disabled={submit.pending || social.pending}
+            label="카카오로 계속하기"
+            onPress={() => void social.run('Kakao')}
+            style={styles.kakaoButton}
+          />
+        </View>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"
@@ -198,6 +227,17 @@ const styles = StyleSheet.create({
   switch: {
     alignItems: 'center',
     paddingVertical: spacing.sm,
+  },
+  socialActions: {
+    gap: spacing.sm,
+  },
+  socialDivider: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  kakaoButton: {
+    backgroundColor: '#FEE500',
   },
   switchText: {
     color: colors.greenText,

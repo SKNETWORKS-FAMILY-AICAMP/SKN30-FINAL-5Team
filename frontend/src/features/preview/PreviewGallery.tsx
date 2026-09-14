@@ -20,7 +20,12 @@ import {
   ScaleViewportProvider,
   WEB_APP_MAX_WIDTH,
 } from '../../components/scale';
+import type { OverlayViewportBounds } from '../../components/OverlayViewport';
 import type { TabId } from '../../components/brand/BrandChrome';
+import {
+  ProfileErrorScreen,
+  ProfileLoadingScreen,
+} from '../../app/SessionStatusScreens';
 import { LoginScreen } from '../auth/LoginScreen';
 import {
   LOGIN_PREVIEW_OPTIONS,
@@ -30,7 +35,11 @@ import {
 } from '../auth/previewStates';
 import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
+import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { KikkiMergeGameScreen } from '../kikkiMerge/KikkiMergeGameScreen';
+import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
 import { ExerciseCatalogScreen } from '../catalog/ExerciseCatalogScreen';
+import { ConfigurationRequiredScreen } from '../config/ConfigurationRequiredScreen';
 import { CalendarReportContainer } from '../home/CalendarReportContainer';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
@@ -82,6 +91,11 @@ import {
 } from './catalogPreview';
 import { homePreviewProps } from './homePreview';
 import { onboardingPreviewApi } from './onboardingPreview';
+import {
+  NotificationPreview,
+  NOTIFICATION_PREVIEW_OPTIONS,
+  type NotificationPreviewState,
+} from './NotificationPreview';
 import {
   accountPreviewApi,
   createHousePreviewApi,
@@ -138,6 +152,7 @@ export const DEVICE_PREVIEWS = [
 export const SPLASH_DEVICE_PREVIEWS = DEVICE_PREVIEWS;
 export type PreviewScreenId =
   | 'splash'
+  | 'app-status'
   | 'loading'
   | 'auth'
   | 'login'
@@ -150,6 +165,9 @@ export type PreviewScreenId =
   | 'workout'
   | 'session'
   | 'mascot-house'
+  | 'banana-catch'
+  | 'kikki-runner'
+  | 'kikki-merge'
   | 'background_test'
   | 'calendar-report'
   | 'weekly-report'
@@ -165,7 +183,10 @@ type PreviewScreen = {
 const PREVIEW_SCREEN_GROUPS = [
   {
     label: 'App boot',
-    screens: [{ id: 'splash', label: 'Splash (API)' }],
+    screens: [
+      { id: 'splash', label: 'Splash (API)' },
+      { id: 'app-status', label: 'App status (actual)' },
+    ],
   },
   {
     label: 'States',
@@ -205,6 +226,9 @@ const PREVIEW_SCREEN_GROUPS = [
     label: 'Mascot house',
     screens: [
       { id: 'mascot-house', label: 'Mascot house (API)' },
+      { id: 'banana-catch', label: 'Banana catch (actual)' },
+      { id: 'kikki-runner', label: 'Kkikki runner (prototype)' },
+      { id: 'kikki-merge', label: 'Kkikki merge (prototype)' },
       { id: 'background_test', label: 'background_test (mock)' },
     ],
   },
@@ -300,7 +324,25 @@ function isWorkoutPreviewState(
 }
 
 type SplashPreviewState = 'pending' | 'error';
+type AppStatusPreviewState =
+  'configuration' | 'profile-loading' | 'profile-error';
 type PageLoadingPreviewState = 'home' | 'house' | 'calendar-report' | 'my-page';
+
+const APP_STATUS_PREVIEW_OPTIONS = [
+  { id: 'configuration', label: '환경 설정 누락' },
+  { id: 'profile-loading', label: '프로필 조회 중' },
+  { id: 'profile-error', label: '프로필 조회 실패' },
+] as const satisfies readonly {
+  id: AppStatusPreviewState;
+  label: string;
+}[];
+
+const APP_STATUS_PREVIEW_ISSUES = [
+  {
+    key: 'EXPO_PUBLIC_API_BASE_URL',
+    message: 'API 서버 주소가 설정되지 않았습니다.',
+  },
+] as const;
 
 const PAGE_LOADING_PREVIEW_OPTIONS = [
   { id: 'home', label: 'Home · 오늘 상태' },
@@ -353,8 +395,8 @@ function addPreviewDays(localDate: string, amount: number): string {
 
 function isRecordedStatus(
   status: CalendarDayStatus,
-): status is 'done' | 'partial' | 'miss' {
-  return status === 'done' || status === 'partial' || status === 'miss';
+): status is 'done' | 'partial' | 'rest' {
+  return status === 'done' || status === 'partial' || status === 'rest';
 }
 
 const CALENDAR_HISTORY_PREVIEW_WEEKS = CALENDAR_WEEKS.map((week) => ({
@@ -375,13 +417,13 @@ function calendarHistoryPreviewDetail(
   sessionId: string,
 ): WorkoutSessionDetailResponse {
   const match =
-    /^calendar-history-(done|partial|miss)-(\d{4}-\d{2}-\d{2})$/.exec(
+    /^calendar-history-(done|partial|rest)-(\d{4}-\d{2}-\d{2})$/.exec(
       sessionId,
     );
   if (match === null) {
     throw new Error('Unknown calendar history preview session');
   }
-  const status = match[1] as 'done' | 'partial' | 'miss';
+  const status = match[1] as 'done' | 'partial' | 'rest';
   const localDate = match[2]!;
   const completedItemCount =
     status === 'done' ? 3 : status === 'partial' ? 2 : 0;
@@ -419,18 +461,22 @@ function calendarHistoryPreviewDetail(
     total_item_count: items.length,
     requested_duration_minutes: 30,
     items,
+    completed_plan_item_ids: items
+      .slice(0, completedItemCount)
+      .map((item) => item.plan_item_id),
+    current_plan_item_id: null,
     feedback:
-      status === 'miss'
+      status === 'rest'
         ? null
         : {
             perceived_difficulty_code:
               status === 'done' ? 'APPROPRIATE' : 'HARD',
             post_workout_discomfort_reported: false,
           },
-    not_completed_reason_code: status === 'miss' ? 'SCHEDULE_CHANGE' : null,
-    started_at: status === 'miss' ? null : `${localDate}T19:00:00+09:00`,
+    not_completed_reason_code: status === 'rest' ? 'SCHEDULE_CHANGE' : null,
+    started_at: status === 'rest' ? null : `${localDate}T19:00:00+09:00`,
     finished_at:
-      status === 'miss'
+      status === 'rest'
         ? `${localDate}T19:00:00+09:00`
         : `${localDate}T19:${status === 'done' ? '30' : '20'}:00+09:00`,
   };
@@ -443,15 +489,19 @@ const calendarHistoryPreviewApi = {
 } satisfies Pick<Api, 'getWorkoutSession'>;
 
 export function PreviewGallery({
+  deviceViewport = false,
   initialScreenId = 'splash',
 }: {
+  deviceViewport?: boolean;
   initialScreenId?: PreviewScreenId | 'session-result';
 }) {
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const [screenId, setScreenId] = useState<PreviewScreenId>(
     initialScreenId === 'session-result' ? 'workout' : initialScreenId,
   );
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
+  const [appStatusState, setAppStatusState] =
+    useState<AppStatusPreviewState>('configuration');
   const [pageLoadingState, setPageLoadingState] =
     useState<PageLoadingPreviewState>('home');
   const [devicePreviewId, setDevicePreviewId] =
@@ -467,12 +517,15 @@ export function PreviewGallery({
     useState<ProfilePreviewState>('editing');
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [homeState, setHomeState] = useState<HomePreviewState>('pre-checkin');
+  const [notificationState, setNotificationState] =
+    useState<NotificationPreviewState>('unread');
   const [homeDecisionOverride, setHomeDecisionOverride] = useState<
     DecisionResponse | undefined
   >(undefined);
   const homeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const canvasFrameRef = useRef<View | null>(null);
   const [todayState, setTodayState] =
     useState<TodayPreviewState>('pre-checkin');
   const [sessionState, setSessionState] =
@@ -503,24 +556,47 @@ export function PreviewGallery({
   const navigateHomeTab = useCallback((tab: TabId) => {
     setScreenId(HOME_TAB_SCREENS[tab]);
   }, []);
-  const useWideLayout = width >= 920;
+  const useWideLayout = !deviceViewport && width >= 920;
   const selectedDevicePreview = DEVICE_PREVIEWS.find(
     (preview) => preview.id === devicePreviewId,
   );
-  const canvasViewport = selectedDevicePreview ?? customViewport;
+  const canvasViewport = deviceViewport
+    ? { height, width }
+    : (selectedDevicePreview ?? customViewport);
   const usesBoundedWebCanvas = canvasViewport.width > WEB_APP_MAX_WIDTH;
   const stageAvailableWidth = Math.max(
     320,
     useWideLayout ? width - 400 : width - 48,
   );
-  const canvasPreviewScale = Math.min(
-    1,
-    stageAvailableWidth / canvasViewport.width,
-  );
+  const canvasPreviewScale = deviceViewport
+    ? 1
+    : Math.min(1, stageAvailableWidth / canvasViewport.width);
   const canvasFrame = {
     width: canvasViewport.width * canvasPreviewScale,
     height: canvasViewport.height * canvasPreviewScale,
   };
+  const measureOverlayViewport = useCallback(
+    (onMeasure: (bounds: OverlayViewportBounds) => void) => {
+      canvasFrameRef.current?.measureInWindow(
+        (x, y, frameWidth, frameHeight) => {
+          if (
+            ![x, y, frameWidth, frameHeight].every(Number.isFinite) ||
+            frameWidth <= 0 ||
+            frameHeight <= 0
+          ) {
+            return;
+          }
+          onMeasure({
+            bottom: y + frameHeight,
+            left: x,
+            right: x + frameWidth,
+            top: y,
+          });
+        },
+      );
+    },
+    [],
+  );
   const selectDevicePreview = useCallback((preview: DevicePreview) => {
     setDevicePreviewId(preview.id);
     setCustomViewport({ width: preview.width, height: preview.height });
@@ -621,13 +697,19 @@ export function PreviewGallery({
 
   return (
     <ScrollView
-      style={styles.page}
+      scrollEnabled={!deviceViewport}
+      style={[styles.page, deviceViewport && styles.devicePage]}
       contentContainerStyle={[
         styles.pageContent,
         useWideLayout && styles.pageContentWide,
+        deviceViewport && styles.devicePageContent,
       ]}
     >
-      <View accessibilityLabel="Preview controls" style={styles.controls}>
+      <View
+        accessibilityLabel="Preview controls"
+        style={[styles.controls, deviceViewport && styles.hidden]}
+        testID="preview-controls"
+      >
         <View style={styles.developmentBadge}>
           <Text style={styles.developmentBadgeText}>DEVELOPMENT ONLY</Text>
         </View>
@@ -746,6 +828,21 @@ export function PreviewGallery({
           </>
         ) : null}
 
+        {screenId === 'app-status' ? (
+          <>
+            <PreviewStateOptions
+              label="실제 앱 초기 상태"
+              options={APP_STATUS_PREVIEW_OPTIONS}
+              selected={appStatusState}
+              onSelect={setAppStatusState}
+            />
+            <Text style={styles.contractNotice}>
+              DemoApp이 인증 화면이나 홈으로 넘어가기 전에 실제로 표시하는 설정
+              누락, 프로필 조회, 조회 실패·복구 화면입니다.
+            </Text>
+          </>
+        ) : null}
+
         {screenId === 'auth' ? (
           <Text style={styles.contractNotice}>
             이전 통합 SignInScreen의 mock입니다. 현재 앱의 인증 진입에는
@@ -842,9 +939,17 @@ export function PreviewGallery({
               selected={homeState}
               onSelect={selectHomeState}
             />
+            <PreviewStateOptions
+              label="알림 상태"
+              options={NOTIFICATION_PREVIEW_OPTIONS}
+              selected={notificationState}
+              onSelect={setNotificationState}
+            />
             <Text style={styles.contractNotice}>
               시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천
-              1개만 표시합니다.
+              1개만 표시합니다. 알림 버튼을 누르면 네트워크 요청 없이 red dot,
+              토스트, 알림함 상태와 읽음 처리를 확인할 수 있습니다. KIKKI_RETURN
+              알림은 끼끼의 집 프리뷰로 이동합니다.
             </Text>
           </>
         ) : null}
@@ -873,8 +978,8 @@ export function PreviewGallery({
               onSelect={setSessionState}
             />
             <Text style={styles.contractNotice}>
-              세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 미수행 기록을
-              실제 API 응답 형태의 개발용 fixture로 확인합니다.
+              세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 휴식 기록을 실제
+              API 응답 형태의 개발용 fixture로 확인합니다.
             </Text>
           </>
         ) : null}
@@ -892,6 +997,29 @@ export function PreviewGallery({
               바나나·꾸미기 상태는 아직 서버에 없어 기기에만 저장됩니다.
             </Text>
           </>
+        ) : null}
+
+        {screenId === 'banana-catch' ? (
+          <Text style={styles.contractNotice}>
+            실제 앱에서 끼끼의 집의 ‘미니게임’ 패널에서 ‘바나나 받아라’를 눌러
+            진입하는 30초 미니게임입니다. 점수와 플레이 결과는 저장하거나
+            전송하지 않습니다.
+          </Text>
+        ) : null}
+
+        {screenId === 'kikki-runner' ? (
+          <Text style={styles.contractNotice}>
+            끼끼의 집의 ‘미니게임’ 패널에서 바나나 받아라와 나란히 여는 60초
+            러너 프로토타입입니다. 점수와 플레이 결과는 저장하거나 전송하지
+            않습니다.
+          </Text>
+        ) : null}
+
+        {screenId === 'kikki-merge' ? (
+          <Text style={styles.contractNotice}>
+            끼끼의 집의 ‘미니게임’ 패널에서 여는 60초 합치기 프로토타입입니다.
+            점수와 플레이 결과는 저장하거나 전송하지 않습니다.
+          </Text>
         ) : null}
 
         {screenId === 'background_test' ? (
@@ -1014,7 +1142,7 @@ export function PreviewGallery({
                 : workoutState === 'api-flow'
                   ? '개발 확인 전용 API를 사용합니다. 시작·타이머·블록·중단·안전 보고·피드백은 실제 프론트엔드 API 계약으로 연결되며, 데이터는 네트워크로 전송되지 않습니다.'
                   : selectedWorkoutResultState !== null
-                    ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·미수행·안전 중단 결과를 갤러리 fixture로 표시합니다.'
+                    ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·휴식·안전 중단 결과를 갤러리 fixture로 표시합니다.'
                     : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
             </Text>
           </>
@@ -1025,19 +1153,26 @@ export function PreviewGallery({
         </Text>
       </View>
 
-      <View style={styles.stage}>
-        <View style={styles.canvasHeading}>
-          <Text style={styles.canvasTitle}>App canvas</Text>
-          {usesBoundedWebCanvas ? (
-            <Text style={styles.canvasLimit}>App max 640px</Text>
-          ) : null}
-          <Text style={styles.canvasSize}>
-            {canvasViewport.width} × {canvasViewport.height}
-          </Text>
-        </View>
+      <View style={[styles.stage, deviceViewport && styles.deviceStage]}>
+        {!deviceViewport ? (
+          <View style={styles.canvasHeading}>
+            <Text style={styles.canvasTitle}>App canvas</Text>
+            {usesBoundedWebCanvas ? (
+              <Text style={styles.canvasLimit}>App max 640px</Text>
+            ) : null}
+            <Text style={styles.canvasSize}>
+              {canvasViewport.width} × {canvasViewport.height}
+            </Text>
+          </View>
+        ) : null}
         <View
+          ref={canvasFrameRef}
           testID="preview-canvas-frame"
-          style={[styles.canvasFrame, canvasFrame]}
+          style={[
+            styles.canvasFrame,
+            canvasFrame,
+            deviceViewport && styles.deviceCanvasFrame,
+          ]}
         >
           <View
             testID="preview-app-canvas"
@@ -1048,6 +1183,7 @@ export function PreviewGallery({
                 height: canvasViewport.height,
                 transform: [{ scale: canvasPreviewScale }],
               },
+              deviceViewport && styles.deviceCanvas,
             ]}
           >
             <View
@@ -1063,13 +1199,34 @@ export function PreviewGallery({
                 ]}
                 testID="preview-app-content"
               >
-                <ScaleViewportProvider viewport={canvasViewport}>
+                <ScaleViewportProvider
+                  measureOverlayViewport={measureOverlayViewport}
+                  viewport={canvasViewport}
+                >
                   {screenId === 'splash' ? (
                     <SplashScreen
                       bootStatus={splashState}
                       onRetry={() => setSplashState('pending')}
                       reducedMotionOverride={reducedMotion}
                       viewportOverride={canvasViewport}
+                    />
+                  ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'configuration' ? (
+                    <ConfigurationRequiredScreen
+                      issues={[...APP_STATUS_PREVIEW_ISSUES]}
+                    />
+                  ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'profile-loading' ? (
+                    <ProfileLoadingScreen />
+                  ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'profile-error' ? (
+                    <ProfileErrorScreen
+                      message="계정 정보를 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해주세요."
+                      onRetry={() => setAppStatusState('profile-loading')}
+                      onSignOut={() => setScreenId('login')}
                     />
                   ) : null}
                   {screenId === 'loading' && pageLoadingState === 'home' ? (
@@ -1080,6 +1237,7 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'loading' && pageLoadingState === 'house' ? (
                     <MascotHouseScreen
+                      accountId={'preview-account'}
                       api={PAGE_LOADING_PREVIEW_API}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
                       now={GALLERY_PREVIEW_NOW}
@@ -1139,21 +1297,38 @@ export function PreviewGallery({
                     />
                   ) : null}
                   {screenId === 'home' ? (
-                    <HomeScreen
-                      {...homePreviewProps(homeState)}
-                      decision={
-                        homeDecisionOverride ??
-                        homePreviewProps(homeState).decision
-                      }
-                      onChooseRest={() => selectHomeState('rest')}
-                      onNavigateTab={navigateHomeTab}
-                      onOpenCalendar={() => setScreenId('calendar-report')}
-                      onProfile={() => setScreenId('my-page')}
-                      onReorderPlan={reorderHomePlan}
-                      onRegenerateDecision={() => runHomeTransition('adjusted')}
-                      onStartWorkout={startWorkoutPreview}
-                      onSubmitCheckin={() => runHomeTransition('routine')}
-                      onSubmitUserEdits={() => runHomeTransition('adjusted')}
+                    <NotificationPreview
+                      key={notificationState}
+                      homeProps={{
+                        ...homePreviewProps(homeState),
+                        decision:
+                          homeDecisionOverride ??
+                          homePreviewProps(homeState).decision,
+                        onRetry: () =>
+                          selectHomeState('routine-lookup-loading'),
+                        onRetryDecision:
+                          homeState === 'decision-retry'
+                            ? () => runHomeTransition('decision-recovered')
+                            : undefined,
+                        onNavigateTab: navigateHomeTab,
+                        onOpenCalendar: () => setScreenId('calendar-report'),
+                        onOpenExerciseCatalog: () =>
+                          setScreenId('exercise-catalog'),
+                        onProfile: () => setScreenId('my-page'),
+                        onReorderPlan: reorderHomePlan,
+                        onRegenerateDecision: () =>
+                          runHomeTransition('adjusted'),
+                        onRequestAlternativeCheckin: () =>
+                          runHomeTransition('adjusted'),
+                        onResumeWorkout: startWorkoutPreview,
+                        onStartWorkout: startWorkoutPreview,
+                        onSubmitCheckin: () => runHomeTransition('routine'),
+                        onSubmitUserEdits: () => undefined,
+                      }}
+                      initiallyOpen={false}
+                      onNavigateHomeTab={navigateHomeTab}
+                      onOpenKikkiHome={() => setScreenId('mascot-house')}
+                      state={notificationState}
                     />
                   ) : null}
                   {screenId === 'today' ? (
@@ -1172,6 +1347,7 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'mascot-house' ? (
                     <MascotHouseScreen
+                      accountId={'preview-account'}
                       key={houseState}
                       api={houseApi}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
@@ -1181,8 +1357,24 @@ export function PreviewGallery({
                       timeZone="Asia/Seoul"
                     />
                   ) : null}
+                  {screenId === 'banana-catch' ? (
+                    <BananaCatchGameScreen
+                      onBack={() => setScreenId('mascot-house')}
+                    />
+                  ) : null}
+                  {screenId === 'kikki-runner' ? (
+                    <KikkiRunnerGameScreen
+                      onBack={() => setScreenId('mascot-house')}
+                    />
+                  ) : null}
+                  {screenId === 'kikki-merge' ? (
+                    <KikkiMergeGameScreen
+                      onBack={() => setScreenId('mascot-house')}
+                    />
+                  ) : null}
                   {screenId === 'background_test' ? (
                     <BackgroundTestScreen
+                      accountId={'preview-account'}
                       key={houseState}
                       api={houseApi}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
@@ -1249,9 +1441,6 @@ export function PreviewGallery({
                       api={accountPreviewApi}
                       me={PREVIEW_ME}
                       onNavigateTab={navigateHomeTab}
-                      onOpenExerciseCatalog={() =>
-                        setScreenId('exercise-catalog')
-                      }
                       onRefreshMe={async () => undefined}
                       onSignOut={() => undefined}
                       previewState={myPageState}
@@ -1260,7 +1449,7 @@ export function PreviewGallery({
                   {screenId === 'exercise-catalog' ? (
                     <ExerciseCatalogScreen
                       api={exerciseCatalogApi}
-                      onBack={() => setScreenId('my-page')}
+                      onBack={() => setScreenId('home')}
                     />
                   ) : null}
                   {screenId === 'workout' ? (
@@ -1272,7 +1461,7 @@ export function PreviewGallery({
                         outcome={sessionResultPreviewOutcome(
                           selectedWorkoutResultState,
                         )}
-                        onDone={() => undefined}
+                        onDone={() => setScreenId('home')}
                       />
                     ) : isWorkoutPreviewState(workoutState) ? (
                       <WorkoutScreen previewState={workoutState} />
@@ -1485,6 +1674,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEF1F4',
   },
+  devicePage: {
+    backgroundColor: '#FFFFFF',
+  },
   pageContent: {
     minHeight: '100%',
     alignItems: 'center',
@@ -1496,6 +1688,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 32,
   },
+  devicePageContent: {
+    width: '100%',
+    minHeight: '100%',
+    alignItems: 'stretch',
+    padding: 0,
+  },
   controls: {
     width: '100%',
     maxWidth: 320,
@@ -1504,6 +1702,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     padding: 20,
+  },
+  hidden: {
+    display: 'none',
   },
   developmentBadge: {
     alignSelf: 'flex-start',
@@ -1691,6 +1892,11 @@ const styles = StyleSheet.create({
   stage: {
     marginTop: 24,
   },
+  deviceStage: {
+    width: '100%',
+    flex: 1,
+    marginTop: 0,
+  },
   canvasHeading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1724,6 +1930,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
+  },
+  deviceCanvasFrame: {
+    width: '100%',
+    flex: 1,
+    borderRadius: 0,
+  },
+  deviceCanvas: {
+    borderWidth: 0,
+    borderRadius: 0,
   },
   previewAppShell: {
     width: '100%',

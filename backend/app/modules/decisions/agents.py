@@ -6,6 +6,7 @@ from backend.app.domain.agents.contracts import (
 )
 from backend.app.domain.agents.coordinator import CoordinatorCandidate
 from backend.app.domain.agents.runner import ProposalAgent, ProposalRequest
+from backend.app.domain.rules.recovery import RecoveryLevelCode, recovery_level
 from backend.app.domain.rules.safety import (
     ACUTE_MUSCULOSKELETAL_REACTION_CODES,
     EMERGENCY_REACTION_CODES,
@@ -107,18 +108,25 @@ class RecoveryProposalAgent(_ProposalAgent):
             evidence.append("HISTORY/recent_workout_status_codes")
             reasons.append("RECENT_EXECUTION_HISTORY_REVIEWED")
 
-        if request.context.fatigue_level_code == "HIGH":
-            return self._needs_input(
-                request,
-                reason_codes=(*reasons, "APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE"),
-                evidence_reference_codes=tuple(evidence),
-                hard_constraint_codes=("DOMAIN_APPROVED_RECOVERY_CONTENT_REQUIRED",),
-            )
-        if request.context.fatigue_level_code == "MODERATE":
+        level = recovery_level(
+            sleep_minutes=request.context.sleep_minutes,
+            fatigue_level_code=request.context.fatigue_level_code,
+        )
+        reasons.append(f"RECOVERY_LEVEL_{level.value}")
+        if level is RecoveryLevelCode.VERY_LIGHT:
             return self._ready(
                 request,
                 action=RecommendedActionCode.DOWNSHIFT,
-                reason_codes=(*reasons, "MODERATE_FATIGUE_DOWNSHIFT"),
+                reason_codes=tuple(reasons),
+                evidence_reference_codes=tuple(evidence),
+                intensity_delta=-2,
+                hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
+            )
+        if level is RecoveryLevelCode.LIGHT:
+            return self._ready(
+                request,
+                action=RecommendedActionCode.DOWNSHIFT,
+                reason_codes=tuple(reasons),
                 evidence_reference_codes=tuple(evidence),
                 intensity_delta=-1,
                 hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
@@ -126,7 +134,7 @@ class RecoveryProposalAgent(_ProposalAgent):
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=(*reasons, "LOW_FATIGUE_LOAD_ACCEPTED"),
+            reason_codes=tuple(reasons),
             evidence_reference_codes=tuple(evidence),
             hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
         )
@@ -140,7 +148,7 @@ class FeasibilityProposalAgent(_ProposalAgent):
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
         supported_locations = request.context.candidate_supported_location_codes
-        evidence = (
+        evidence: tuple[str, ...] = (
             "CANDIDATE/supported_location_codes",
             "CONTEXT/location_code",
             "CONTEXT/requested_duration_minutes",
@@ -155,10 +163,14 @@ class FeasibilityProposalAgent(_ProposalAgent):
                 evidence_reference_codes=evidence,
                 hard_constraint_codes=("CURRENT_LOCATION_REQUIRED",),
             )
+        reason_codes = ["TIME_LOCATION_MATCHED"]
+        if request.context.recent_adherence_reason_codes:
+            evidence += ("HISTORY/recent_adherence_reason_codes",)
+            reason_codes.append("RECENT_ADHERENCE_REASONS_REVIEWED")
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=("TIME_LOCATION_MATCHED",),
+            reason_codes=tuple(reason_codes),
             evidence_reference_codes=evidence,
             hard_constraint_codes=(
                 "CURRENT_LOCATION_SUPPORTED",
@@ -174,6 +186,19 @@ class SafetyProposalAgent(_ProposalAgent):
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
+        if request.context.red_flag_present:
+            return AgentProposal(
+                agent_type_code=AgentTypeCode.SAFETY,
+                proposal_status_code=ProposalStatusCode.READY,
+                recommended_action_code=RecommendedActionCode.STOP_AND_SEEK_HELP,
+                requested_duration_minutes=request.requested_duration_minutes,
+                estimated_duration_seconds=request.requested_duration_minutes * 60,
+                duration_adjustment_source_code=request.duration_adjustment_source_code,
+                reason_codes=("RED_FLAG_REPORTED",),
+                policy_version=self.policy_version,
+                safety_status_code=SafetyStatusCode.BLOCKED,
+                safety_vetoed=True,
+            )
         reactions = set(request.context.adverse_reaction_codes)
         emergency = {code.value for code in EMERGENCY_REACTION_CODES}
         acute = {code.value for code in ACUTE_MUSCULOSKELETAL_REACTION_CODES}
@@ -207,7 +232,7 @@ class SafetyProposalAgent(_ProposalAgent):
         evaluations = dict(request.candidate_safety_evaluations)
         candidate_evidence = dict(request.candidate_evidence_reference_codes)
         if not evaluations:
-            if request.context.discomforts or request.context.attention_area_codes:
+            if request.context.discomforts:
                 return AgentProposal.failed(
                     agent_type_code=AgentTypeCode.SAFETY,
                     requested_duration_minutes=request.requested_duration_minutes,
@@ -332,17 +357,12 @@ class SafetyProposalAgent(_ProposalAgent):
                     policy_version=self.policy_version,
                     reason_code="SAFETY_DOWNSHIFT_UNAVAILABLE",
                 )
-            chronic_only = bool(request.context.attention_area_codes) and not bool(
-                request.context.discomforts
-            )
             return self._ready_safety(
                 request,
                 action=RecommendedActionCode.DOWNSHIFT,
                 status=SafetyStatusCode.REVISE,
                 vetoed=False,
-                reason_codes=(
-                    "ATTENTION_AREA_CAUTION_APPLIED" if chronic_only else "SAFETY_CAUTION_APPLIED",
-                ),
+                reason_codes=("SAFETY_CAUTION_APPLIED",),
                 evidence_reference_codes=evidence_codes,
             )
 

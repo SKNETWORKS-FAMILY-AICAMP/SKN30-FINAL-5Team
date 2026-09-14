@@ -1,27 +1,41 @@
 /**
  * One function per implemented `/api/v1` endpoint.
  *
- * Profile-image methods are the frontend side of a proposed multipart contract;
- * the backend must review and implement that contract before production use.
+ * Profile-image methods use the implemented multipart upload/delete contract.
  * Calendar and wearable routes remain absent while there is nothing to call.
  */
 
 import type { ApiClient } from './client';
 import type {
+  BananaSpendRequest,
+  BananaSpendResponse,
+  BananaWalletResponse,
   ConsentResponse,
   ConsentValues,
+  DailyContextDefaultsResponse,
   DailyContextRequest,
   DailyContextResponse,
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
+  BondingQuestRewardResponse,
+  DailyRewardClaimResponse,
+  MiniGameRewardRequest,
+  MiniGameRewardResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
   ExerciseVariantsResponse,
+  HomeStateResponse,
   MeResponse,
   NotCompletedReasonCode,
+  NotificationListResponse,
+  NotificationResponse,
   OnboardingRequest,
+  OnboardingRequirementsResponse,
   OnboardingResponse,
+  PlanItemOrderRequest,
+  PlanItemSetRepetitionRequest,
+  PlanRevisionResponse,
   ProfileImageMutationResponse,
   ProfileImageUpload,
   ProfileSettingsUpdateRequest,
@@ -32,6 +46,7 @@ import type {
   SessionItemUpdateResponse,
   SessionNotCompletedResponse,
   SessionStartResponse,
+  SessionStopResponse,
   WeeklyPlanRevisionRequest,
   WeeklyPlanRevisionResponse,
   WeeklyReportResponse,
@@ -46,6 +61,73 @@ export function createApi(client: ApiClient) {
   return {
     getMe(signal?: AbortSignal) {
       return client.request<MeResponse>({ path: '/me', signal });
+    },
+
+    listNotifications(signal?: AbortSignal) {
+      return client.request<NotificationListResponse>({
+        path: '/notifications',
+        signal,
+      });
+    },
+
+    markNotificationRead(notificationId: string, signal?: AbortSignal) {
+      return client.request<NotificationResponse>({
+        method: 'PATCH',
+        path: `/notifications/${notificationId}/read`,
+        idempotent: true,
+        signal,
+      });
+    },
+
+    getRewards(signal?: AbortSignal) {
+      return client.request<BananaWalletResponse>({
+        path: '/rewards',
+        signal,
+      });
+    },
+
+    claimDailyReward() {
+      return client.request<DailyRewardClaimResponse>({
+        method: 'POST',
+        path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Claims the house bonding quest for today. Idempotent for the user-local
+     * day: a repeat returns the original transaction and never pays twice.
+     */
+    claimBondingQuest() {
+      return client.request<BondingQuestRewardResponse>({
+        method: 'POST',
+        path: '/rewards/bonding-quest/claim',
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Claims the reward for one finished mini-game round. The server derives the
+     * amount from the score, caps it, and pays at most once a local day, so a
+     * retry of the same round replays instead of paying twice.
+     */
+    claimMiniGameReward(body: MiniGameRewardRequest) {
+      return client.request<MiniGameRewardResponse>({
+        method: 'POST',
+        path: '/rewards/mini-game/claim',
+        body,
+        idempotent: true,
+      });
+    },
+
+    spendBananas(body: BananaSpendRequest, idempotencyKey?: string) {
+      return client.request<BananaSpendResponse>({
+        method: 'POST',
+        path: '/rewards/spend',
+        body,
+        idempotent: true,
+        idempotencyKey,
+      });
     },
 
     submitOnboarding(body: OnboardingRequest) {
@@ -107,16 +189,20 @@ export function createApi(client: ApiClient) {
      * default; sending it makes this routine a USER_OVERRIDE without changing
      * the stored profile default.
      */
-    createRoutine(body: {
-      effective_from: string;
-      goal_code: string;
-      requested_duration_minutes?: number;
-    }) {
+    createRoutine(
+      body: {
+        effective_from: string;
+        goal_code: string;
+        requested_duration_minutes?: number;
+      },
+      idempotencyKey?: string,
+    ) {
       return client.request<RoutineResponse>({
         method: 'POST',
         path: '/routines',
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -168,9 +254,14 @@ export function createApi(client: ApiClient) {
      * Reviewed EQUIPMENT variants for display only. An empty `items` array
      * means this exercise must not expose a variant action.
      */
-    getExerciseVariants(exerciseId: string, signal?: AbortSignal) {
+    getExerciseVariants(
+      exerciseId: string,
+      locationCode?: string,
+      signal?: AbortSignal,
+    ) {
       return client.request<ExerciseVariantsResponse>({
         path: `/exercises/${exerciseId}/variants`,
+        query: { location_code: locationCode },
         signal,
       });
     },
@@ -183,9 +274,20 @@ export function createApi(client: ApiClient) {
     },
 
     /**
+     * The server's editable defaults for a check-in that has not been
+     * submitted. The client must not re-derive them from the profile while
+     * this answers; they are display defaults, never submitted daily pain.
+     */
+    getDailyContextDefaults(localDate: string, signal?: AbortSignal) {
+      return client.request<DailyContextDefaultsResponse>({
+        path: `/daily-contexts/${localDate}/defaults`,
+        signal,
+      });
+    },
+
+    /**
      * `expectedVersion` must come from a previous read. Omitting it on an
      * existing check-in is what the server answers with `409 STALE_CONTEXT`.
-     * Keep `available_slots` intact: `null` and `[]` have different meanings.
      */
     replaceDailyContext(
       localDate: string,
@@ -201,16 +303,20 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    createDecision(body: {
-      local_date: string;
-      daily_context_id: string;
-      expected_context_version: number;
-    }) {
+    createDecision(
+      body: {
+        local_date: string;
+        daily_context_id: string;
+        expected_context_version: number;
+      },
+      idempotencyKey?: string,
+    ) {
       return client.request<DecisionResponse>({
         method: 'POST',
         path: '/decisions',
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -234,12 +340,53 @@ export function createApi(client: ApiClient) {
       });
     },
 
+    /**
+     * A server-composed Home snapshot. This prevents a decision from being
+     * paired with a workout session that belongs to a different plan.
+     */
+    getHomeState(localDate: string, signal?: AbortSignal) {
+      return client.request<HomeStateResponse>({
+        path: '/home',
+        query: { local_date: localDate },
+        signal,
+      });
+    },
+
     regenerateDecision(decisionId: string, body: DecisionRegenerationRequest) {
       return client.request<DecisionResponse>({
         method: 'POST',
         path: `/decisions/${decisionId}/regenerations`,
         body,
         idempotent: true,
+      });
+    },
+
+    updateDecisionPlanItem(
+      decisionId: string,
+      planItemId: string,
+      body: PlanItemSetRepetitionRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PATCH',
+        path: `/decisions/${decisionId}/plan-items/${planItemId}`,
+        body,
+        idempotent: true,
+        idempotencyKey,
+      });
+    },
+
+    updateDecisionPlanOrder(
+      decisionId: string,
+      body: PlanItemOrderRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PUT',
+        path: `/decisions/${decisionId}/plan-item-order`,
+        body,
+        idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -313,7 +460,12 @@ export function createApi(client: ApiClient) {
       eventCode: 'START' | 'PAUSE' | 'RESUME' | 'END',
       occurredAt: string,
     ) {
-      return client.request<{ event_id: string }>({
+      return client.request<{
+        event_id: string;
+        accumulated_progress_seconds?: number;
+        accumulated_rest_seconds?: number;
+        accumulated_paused_seconds?: number;
+      }>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/timer-events`,
         body: {
@@ -345,15 +497,36 @@ export function createApi(client: ApiClient) {
     reportSafetyEvent(
       sessionId: string,
       body: {
-        occurred_at: string;
-        discomforts: { body_area_code: string; severity_code: string }[];
-        adverse_reaction_codes: string[];
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE';
       },
     ) {
       return client.request<SafetyEventResponse>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/safety-events`,
         body,
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Stops the session without ending it, so Home can still offer 이어하기.
+     *
+     * `reasonCode` is the user's own answer and is what the weekly report reads
+     * if they never come back; the server keeps only the latest one.
+     */
+    stopSession(
+      sessionId: string,
+      stoppedAt: string,
+      reasonCode: NotCompletedReasonCode,
+    ) {
+      return client.request<SessionStopResponse>({
+        method: 'PATCH',
+        path: `/workout-sessions/${sessionId}/stop`,
+        body: {
+          stopped_at: stoppedAt,
+          stop_reason_code: 'RESUME_LATER',
+          not_completed_reason_code: reasonCode,
+        },
         idempotent: true,
       });
     },
@@ -391,18 +564,21 @@ export function createApi(client: ApiClient) {
       sessionId: string,
       body: {
         difficulty_code: 'EASY' | 'APPROPRIATE' | 'HARD';
+        difficulty_reason_codes?: ('MOVEMENT_DIFFICULT' | 'VOLUME_HIGH')[];
         fatigue_code?: string | null;
         satisfaction_code?: string | null;
         pain_occurred: boolean;
         discomforts: { body_area_code: string; severity_code: string }[];
         adverse_reaction_codes: string[];
       },
+      idempotencyKey?: string,
     ) {
       return client.request<WorkoutFeedbackResponse>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/feedback`,
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -418,12 +594,13 @@ export function createApi(client: ApiClient) {
      * `revision_sequence` and `ai_revision_count` that a later revision needs;
      * there is no read endpoint for them, so the caller must keep what it gets.
      */
-    createInitialWeeklyPlan(weekStart: string) {
+    createInitialWeeklyPlan(weekStart: string, idempotencyKey?: string) {
       return client.request<WeeklyPlanRevisionResponse>({
         method: 'POST',
         path: `/weeks/${weekStart}/plan`,
         body: {},
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -457,17 +634,34 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    acknowledgeWeeklyReport(reportId: string, acknowledgedAt: string) {
+    acknowledgeWeeklyReport(
+      reportId: string,
+      acknowledgedAt: string,
+      idempotencyKey?: string,
+    ) {
       return client.request<WeeklyReportResponse>({
         method: 'POST',
         path: `/weekly-reports/${reportId}/acknowledgement`,
         body: { acknowledged_at: acknowledgedAt },
         idempotent: true,
+        idempotencyKey,
       });
     },
 
     getConsents(signal?: AbortSignal) {
       return client.request<ConsentResponse>({ path: '/me/consents', signal });
+    },
+
+    /**
+     * The revision onboarding must submit, and the consents it must present.
+     * Fails closed on the server when the deployment has approved neither, so a
+     * client cannot invent a revision to agree to.
+     */
+    getOnboardingRequirements(signal?: AbortSignal) {
+      return client.request<OnboardingRequirementsResponse>({
+        path: '/legal/onboarding-requirements',
+        signal,
+      });
     },
 
     /**

@@ -6,7 +6,18 @@ import type { Api } from '../../api/endpoints';
  * The preview accepts the form so validation and success handling can be
  * inspected without creating or changing a real user profile.
  */
-export const onboardingPreviewApi: Pick<Api, 'submitOnboarding'> = {
+export const onboardingPreviewApi: Pick<
+  Api,
+  'getOnboardingRequirements' | 'submitOnboarding'
+> = {
+  async getOnboardingRequirements() {
+    return {
+      terms_version: 'terms-preview-v1',
+      consent_policy_version: 'consent-preview-v1',
+      required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+      optional_consent_type_codes: [],
+    };
+  },
   async submitOnboarding() {
     return {
       user_id: 'preview-user',

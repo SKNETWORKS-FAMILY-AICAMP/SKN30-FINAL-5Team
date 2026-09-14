@@ -1,8 +1,16 @@
+import {
+  RoutineSections,
+  ROUTINE_PHASE_LABELS,
+} from '../../components/RoutineSections';
+import { CloseButton } from '../../components/CloseButton';
+import { ExerciseNameText } from '../../components/ExerciseNameText';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
+  Easing,
   Image,
   PanResponder,
   Platform,
@@ -22,35 +30,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { Api } from '../../api/endpoints';
-import { messageForError } from '../../api/errors';
-import {
-  ADVERSE_REACTION_OPTIONS,
-  bodyAreaLabel,
-  DEFAULT_BODY_AREA_OPTIONS,
-  EXTENDED_BODY_AREA_OPTIONS,
-  formatExercisePrescription,
-  trainingTypeLabel,
-} from '../../api/labels';
+import { ApiError, messageForError } from '../../api/errors';
+import { formatExercisePrescription } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
   NotCompletedReasonCode,
   SessionItem,
   WorkoutPlan,
 } from '../../api/types';
-import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
+import {
+  orderedWorkoutPlanItems,
+  planItemWorkSecondsPerSet,
+} from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
 import { useScale } from '../../components/scale';
-import { ExerciseDetailSheet } from './ExerciseDetailSheet';
+import {
+  ExerciseDetailSheet,
+  type ExerciseGuideContext,
+} from './ExerciseDetailSheet';
 import {
   ExerciseVariantsAction,
   ExerciseVariantsContent,
+  equipmentGuideTitle,
 } from './ExerciseVariants';
 import type { SessionOutcome } from './SessionScreen';
 import {
   NOT_COMPLETED_REASONS,
   SAFETY_GUIDANCE,
   getWorkoutResponsiveLayout,
+  WORKOUT_SAFETY_HELP,
+  WORKOUT_STOP_REASONS,
   WORKOUT_ARC,
   WORKOUT_BLOCKS,
   WORKOUT_CAROUSEL,
@@ -60,6 +70,7 @@ import {
   type WorkoutBlockStatus,
   type WorkoutPreviewState,
   type WorkoutResponsiveLayout,
+  type WorkoutExecutionState,
   type WorkoutSafetyInstruction,
   type WorkoutSafetyReport,
 } from './workoutModel';
@@ -73,14 +84,7 @@ export const WORKOUT_LAYOUT = {
 } as const;
 
 type WorkoutOverlay =
-  | 'none'
-  | 'rest'
-  | 'not-completed'
-  | 'safety'
-  | 'symptom'
-  | 'api-safety'
-  | 'api-guidance'
-  | 'additional';
+  'none' | 'rest' | 'not-completed' | 'stop-reasons' | 'symptom' | 'additional';
 type WorkoutResult = 'none' | 'completed' | 'stopped';
 
 const ADDITIONAL_ACTIVITY_TYPES = [
@@ -130,7 +134,11 @@ type WorkoutPreviewProps = {
 
 type WorkoutApiProps = {
   api: Api;
+  /** Current workout context; FE-2 can pass its location/equipment selection here. */
+  exerciseGuideContext?: ExerciseGuideContext;
   initialEquipmentGuideExerciseId?: string;
+  /** Daily Check-in location used by the read-only variant endpoint. */
+  locationCode?: string;
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
@@ -171,6 +179,225 @@ export function workoutPageAfterHorizontalDrag(
   const nextIndex =
     swipeX === 0 ? currentIndex : currentIndex + (swipeX < 0 ? 1 : -1);
   return Math.max(0, Math.min(blockCount - 1, nextIndex));
+}
+
+function RewardEligibilityBanner({ scale }: { scale: number }) {
+  const [shimmer] = useState(() => new Animated.Value(0));
+  const [sparkle] = useState(() => new Animated.Value(0));
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const useNativeDriver = Platform.OS !== 'web';
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    let active = true;
+
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) {
+        setReduceMotion(enabled);
+      }
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotion,
+    );
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    shimmer.stopAnimation();
+    sparkle.stopAnimation();
+    shimmer.setValue(0);
+    sparkle.setValue(0);
+
+    if (reduceMotion) {
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1200),
+        Animated.parallel([
+          Animated.timing(shimmer, {
+            toValue: 1,
+            duration: 760,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver,
+          }),
+          Animated.sequence([
+            Animated.timing(sparkle, {
+              toValue: 1,
+              duration: 260,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver,
+            }),
+            Animated.timing(sparkle, {
+              toValue: 0,
+              duration: 420,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver,
+            }),
+          ]),
+        ]),
+        Animated.delay(2800),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver,
+        }),
+      ]),
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [reduceMotion, shimmer, sparkle, useNativeDriver]);
+
+  const shimmerStyle = {
+    opacity: shimmer.interpolate({
+      inputRange: [0, 0.12, 0.88, 1],
+      outputRange: [0, 0.5, 0.5, 0],
+    }),
+    transform: [
+      {
+        translateX: shimmer.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-180 * scale, 180 * scale],
+        }),
+      },
+      { rotate: '18deg' },
+    ],
+  };
+  const sparkleStyle = {
+    opacity: sparkle.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.62, 1],
+    }),
+    transform: [
+      {
+        scale: sparkle.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.9, 1.22],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View
+      accessibilityLabel="목표 시간 50% 달성 시, 바나나 획득!"
+      accessible
+      style={styles.rewardEligibilityShell}
+      testID="workout-reward-eligibility-badge"
+    >
+      <LinearGradient
+        colors={['rgba(255,253,245,.98)', 'rgba(255,232,150,.92)']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={[
+          styles.rewardEligibilityBanner,
+          {
+            minHeight: 30 * scale,
+            gap: 6 * scale,
+            borderTopLeftRadius: 3 * scale,
+            borderTopRightRadius: 11 * scale,
+            borderBottomRightRadius: 3 * scale,
+            borderBottomLeftRadius: 11 * scale,
+            paddingHorizontal: 14 * scale,
+            paddingVertical: 5 * scale,
+          },
+        ]}
+        testID="workout-reward-eligibility-surface"
+      >
+        <Animated.View
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={[
+            styles.rewardShimmer,
+            { top: -12 * scale, bottom: -12 * scale, width: 32 * scale },
+            shimmerStyle,
+          ]}
+          testID="workout-reward-shimmer"
+        />
+        <Animated.View
+          accessibilityElementsHidden
+          accessible={false}
+          importantForAccessibility="no"
+          style={[
+            styles.rewardSparkleMark,
+            { width: 14 * scale, height: 14 * scale },
+            sparkleStyle,
+          ]}
+        >
+          <View
+            style={[
+              styles.rewardSparkleCore,
+              {
+                width: 8 * scale,
+                height: 8 * scale,
+                borderRadius: 2 * scale,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.rewardSparkleDot,
+              {
+                width: 3 * scale,
+                height: 3 * scale,
+                borderRadius: 3 * scale,
+              },
+            ]}
+          />
+        </Animated.View>
+        <Text
+          style={[
+            styles.rewardEligibilityNote,
+            { fontSize: 10.5 * scale, lineHeight: 15 * scale },
+          ]}
+        >
+          목표 시간 50% 달성 시,{' '}
+          <Text style={styles.rewardEligibilityEmphasis}>바나나 획득!</Text>
+        </Text>
+      </LinearGradient>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.rewardNotchLeft,
+          {
+            width: 8 * scale,
+            height: 12 * scale,
+            borderTopRightRadius: 8 * scale,
+            borderBottomRightRadius: 8 * scale,
+            transform: [{ translateY: -6 * scale }],
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.rewardNotchRight,
+          {
+            width: 8 * scale,
+            height: 12 * scale,
+            borderTopLeftRadius: 8 * scale,
+            borderBottomLeftRadius: 8 * scale,
+            transform: [{ translateY: -6 * scale }],
+          },
+        ]}
+      />
+    </View>
+  );
 }
 
 export function WorkoutScreen(props: WorkoutScreenProps) {
@@ -227,7 +454,12 @@ function WorkoutScreenContent({
   const [previewResult, setPreviewResult] = useState<WorkoutResult>(
     fixture.result,
   );
-  const [paused, setPaused] = useState(false);
+  const [executionState, setExecutionState] = useState<WorkoutExecutionState>(
+    fixture.overlay === 'rest' ? 'RESTING' : 'RUNNING',
+  );
+  const stateBeforePause = useRef<Exclude<WorkoutExecutionState, 'PAUSED'>>(
+    fixture.overlay === 'rest' ? 'RESTING' : 'RUNNING',
+  );
   const [overlay, setOverlay] = useState<WorkoutOverlay>(fixture.overlay);
   const [completedBlockIds, setCompletedBlockIds] = useState<readonly string[]>(
     fixture.completedBlockIds,
@@ -237,7 +469,11 @@ function WorkoutScreenContent({
     block: WorkoutViewBlock;
     response: ExerciseVariantsResponse;
   } | null>(null);
-  const [restSeconds, setRestSeconds] = useState(60);
+  const [restSeconds, setRestSeconds] = useState(0);
+  const [selectedStopReason, setSelectedStopReason] = useState<
+    NotCompletedReasonCode | 'SAFETY' | null
+  >(null);
+  const [safetyStopAcknowledged, setSafetyStopAcknowledged] = useState(false);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [visiblePageIndex, setVisiblePageIndex] = useState(() =>
     firstPendingIndex(WORKOUT_BLOCKS, fixture.completedBlockIds),
@@ -249,16 +485,9 @@ function WorkoutScreenContent({
   const [selectedSeverity, setSelectedSeverity] = useState(
     fixture.safetyReport?.severityCode ?? 'MILD',
   );
-  const [selectedBodySeverities, setSelectedBodySeverities] = useState<
-    Readonly<Record<string, WorkoutSafetyReport['severityCode']>>
-  >({});
-  const [selectedReactions, setSelectedReactions] = useState<readonly string[]>(
-    [],
-  );
   const [sessionReady, setSessionReady] = useState(apiConfig === undefined);
   const [actionPending, setActionPending] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [apiGuidance, setApiGuidance] = useState<string | null>(null);
   const [additionalDurationMinutes, setAdditionalDurationMinutes] =
     useState(10);
   const [additionalActivityType, setAdditionalActivityType] =
@@ -268,20 +497,21 @@ function WorkoutScreenContent({
   const [additionalNote, setAdditionalNote] = useState('');
   const [additionalSaved, setAdditionalSaved] = useState(false);
   const useJua = brandFonts.loaded && !brandFonts.failed;
-  const selectedBodyAreas = Object.keys(selectedBodySeverities);
   const sourceBlocks = useMemo<readonly WorkoutViewBlock[]>(() => {
     if (apiConfig === undefined) {
       return WORKOUT_BLOCKS.map((block) => ({ ...block, status: 'PENDING' }));
     }
     return orderedWorkoutPlanItems(apiConfig.plan.items).map((item) => ({
       id: item.plan_item_id,
+      phaseCode: item.phase_code,
       exerciseId: item.exercise_id,
       instructionAvailable: item.instruction_available,
       name: item.exercise_name,
       meta: formatExercisePrescription({
         reps: item.reps,
         sets: item.sets,
-        workSeconds: item.work_seconds,
+        // Per set, not the item total: the label reads "N세트 × ...".
+        workSeconds: planItemWorkSecondsPerSet(item),
       }),
       tips: [],
       status: 'PENDING',
@@ -306,21 +536,20 @@ function WorkoutScreenContent({
   const detailBlock =
     blocks.find((block) => block.id === detailBlockId) ?? null;
   const completedCount = completedBlockIds.length;
-  const isSafetyState =
-    overlay === 'safety' ||
-    overlay === 'symptom' ||
-    overlay === 'api-safety' ||
-    overlay === 'api-guidance';
+  const paused = executionState === 'PAUSED';
+  const targetDurationMinutes =
+    apiConfig?.plan.requested_duration_minutes ?? 30;
+  const isSafetyState = overlay === 'stop-reasons' || overlay === 'symptom';
   const carouselPadding = Math.max(
     0,
     (carouselWidth - responsiveLayout.cardWidth) / 2,
   );
   const timerCaption =
-    overlay === 'rest'
-      ? '휴식 중 · 타이머 정지'
-      : paused
-        ? '일시정지됨 · 기록용'
-        : '운동 시간';
+    executionState === 'RESTING'
+      ? '휴식 중'
+      : executionState === 'PAUSED'
+        ? '일시 정지'
+        : '운동 진행 중';
   const canSmash =
     !allBlocksCompleted &&
     visiblePageIndex === currentIndex &&
@@ -378,6 +607,39 @@ function WorkoutScreenContent({
             )
             .catch(() => undefined);
         } else if (detail.status_code === 'IN_PROGRESS') {
+          // The existing RESUME command also restores a STOPPED_RESUMABLE
+          // session. Wait for server acceptance before enabling any blocks.
+          const resume = () =>
+            apiConfig.api.recordTimerEvent(
+              apiConfig.sessionId,
+              'RESUME',
+              new Date().toISOString(),
+            );
+          let resumed;
+          try {
+            resumed = await resume();
+          } catch (error) {
+            // Legacy detail responses omit execution state. An already-running
+            // session rejects RESUME; PAUSE then RESUME is the supported path.
+            // Safety/date/auth/network failures never enable the workout.
+            if (
+              !(error instanceof ApiError) ||
+              error.code !== 'INVALID_STATE_TRANSITION'
+            )
+              throw error;
+            await apiConfig.api.recordTimerEvent(
+              apiConfig.sessionId,
+              'PAUSE',
+              new Date().toISOString(),
+            );
+            resumed = await resume();
+          }
+          if (active && resumed.accumulated_progress_seconds !== undefined) {
+            setElapsedSeconds(
+              resumed.accumulated_progress_seconds +
+                (resumed.accumulated_rest_seconds ?? 0),
+            );
+          }
           items = detail.items.map((item) => ({
             plan_item_id: item.plan_item_id,
             status_code: item.status_code,
@@ -422,8 +684,7 @@ function WorkoutScreenContent({
 
   useEffect(() => {
     if (
-      paused ||
-      overlay !== 'none' ||
+      executionState === 'PAUSED' ||
       previewResult !== 'none' ||
       !sessionReady
     ) {
@@ -433,26 +694,17 @@ function WorkoutScreenContent({
       setElapsedSeconds((current) => current + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [overlay, paused, previewResult, sessionReady]);
+  }, [executionState, previewResult, sessionReady]);
 
   useEffect(() => {
-    if (overlay !== 'rest') {
+    if (executionState !== 'RESTING') {
       return undefined;
     }
     const timer = setInterval(() => {
-      setRestSeconds((current) => {
-        if (current <= 1) {
-          setOverlay('none');
-          setPaused(false);
-          recordTimerChange('RESUME');
-          onRestChange?.(false);
-          return 0;
-        }
-        return current - 1;
-      });
+      setRestSeconds((current) => current + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [onRestChange, overlay, recordTimerChange]);
+  }, [executionState]);
 
   useEffect(() => {
     if (carouselWidth <= 0) {
@@ -503,11 +755,16 @@ function WorkoutScreenContent({
   }, [burstKey, burstOpacity, burstScale]);
 
   const togglePaused = () => {
-    setPaused((current) => {
-      recordTimerChange(current ? 'RESUME' : 'PAUSE');
-      onPauseChange?.(!current);
-      return !current;
-    });
+    if (executionState === 'PAUSED') {
+      setExecutionState(stateBeforePause.current);
+      recordTimerChange('RESUME');
+      onPauseChange?.(false);
+      return;
+    }
+    stateBeforePause.current = executionState;
+    setExecutionState('PAUSED');
+    recordTimerChange('PAUSE');
+    onPauseChange?.(true);
   };
 
   const finalizeServerSession = async () => {
@@ -521,7 +778,7 @@ function WorkoutScreenContent({
       endedAt,
       elapsedSeconds,
     );
-    setPaused(true);
+    setExecutionState('PAUSED');
     apiConfig.onOutcome({ kind: 'finished', result });
   };
 
@@ -578,7 +835,7 @@ function WorkoutScreenContent({
     if (apiConfig === undefined) {
       applyCompletedBlock(block);
       if (completedBlockIds.length + 1 === blocks.length) {
-        setPaused(true);
+        setExecutionState('PAUSED');
         setPreviewResult('completed');
       }
       return;
@@ -691,44 +948,60 @@ function WorkoutScreenContent({
   };
 
   const openRest = () => {
-    setRestSeconds(60);
-    setPaused(true);
+    if (executionState === 'PAUSED') {
+      return;
+    }
+    setRestSeconds(0);
+    setExecutionState('RESTING');
     setOverlay('rest');
-    recordTimerChange('PAUSE');
-    onPauseChange?.(true);
     onRestChange?.(true);
   };
 
   const closeRest = () => {
-    setRestSeconds(0);
     setOverlay('none');
-    setPaused(false);
-    recordTimerChange('RESUME');
-    onPauseChange?.(false);
+    if (executionState === 'PAUSED') {
+      stateBeforePause.current = 'RUNNING';
+    } else {
+      setExecutionState('RUNNING');
+    }
     onRestChange?.(false);
   };
 
-  const openSafety = () => {
-    setApiError(null);
-    setPaused(true);
-    setOverlay('safety');
+  const pauseForOverlay = () => {
+    if (executionState === 'PAUSED') {
+      return;
+    }
+    const leavingRest = executionState === 'RESTING';
+    stateBeforePause.current = leavingRest ? 'RUNNING' : executionState;
+    setExecutionState('PAUSED');
     recordTimerChange('PAUSE');
     onPauseChange?.(true);
+    if (leavingRest) {
+      onRestChange?.(false);
+    }
+  };
+
+  const openStopReasons = () => {
+    setApiError(null);
+    setSelectedStopReason(null);
+    setSafetyStopAcknowledged(false);
+    pauseForOverlay();
+    setOverlay('stop-reasons');
   };
 
   const openPainReport = () => {
     setApiError(null);
-    setPaused(true);
-    setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety');
-    recordTimerChange('PAUSE');
-    onPauseChange?.(true);
+    pauseForOverlay();
+    setOverlay('symptom');
   };
 
   const closeSheets = () => {
     setOverlay('none');
-    setPaused(false);
-    recordTimerChange('RESUME');
-    onPauseChange?.(false);
+    if (executionState === 'PAUSED') {
+      setExecutionState(stateBeforePause.current);
+      recordTimerChange('RESUME');
+      onPauseChange?.(false);
+    }
   };
 
   const finishWorkout = async () => {
@@ -751,6 +1024,40 @@ function WorkoutScreenContent({
     }
   };
 
+  /**
+   * Stops with the user's reason without ending the session.
+   *
+   * This used to call `/finish` or `/not-completed`, both of which close the
+   * session -- and a closed session has nothing to resume, which is how the
+   * 이어하기 action disappeared. `/stop` is the transition the domain model
+   * already describes (`STOPPED_RESUMABLE -> RUNNING`); the reason is stored so
+   * the weekly report still learns from a session the user never comes back to.
+   */
+  const submitStop = async (reasonCode: NotCompletedReasonCode) => {
+    if (apiConfig === undefined) {
+      return;
+    }
+    setActionPending(true);
+    setApiError(null);
+    try {
+      const result = await apiConfig.api.stopSession(
+        apiConfig.sessionId,
+        new Date().toISOString(),
+        reasonCode,
+      );
+      setExecutionState('PAUSED');
+      apiConfig.onOutcome({
+        kind: 'stopped',
+        result,
+        completedItemCount: completedCount,
+      });
+    } catch (error) {
+      setApiError(messageForError(error));
+    } finally {
+      setActionPending(false);
+    }
+  };
+
   const submitNotCompleted = async (reasonCode: string) => {
     onNotCompleted?.(reasonCode);
     if (apiConfig === undefined) {
@@ -764,7 +1071,7 @@ function WorkoutScreenContent({
         new Date().toISOString(),
         reasonCode as NotCompletedReasonCode,
       );
-      setPaused(true);
+      setExecutionState('PAUSED');
       apiConfig.onOutcome({ kind: 'notCompleted', result });
     } catch (error) {
       setApiError(messageForError(error));
@@ -774,30 +1081,29 @@ function WorkoutScreenContent({
   };
 
   const submitApiSafetyEvent = async () => {
-    if (
-      apiConfig === undefined ||
-      (selectedBodyAreas.length === 0 && selectedReactions.length === 0)
-    ) {
+    if (apiConfig === undefined || actionPending || !sessionReady) {
       return;
     }
     setActionPending(true);
     setApiError(null);
     try {
       const event = await apiConfig.api.reportSafetyEvent(apiConfig.sessionId, {
-        occurred_at: new Date().toISOString(),
-        discomforts: selectedBodyAreas.map((bodyAreaCode) => ({
-          body_area_code: bodyAreaCode,
-          severity_code: selectedBodySeverities[bodyAreaCode] ?? 'MILD',
-        })),
-        adverse_reaction_codes: [...selectedReactions],
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
       });
-      if (event.session_status_code === 'STOPPED_FOR_SAFETY') {
-        setPaused(true);
-        apiConfig.onOutcome({ kind: 'safetyStop', event });
-        return;
+      if (
+        event.execution_state_code !== 'STOPPED_SAFETY' ||
+        event.is_resumable !== false
+      ) {
+        throw new ApiError({
+          kind: 'server',
+          code: 'INVALID_SAFETY_EVENT_RESPONSE',
+          status: 500,
+          message:
+            '안전 중단 응답을 확인할 수 없습니다. 운동을 계속하지 마세요.',
+        });
       }
-      setApiGuidance(event.guidance);
-      setOverlay('api-guidance');
+      setExecutionState('PAUSED');
+      apiConfig.onOutcome({ kind: 'safetyStop', event });
     } catch (error) {
       setApiError(messageForError(error));
     } finally {
@@ -820,42 +1126,13 @@ function WorkoutScreenContent({
       });
       setAdditionalSaved(true);
       setOverlay('none');
-      setPaused(false);
+      setExecutionState('RUNNING');
       recordTimerChange('RESUME');
     } catch (error) {
       setApiError(messageForError(error));
     } finally {
       setActionPending(false);
     }
-  };
-
-  const toggleBodyArea = (code: string) => {
-    setSelectedBodySeverities((current) => {
-      if (current[code] !== undefined) {
-        const remaining = { ...current };
-        delete remaining[code];
-        return remaining;
-      }
-      return { ...current, [code]: 'MILD' };
-    });
-  };
-
-  const selectBodySeverity = (
-    code: string,
-    severity: WorkoutSafetyReport['severityCode'],
-  ) => {
-    setSelectedBodySeverities((current) => ({
-      ...current,
-      [code]: severity,
-    }));
-  };
-
-  const toggleReaction = (code: string) => {
-    setSelectedReactions((current) =>
-      current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code],
-    );
   };
 
   const submitSafetyEvent = () => {
@@ -968,38 +1245,53 @@ function WorkoutScreenContent({
               maxWidth: responsiveLayout.contentMaxWidth,
               paddingHorizontal:
                 WORKOUT_LAYOUT.headerHorizontalPadding * layoutScale,
-              paddingBottom: 14 * layoutScale,
+              paddingBottom: 10 * layoutScale,
             },
           ]}
         >
           <View testID="workout-header-top-row" style={styles.headerTopRow}>
-            <View style={styles.timerCopy}>
-              <Text
-                style={[
-                  styles.timerCaption,
-                  {
-                    fontSize: 11.5 * layoutScale,
-                    letterSpacing: 0.6 * layoutScale,
-                  },
-                ]}
-              >
-                {timerCaption}
-              </Text>
-              <Text
-                accessibilityLabel={`운동 시간 ${formatWorkoutTime(elapsedSeconds)}`}
-                style={[
-                  styles.timer,
-                  {
-                    fontSize: 38 * layoutScale,
-                    letterSpacing: layoutScale,
-                    lineHeight: 40 * layoutScale,
-                  },
-                  useJua && styles.timerBrand,
-                  paused && styles.timerPaused,
-                ]}
-              >
-                {formatWorkoutTime(elapsedSeconds)}
-              </Text>
+            <View style={styles.timerColumn} testID="workout-timer-column">
+              <View testID="workout-timer-card" style={styles.timerCopy}>
+                <View style={styles.timerMetaRow}>
+                  <View style={styles.timerStatusBadge}>
+                    <View
+                      style={[
+                        styles.timerStatusDot,
+                        paused && styles.timerStatusDotPaused,
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.timerCaption,
+                        {
+                          fontSize: 11.5 * layoutScale,
+                          letterSpacing: 0.45 * layoutScale,
+                        },
+                      ]}
+                    >
+                      {timerCaption}
+                    </Text>
+                  </View>
+                  <Text style={styles.targetTime}>
+                    목표 {targetDurationMinutes}분
+                  </Text>
+                </View>
+                <Text
+                  accessibilityLabel={`진행 시간 ${formatWorkoutTime(elapsedSeconds)} / 목표 시간 ${targetDurationMinutes}분`}
+                  style={[
+                    styles.timer,
+                    {
+                      fontSize: 46 * layoutScale,
+                      letterSpacing: 1.6 * layoutScale,
+                      lineHeight: 48 * layoutScale,
+                    },
+                    useJua && styles.timerBrand,
+                    paused && styles.timerPaused,
+                  ]}
+                >
+                  {formatWorkoutTime(elapsedSeconds)}
+                </Text>
+              </View>
             </View>
             <View style={styles.timerActions}>
               <Pressable
@@ -1009,8 +1301,8 @@ function WorkoutScreenContent({
                 style={({ pressed }) => [
                   styles.roundAction,
                   {
-                    width: 52 * layoutScale,
-                    height: 52 * layoutScale,
+                    width: 48 * layoutScale,
+                    height: 48 * layoutScale,
                     borderRadius: 18 * layoutScale,
                   },
                   pressed && styles.pressed,
@@ -1022,11 +1314,18 @@ function WorkoutScreenContent({
               <Pressable
                 accessibilityLabel="운동 중단"
                 accessibilityRole="button"
-                onPress={openSafety}
+                disabled={
+                  apiConfig !== undefined && (actionPending || !sessionReady)
+                }
+                accessibilityState={{
+                  disabled:
+                    apiConfig !== undefined && (actionPending || !sessionReady),
+                }}
+                onPress={openStopReasons}
                 style={({ pressed }) => [
                   styles.stopAction,
                   {
-                    height: 52 * layoutScale,
+                    height: 48 * layoutScale,
                     borderRadius: 18 * layoutScale,
                     paddingHorizontal: 14 * layoutScale,
                   },
@@ -1046,36 +1345,37 @@ function WorkoutScreenContent({
             </View>
           </View>
           <View
-            accessibilityLabel="운동 블록 진행률"
-            style={styles.progressRow}
+            style={[
+              styles.rewardPositionRow,
+              { gap: 8 * layoutScale, marginTop: 8 * layoutScale },
+            ]}
+            testID="workout-header-badge-row"
           >
-            {blocks.map((block, index) => (
-              <View
-                key={block.id}
-                style={[
-                  styles.progressSegment,
-                  block.status === 'COMPLETED'
-                    ? styles.progressSegmentDone
-                    : index === currentIndex
-                      ? styles.progressSegmentCurrent
-                      : null,
-                ]}
-              />
-            ))}
-          </View>
-          <View style={styles.routineHeader}>
-            <Text
-              accessibilityRole="header"
-              numberOfLines={1}
-              style={styles.routineTitle}
+            <View
+              style={[
+                styles.blockPositionBadge,
+                {
+                  minHeight: 30 * layoutScale,
+                  borderRadius: 8 * layoutScale,
+                  paddingHorizontal: 8 * layoutScale,
+                },
+              ]}
+              testID="workout-block-position-badge"
             >
-              {apiConfig === undefined
-                ? '전신 기본 루틴'
-                : `${trainingTypeLabel(apiConfig.plan.training_type_code)} 루틴`}
-            </Text>
-            <Text style={styles.routineStep}>
-              {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
-            </Text>
+              <Text
+                style={[
+                  styles.blockPositionText,
+                  {
+                    fontSize: 10.5 * layoutScale,
+                    lineHeight: 15 * layoutScale,
+                  },
+                ]}
+              >
+                {Math.min(currentIndex + 1, blocks.length)} / {blocks.length}{' '}
+                블록
+              </Text>
+            </View>
+            <RewardEligibilityBanner scale={layoutScale} />
           </View>
         </View>
       </View>
@@ -1160,7 +1460,7 @@ function WorkoutScreenContent({
             style={[
               styles.carouselViewport,
               {
-                height: responsiveLayout.cardHeight + 14 * layoutScale,
+                minHeight: 0,
               },
             ]}
             testID="workout-carousel"
@@ -1203,6 +1503,7 @@ function WorkoutScreenContent({
                       }
                       exerciseId={block.exerciseId}
                       exerciseName={block.name}
+                      locationCode={apiConfig.locationCode}
                       label="장비가 없을 때"
                       onOpen={(response) => {
                         setDetailBlockId(null);
@@ -1216,40 +1517,6 @@ function WorkoutScreenContent({
             ))}
           </Animated.ScrollView>
         </WorkoutCarouselDragSurface>
-
-        <View
-          style={[
-            styles.dotRow,
-            {
-              gap: 6 * layoutScale,
-              paddingTop: 10 * layoutScale,
-              paddingBottom: 2 * layoutScale,
-            },
-          ]}
-        >
-          {blocks.map((block, index) => {
-            const active = index === visiblePageIndex;
-            const done = block.status === 'COMPLETED';
-            return (
-              <Pressable
-                key={block.id}
-                accessibilityLabel={`${index + 1}번째 블록 보기`}
-                accessibilityRole="button"
-                onPress={() => selectVisiblePage(index)}
-                style={[
-                  styles.dot,
-                  active && styles.dotActive,
-                  done
-                    ? styles.dotDone
-                    : active
-                      ? styles.dotVisiblePending
-                      : null,
-                ]}
-                testID={`workout-dot-${index}`}
-              />
-            );
-          })}
-        </View>
       </View>
 
       <View
@@ -1260,7 +1527,7 @@ function WorkoutScreenContent({
             gap: 8 * layoutScale,
             paddingTop: 6 * layoutScale,
             paddingRight: 18 * layoutScale,
-            paddingBottom: 24 * layoutScale,
+            paddingBottom: 4 * layoutScale,
             paddingLeft: 18 * layoutScale,
           },
         ]}
@@ -1282,6 +1549,7 @@ function WorkoutScreenContent({
           style={({ pressed }) => [
             styles.smashAction,
             {
+              width: 154 * layoutScale,
               height: 58 * layoutScale,
               borderRadius: 18 * layoutScale,
               paddingHorizontal: 8 * layoutScale,
@@ -1312,45 +1580,75 @@ function WorkoutScreenContent({
                 : '블록 격파'}
           </Text>
         </Pressable>
-        <View
-          style={styles.secondaryActions}
-          testID="workout-secondary-actions"
+        <Pressable
+          accessibilityLabel="선택 휴식 타이머"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: paused }}
+          disabled={paused}
+          onPress={openRest}
+          style={({ pressed }) => [
+            styles.smashAction,
+            styles.restAction,
+            {
+              width: 154 * layoutScale,
+              height: 58 * layoutScale,
+              borderRadius: 18 * layoutScale,
+              paddingHorizontal: 8 * layoutScale,
+            },
+            paused && styles.actionDisabled,
+            pressed && styles.pressed,
+          ]}
+          testID="workout-rest-action"
         >
-          <Pressable
-            accessibilityLabel="선택 휴식 타이머"
-            accessibilityRole="button"
-            onPress={openRest}
-            style={({ pressed }) => [
-              styles.restAction,
-              {
-                height: 58 * layoutScale,
-                borderRadius: 18 * layoutScale,
-                paddingHorizontal: 8 * layoutScale,
-              },
-              pressed && styles.pressed,
-            ]}
-            testID="workout-rest-action"
-          >
+          <LinearGradient
+            colors={['#FAFAF8', '#EEEDE9', '#DDDCD7']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.smashActionGradient}
+            testID="workout-rest-gradient"
+          />
+          <View style={styles.restActionContent}>
+            <TimerMark />
             <Text style={styles.restActionText}>휴식</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="통증 및 이상 반응 보고"
-            accessibilityRole="button"
-            onPress={openPainReport}
-            style={({ pressed }) => [
-              styles.painAction,
-              {
-                height: 58 * layoutScale,
-                borderRadius: 18 * layoutScale,
-                paddingHorizontal: 6 * layoutScale,
-              },
-              pressed && styles.pressed,
-            ]}
-            testID="workout-pain-action"
-          >
-            <Text style={styles.painActionText}>통증이{`\n`}있어요</Text>
-          </Pressable>
-        </View>
+          </View>
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.dotRow,
+          {
+            gap: 6 * layoutScale,
+            paddingTop: 6 * layoutScale,
+            paddingBottom: 18 * layoutScale,
+          },
+        ]}
+        testID="workout-bottom-pagination"
+      >
+        {blocks.map((block, index) => {
+          const active = index === visiblePageIndex;
+          const done = block.status === 'COMPLETED';
+          return (
+            <Pressable
+              key={block.id}
+              accessibilityLabel={`${index + 1}번째 블록 보기`}
+              accessibilityRole="button"
+              onPress={() => selectVisiblePage(index)}
+              style={[
+                styles.dot,
+                active && styles.dotActive,
+                done
+                  ? styles.dotDone
+                  : active
+                    ? styles.dotVisiblePending
+                    : null,
+              ]}
+              testID={`workout-dot-${index}`}
+            />
+          );
+        })}
       </View>
 
       {detailBlock && variantGuide === null && overlay === 'none' ? (
@@ -1361,6 +1659,7 @@ function WorkoutScreenContent({
               <ExerciseDetailSheet
                 api={apiConfig.api}
                 exerciseId={detailBlock.exerciseId}
+                guideContext={apiConfig.exerciseGuideContext}
               />
             ) : (
               <View style={styles.tipList}>
@@ -1381,15 +1680,14 @@ function WorkoutScreenContent({
           accessibilityLabel={`${variantGuide.block.name} 장비 안내`}
           block={variantGuide.block}
           detail={<ExerciseVariantsContent response={variantGuide.response} />}
-          eyebrow="필요 장비와 변형 방법"
+          eyebrow=""
           onClose={() => setVariantGuide(null)}
-          title={`${variantGuide.block.name} 장비 안내`}
+          title={equipmentGuideTitle(variantGuide.response)}
         />
       ) : null}
 
       {overlay === 'rest' ? (
         <RestSheet
-          onAddSeconds={() => setRestSeconds((current) => current + 30)}
           onClose={closeRest}
           restSeconds={restSeconds}
           useJua={useJua}
@@ -1403,10 +1701,38 @@ function WorkoutScreenContent({
           pending={actionPending}
         />
       ) : null}
-      {overlay === 'safety' ? (
-        <SafetyConfirmSheet
+      {overlay === 'stop-reasons' ? (
+        <StopReasonSheet
+          acknowledged={safetyStopAcknowledged}
+          error={apiConfig === undefined ? null : apiError}
           onClose={closeSheets}
-          onStop={() => void finishWorkout()}
+          onConfirm={() => {
+            if (selectedStopReason === 'SAFETY') {
+              if (apiConfig === undefined) {
+                openPainReport();
+              } else {
+                void submitApiSafetyEvent();
+              }
+              return;
+            }
+            if (selectedStopReason === null) {
+              return;
+            }
+            if (apiConfig === undefined) {
+              onNotCompleted?.(selectedStopReason);
+              setPreviewResult('stopped');
+              return;
+            }
+            onNotCompleted?.(selectedStopReason);
+            void submitStop(selectedStopReason);
+          }}
+          onSelect={setSelectedStopReason}
+          onToggleAcknowledgement={() =>
+            setSafetyStopAcknowledged((current) => !current)
+          }
+          pending={apiConfig !== undefined && actionPending}
+          selectedReason={selectedStopReason}
+          submitsSafetyStop={apiConfig !== undefined}
         />
       ) : null}
       {overlay === 'symptom' ? (
@@ -1418,28 +1744,6 @@ function WorkoutScreenContent({
           onSubmit={submitSafetyEvent}
           selectedSeverity={selectedSeverity}
           selectedSymptom={selectedSymptom}
-        />
-      ) : null}
-      {overlay === 'api-safety' ? (
-        <ApiSafetySheet
-          error={apiError}
-          onClose={closeSheets}
-          onToggleBodyArea={toggleBodyArea}
-          onToggleReaction={toggleReaction}
-          onSelectBodySeverity={selectBodySeverity}
-          onSubmit={() => void submitApiSafetyEvent()}
-          pending={actionPending}
-          selectedBodySeverities={selectedBodySeverities}
-          selectedReactions={selectedReactions}
-        />
-      ) : null}
-      {overlay === 'api-guidance' && apiGuidance ? (
-        <ApiGuidanceSheet
-          guidance={apiGuidance}
-          onConfirm={() => {
-            setApiGuidance(null);
-            closeSheets();
-          }}
         />
       ) : null}
       {overlay === 'additional' ? (
@@ -1486,6 +1790,15 @@ function PlaybackMark({ paused }: { paused: boolean }) {
   );
 }
 
+function TimerMark() {
+  return (
+    <View accessibilityElementsHidden style={styles.timerMark}>
+      <View style={styles.timerMarkHand} />
+      <View style={styles.timerMarkDot} />
+    </View>
+  );
+}
+
 function MascotStage({
   blockName,
   burstKey,
@@ -1507,6 +1820,8 @@ function MascotStage({
   serious: boolean;
   useJua: boolean;
 }) {
+  const [mascotLoaded, setMascotLoaded] = useState(false);
+  const [mascotFailed, setMascotFailed] = useState(false);
   return (
     <View
       accessibilityLabel={serious ? '안전 안내 화면' : `${blockName} 운동 안내`}
@@ -1548,25 +1863,46 @@ function MascotStage({
           ]}
           testID="workout-mascot-frame"
         >
-          <Image
-            accessible={false}
-            resizeMode="contain"
-            source={imageAssets.mascotWarmupWalk}
-            style={[
-              styles.mascotAnimation,
-              { width: 94 * scale, height: 94 * scale },
-            ]}
-            testID="workout-warmup-mascot"
-          />
+          {!mascotLoaded || mascotFailed ? (
+            <Image
+              accessible={false}
+              resizeMode="contain"
+              source={imageAssets.weeklyProgressCompletedWorkout}
+              style={[
+                styles.mascotAnimation,
+                { width: 94 * scale, height: 94 * scale },
+              ]}
+              testID="workout-mascot-fallback"
+            />
+          ) : null}
+          {!mascotFailed ? (
+            <Image
+              accessible={false}
+              onLoad={() => setMascotLoaded(true)}
+              onError={() => setMascotFailed(true)}
+              resizeMode="contain"
+              source={imageAssets.mascotWarmupWalk}
+              style={[
+                styles.mascotAnimation,
+                {
+                  position: 'absolute',
+                  width: 94 * scale,
+                  height: 94 * scale,
+                  opacity: mascotLoaded ? 1 : 0,
+                },
+              ]}
+              testID="workout-warmup-mascot"
+            />
+          ) : null}
         </View>
       )}
       <View style={[styles.mascotCopy, { maxWidth: 190 * scale }]}>
         <Text style={styles.mascotEyebrow}>
           {serious ? '안전을 먼저 확인해주세요' : '지금 할 운동'}
         </Text>
-        <Text style={styles.mascotTitle}>
+        <ExerciseNameText style={styles.mascotTitle}>
           {serious ? '운동을 멈춘 상태예요' : blockName}
-        </Text>
+        </ExerciseNameText>
         <Text style={styles.mascotCaption}>
           {serious
             ? '안내를 확인하기 전에는 운동을 재개하지 않아요.'
@@ -1674,6 +2010,7 @@ function ArcBlockCard({
   scrollX: Animated.Value;
   variantAction?: React.ReactNode;
 }) {
+  const [cardHeight, setCardHeight] = useState(0);
   const inputRange = WORKOUT_ARC.INPUT_OFFSETS.map(
     (offset) => (index + offset) * layout.stride,
   );
@@ -1704,7 +2041,7 @@ function ArcBlockCard({
     <Animated.View
       style={[
         styles.blockCard,
-        { height: layout.cardHeight, width: layout.cardWidth },
+        { width: layout.cardWidth, alignSelf: 'flex-start' },
         current
           ? styles.blockCardCurrent
           : done
@@ -1713,16 +2050,20 @@ function ArcBlockCard({
         {
           opacity,
           transform: [
-            { translateY: layout.cardHeight / 2 },
+            { translateY: cardHeight / 2 },
             { rotate },
-            { translateY: -layout.cardHeight / 2 },
+            { translateY: -cardHeight / 2 },
             { translateY: lift },
             { scale },
           ],
         },
       ]}
       testID={`workout-card-${index}`}
+      onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}
     >
+      <Text style={styles.blockPhase}>
+        {ROUTINE_PHASE_LABELS[block.phaseCode ?? 'MAIN']}
+      </Text>
       <View style={styles.blockCardHeader}>
         <View
           style={[
@@ -1746,9 +2087,11 @@ function ArcBlockCard({
         </View>
         <Text style={styles.blockOrder}>{index + 1}번째 블록</Text>
       </View>
-      <Text style={[styles.blockName, done && styles.blockNameDone]}>
+      <ExerciseNameText
+        style={[styles.blockName, done && styles.blockNameDone]}
+      >
         {block.name}
-      </Text>
+      </ExerciseNameText>
       <Text style={[styles.blockMeta, current && styles.blockMetaCurrent]}>
         {block.meta}
       </Text>
@@ -1766,7 +2109,7 @@ function ArcBlockCard({
         <View style={styles.cardActionRow} testID={`workout-actions-${index}`}>
           {hasDetails ? (
             <Pressable
-              accessibilityLabel={expanded ? '설명 접기' : '자세 설명 보기'}
+              accessibilityLabel={expanded ? '설명 접기' : '자세 보기'}
               accessibilityRole="button"
               accessibilityState={{ expanded }}
               onPress={onToggleExpanded}
@@ -1777,7 +2120,7 @@ function ArcBlockCard({
               testID={`workout-info-action-${index}`}
             >
               <Text style={styles.infoButtonText}>
-                {expanded ? '설명 보는 중' : '자세 설명 보기'}
+                {expanded ? '자세 보는 중' : '자세 보기'}
               </Text>
             </Pressable>
           ) : null}
@@ -1817,23 +2160,17 @@ function ExerciseDetailOverlay({
         <View style={styles.sheetHandle} />
         <View style={styles.detailSheetHeader}>
           <View style={styles.detailSheetHeading}>
-            <Text style={styles.detailSheetEyebrow}>{eyebrow}</Text>
-            <Text
+            {eyebrow ? (
+              <Text style={styles.detailSheetEyebrow}>{eyebrow}</Text>
+            ) : null}
+            <ExerciseNameText
               accessibilityRole="header"
               style={[styles.sheetTitle, styles.detailSheetTitle]}
             >
               {title ?? block.name}
-            </Text>
+            </ExerciseNameText>
           </View>
-          <Pressable
-            accessibilityLabel="설명 접기"
-            accessibilityRole="button"
-            accessibilityState={{ expanded: true }}
-            onPress={onClose}
-            style={styles.detailCloseButton}
-          >
-            <Text style={styles.detailCloseButtonText}>닫기</Text>
-          </Pressable>
+          <CloseButton accessibilityLabel="설명 접기" onPress={onClose} />
         </View>
         <ScrollView
           contentContainerStyle={styles.detailSheetContent}
@@ -1890,50 +2227,33 @@ function ApiBanner({
 }
 
 function RestSheet({
-  onAddSeconds,
   onClose,
   restSeconds,
   useJua,
 }: {
-  onAddSeconds: () => void;
   onClose: () => void;
   restSeconds: number;
   useJua: boolean;
 }) {
   return (
-    <View accessibilityViewIsModal style={styles.restSheet}>
-      <View style={styles.restSheetRow}>
-        <View>
-          <Text style={styles.restLabel}>선택 휴식</Text>
-          <Text
-            accessibilityLabel={`남은 휴식 ${formatWorkoutTime(restSeconds)}`}
-            style={[styles.restTimer, useJua && styles.jua]}
-          >
-            {formatWorkoutTime(restSeconds)}
-          </Text>
+    <View
+      pointerEvents="box-none"
+      style={styles.restOverlay}
+      testID="workout-rest-overlay"
+    >
+      <View style={styles.restTimerCard} testID="workout-rest-timer-card">
+        <View style={styles.restCloseButton}>
+          <CloseButton onPress={onClose} accessibilityLabel="휴식 닫기" />
         </View>
-        <View style={styles.restActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onAddSeconds}
-            style={styles.restAddButton}
-          >
-            <Text style={styles.restAddButtonText}>+30초</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.restEndButton}
-          >
-            <Text style={[styles.restEndButtonText, useJua && styles.jua]}>
-              휴식 끝
-            </Text>
-          </Pressable>
-        </View>
+        <Text style={styles.restMessage}>휴식도 운동의 일부예요</Text>
+        <Text style={styles.restLabel}>휴식 경과</Text>
+        <Text
+          accessibilityLabel={`휴식 경과 ${formatWorkoutTime(restSeconds)}`}
+          style={[styles.restTimer, useJua && styles.jua]}
+        >
+          {formatWorkoutTime(restSeconds)}
+        </Text>
       </View>
-      <Text style={styles.restDescription}>
-        휴식 타이머는 선택 사항이에요. 완료 상태는 직접 체크할 때만 바뀝니다.
-      </Text>
     </View>
   );
 }
@@ -1941,36 +2261,175 @@ function RestSheet({
 function SheetFrame({
   children,
   title,
+  onClose,
+  closeDisabled = false,
 }: {
   children: React.ReactNode;
   title: string;
+  onClose?: () => void;
+  closeDisabled?: boolean;
 }) {
   return (
     <View accessibilityViewIsModal style={styles.sheetOverlay}>
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
-        <Text accessibilityRole="header" style={styles.sheetTitle}>
-          {title}
-        </Text>
+        <View style={styles.detailSheetHeader}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.sheetTitle, { flex: 1 }]}
+          >
+            {title}
+          </Text>
+          {onClose ? (
+            <CloseButton onPress={onClose} disabled={closeDisabled} />
+          ) : null}
+        </View>
         {children}
       </View>
     </View>
   );
 }
 
-function SafetyConfirmSheet({
+function StopReasonSheet({
+  acknowledged,
+  error,
   onClose,
-  onStop,
+  onConfirm,
+  onSelect,
+  onToggleAcknowledgement,
+  pending,
+  selectedReason,
+  submitsSafetyStop,
 }: {
+  acknowledged: boolean;
+  error: string | null;
   onClose: () => void;
-  onStop?: () => void;
+  onConfirm: () => void;
+  onSelect: (reason: NotCompletedReasonCode | 'SAFETY') => void;
+  onToggleAcknowledgement: () => void;
+  pending: boolean;
+  selectedReason: NotCompletedReasonCode | 'SAFETY' | null;
+  submitsSafetyStop: boolean;
 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const safetySelected = selectedReason === 'SAFETY';
+  const canContinue =
+    selectedReason !== null && (!safetySelected || acknowledged);
   return (
-    <SheetFrame title="운동을 여기서 중단하시겠어요?">
+    <SheetFrame
+      title="운동을 중단하는 이유를 알려주세요"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.helpSectionTitle}>일반 중단</Text>
+        <Text style={styles.helpSectionBody}>
+          진행 기록을 남기고, 오늘 안에 홈에서 이어할 수 있어요.
+        </Text>
+        <View style={styles.stopReasonList}>
+          {WORKOUT_STOP_REASONS.map((reason) => (
+            <ChoiceButton
+              key={reason.code}
+              label={reason.label}
+              listStyle
+              onPress={() => onSelect(reason.code)}
+              selected={selectedReason === reason.code}
+            />
+          ))}
+        </View>
+        <View style={styles.safetyReasonSection}>
+          <Text style={styles.safetyReasonEyebrow}>안전 중단</Text>
+          <View style={styles.safetyReasonChoiceRow}>
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: safetySelected }}
+              onPress={() => onSelect('SAFETY')}
+              style={[
+                styles.choiceButton,
+                styles.stopReasonChoiceButton,
+                styles.safetyReasonChoice,
+                safetySelected && styles.choiceButtonSelected,
+                safetySelected && styles.stopReasonChoiceSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.choiceButtonText,
+                  styles.stopReasonChoiceText,
+                  safetySelected && styles.choiceButtonTextSelected,
+                ]}
+              >
+                통증 또는 이상 반응이 있어요.
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="통증 또는 이상 반응 도움말"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: helpOpen }}
+              onPress={() => setHelpOpen((current) => !current)}
+              style={({ pressed }) => [
+                styles.inlineHelpAction,
+                pressed && styles.pressed,
+              ]}
+              testID="workout-stop-safety-help"
+            >
+              <Text style={styles.inlineHelpActionText}>?</Text>
+            </Pressable>
+          </View>
+          {helpOpen ? (
+            <View style={styles.inlineHelpPopup}>
+              <Text style={styles.helpSectionTitle}>통증</Text>
+              <Text style={styles.helpSectionBody}>
+                {WORKOUT_SAFETY_HELP.pain}
+              </Text>
+              <Text style={styles.helpSectionTitle}>이상 반응</Text>
+              <Text style={styles.helpSectionBody}>
+                {WORKOUT_SAFETY_HELP.reaction}
+              </Text>
+              <Text style={styles.helpNote}>{WORKOUT_SAFETY_HELP.note}</Text>
+            </View>
+          ) : null}
+          {safetySelected ? (
+            <>
+              <Text style={styles.safetyReasonWarning}>
+                새로 발생한 통증, 심한 어지럼, 메스꺼움, 호흡 불편 등으로 운동을
+                계속하기 어려울 때 선택해주세요. 선택하면 오늘 운동은 종료되며
+                다시 이어할 수 없습니다.
+              </Text>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acknowledged }}
+                onPress={onToggleAcknowledgement}
+                style={styles.acknowledgementRow}
+              >
+                <View
+                  style={[
+                    styles.acknowledgementBox,
+                    acknowledged && styles.acknowledgementBoxChecked,
+                  ]}
+                >
+                  <Text style={styles.acknowledgementMark}>
+                    {acknowledged ? '✓' : ''}
+                  </Text>
+                </View>
+                <Text style={styles.acknowledgementText}>
+                  오늘은 운동을 다시 이어할 수 없음을 확인했어요.
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </ScrollView>
+      {error ? <Text style={styles.inlineError}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
-        onPress={onStop}
-        style={styles.stopConfirmButton}
+        accessibilityState={{ disabled: !canContinue || pending }}
+        disabled={!canContinue || pending}
+        onPress={onConfirm}
+        style={[
+          styles.stopConfirmButton,
+          (!canContinue || pending) && styles.actionDisabled,
+        ]}
         testID="workout-stop-confirm"
       >
         <LinearGradient
@@ -1982,14 +2441,15 @@ function SafetyConfirmSheet({
           style={styles.stopConfirmGradient}
           testID="workout-stop-confirm-gradient"
         />
-        <Text style={styles.stopConfirmButtonText}>중단하기</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onClose}
-        style={styles.textButton}
-      >
-        <Text style={styles.textButtonLabel}>돌아가기</Text>
+        <Text style={styles.stopConfirmButtonText}>
+          {pending
+            ? '중단 처리 중…'
+            : safetySelected && submitsSafetyStop
+              ? '안전하게 운동 중단하기'
+              : safetySelected
+                ? '안전 관련 내용 입력하기'
+                : '이 사유로 중단하기'}
+        </Text>
       </Pressable>
     </SheetFrame>
   );
@@ -2021,7 +2481,10 @@ function SymptomSheet({
         : SAFETY_GUIDANCE.mild;
 
   return (
-    <SheetFrame title="불편·이상 반응 보고">
+    <SheetFrame
+      title="불편·이상 반응 보고"
+      onClose={severe ? undefined : onClose}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
         <Text style={styles.choiceTitle}>어떤 일이 있었나요?</Text>
@@ -2078,181 +2541,7 @@ function SymptomSheet({
             {severe ? '보고하고 안전 중단' : '보고만 하고 계속하기'}
           </Text>
         </Pressable>
-        {!severe ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.textButton}
-          >
-            <Text style={styles.textButtonLabel}>취소</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
-    </SheetFrame>
-  );
-}
-
-function ApiSafetySheet({
-  error,
-  onClose,
-  onSelectBodySeverity,
-  onToggleBodyArea,
-  onToggleReaction,
-  onSubmit,
-  pending,
-  selectedBodySeverities,
-  selectedReactions,
-}: {
-  error: string | null;
-  onClose: () => void;
-  onSelectBodySeverity: (
-    code: string,
-    severity: WorkoutSafetyReport['severityCode'],
-  ) => void;
-  onToggleBodyArea: (code: string) => void;
-  onToggleReaction: (code: string) => void;
-  onSubmit: () => void;
-  pending: boolean;
-  selectedBodySeverities: Readonly<
-    Record<string, WorkoutSafetyReport['severityCode']>
-  >;
-  selectedReactions: readonly string[];
-}) {
-  const selectedBodyAreas = Object.keys(selectedBodySeverities);
-  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
-    selectedBodyAreas.some((code) =>
-      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
-    ),
-  );
-  const canSubmit =
-    selectedBodyAreas.length > 0 || selectedReactions.length > 0;
-  return (
-    <SheetFrame title="불편·이상 반응 보고">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
-        <Text style={styles.choiceTitle}>불편한 부위</Text>
-        <View style={styles.choiceWrap}>
-          {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
-            <ChoiceButton
-              key={option.code}
-              label={option.label}
-              multiple
-              onPress={() => onToggleBodyArea(option.code)}
-              selected={selectedBodyAreas.includes(option.code)}
-            />
-          ))}
-          <ChoiceButton
-            label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
-            multiple
-            onPress={() => setShowExtendedAreas((visible) => !visible)}
-            selected={showExtendedAreas}
-          />
-          {showExtendedAreas
-            ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
-                <ChoiceButton
-                  key={option.code}
-                  label={option.label}
-                  multiple
-                  onPress={() => onToggleBodyArea(option.code)}
-                  selected={selectedBodyAreas.includes(option.code)}
-                />
-              ))
-            : null}
-        </View>
-        {selectedBodyAreas.map((bodyAreaCode) => {
-          const bodyArea = bodyAreaLabel(bodyAreaCode);
-          return (
-            <View key={bodyAreaCode}>
-              <Text style={styles.choiceTitle}>{bodyArea} 불편함 정도</Text>
-              <View style={styles.choiceWrap}>
-                {WORKOUT_SEVERITIES.map((severity) => (
-                  <ChoiceButton
-                    key={severity.code}
-                    accessibilityLabel={`${bodyArea} ${severity.label}`}
-                    label={severity.label}
-                    onPress={() =>
-                      onSelectBodySeverity(bodyAreaCode, severity.code)
-                    }
-                    selected={
-                      selectedBodySeverities[bodyAreaCode] === severity.code
-                    }
-                  />
-                ))}
-              </View>
-            </View>
-          );
-        })}
-        <Text style={styles.choiceTitle}>이상 반응</Text>
-        <View style={styles.choiceWrap}>
-          {ADVERSE_REACTION_OPTIONS.map((option) => (
-            <ChoiceButton
-              key={option.code}
-              label={option.label}
-              multiple
-              onPress={() => onToggleReaction(option.code)}
-              selected={selectedReactions.includes(option.code)}
-            />
-          ))}
-        </View>
-        {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: pending || !canSubmit }}
-          disabled={pending || !canSubmit}
-          onPress={onSubmit}
-          style={[
-            styles.stopConfirmButton,
-            (pending || !canSubmit) && styles.actionDisabled,
-          ]}
-          testID="workout-api-safety-submit"
-        >
-          <LinearGradient
-            colors={['#D97260', '#CC5A47', '#C2503C']}
-            end={{ x: 0.5, y: 1 }}
-            locations={[0, 0.55, 1]}
-            pointerEvents="none"
-            start={{ x: 0.5, y: 0 }}
-            style={styles.stopConfirmGradient}
-            testID="workout-api-safety-submit-gradient"
-          />
-          <Text style={styles.stopConfirmButtonText}>
-            {pending ? '확인 중…' : '보고하고 안전 안내 확인'}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={onClose}
-          style={styles.textButton}
-        >
-          <Text style={styles.textButtonLabel}>취소</Text>
-        </Pressable>
-      </ScrollView>
-    </SheetFrame>
-  );
-}
-
-function ApiGuidanceSheet({
-  guidance,
-  onConfirm,
-}: {
-  guidance: string;
-  onConfirm: () => void;
-}) {
-  return (
-    <SheetFrame title="안전 안내">
-      <View style={[styles.guidance, styles.guidanceSevere]}>
-        <Text style={[styles.guidanceText, styles.guidanceTextSevere]}>
-          {guidance}
-        </Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onConfirm}
-        style={styles.outlineButtonWide}
-      >
-        <Text style={styles.outlineButtonText}>확인했어요</Text>
-      </Pressable>
     </SheetFrame>
   );
 }
@@ -2285,7 +2574,11 @@ function AdditionalActivitySheet({
   pending: boolean;
 }) {
   return (
-    <SheetFrame title="계획 외 활동 기록">
+    <SheetFrame
+      title="계획 외 활동 기록"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sheetDescription}>
           계획한 블록과 별개로 추가 활동을 남겨요. 이 기록은 운동 완료 상태를
@@ -2345,14 +2638,6 @@ function AdditionalActivitySheet({
             {pending ? '저장 중…' : '추가 활동 저장'}
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={onClose}
-          style={styles.textButton}
-        >
-          <Text style={styles.textButtonLabel}>돌아가기</Text>
-        </Pressable>
       </ScrollView>
     </SheetFrame>
   );
@@ -2361,12 +2646,14 @@ function AdditionalActivitySheet({
 function ChoiceButton({
   accessibilityLabel,
   label,
+  listStyle = false,
   multiple = false,
   onPress,
   selected,
 }: {
   accessibilityLabel?: string;
   label: string;
+  listStyle?: boolean;
   multiple?: boolean;
   onPress: () => void;
   selected: boolean;
@@ -2377,11 +2664,17 @@ function ChoiceButton({
       accessibilityRole={multiple ? 'checkbox' : 'radio'}
       accessibilityState={{ checked: selected }}
       onPress={onPress}
-      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+      style={[
+        styles.choiceButton,
+        listStyle && styles.stopReasonChoiceButton,
+        selected && styles.choiceButtonSelected,
+        listStyle && selected && styles.stopReasonChoiceSelected,
+      ]}
     >
       <Text
         style={[
           styles.choiceButtonText,
+          listStyle && styles.stopReasonChoiceText,
           selected && styles.choiceButtonTextSelected,
         ]}
       >
@@ -2403,7 +2696,11 @@ function NotCompletedSheet({
   pending: boolean;
 }) {
   return (
-    <SheetFrame title="오늘 운동을 마치지 못한 이유">
+    <SheetFrame
+      title="오늘 운동을 마치지 못한 이유"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
       <Text style={styles.sheetDescription}>
         남긴 이유는 다음 추천을 위한 참고 정보로만 사용해요.
       </Text>
@@ -2421,14 +2718,6 @@ function NotCompletedSheet({
         ))}
       </View>
       {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        disabled={pending}
-        onPress={onClose}
-        style={styles.textButton}
-      >
-        <Text style={styles.textButtonLabel}>돌아가기</Text>
-      </Pressable>
     </SheetFrame>
   );
 }
@@ -2499,30 +2788,36 @@ function ResultScreen({
             ))}
           </View>
           <View style={styles.resultItems}>
-            {blocks.map((block) => {
-              const done = block.status === 'COMPLETED';
-              return (
-                <View key={block.id} style={styles.resultItem}>
-                  <View style={styles.resultItemNameWrap}>
-                    <View
+            <RoutineSections
+              items={blocks}
+              getPhase={(block) => block.phaseCode}
+              renderItem={(block) => {
+                const done = block.status === 'COMPLETED';
+                return (
+                  <View key={block.id} style={styles.resultItem}>
+                    <View style={styles.resultItemNameWrap}>
+                      <View
+                        style={[
+                          styles.resultItemDot,
+                          done && styles.resultItemDotDone,
+                        ]}
+                      />
+                      <ExerciseNameText style={styles.resultItemName}>
+                        {block.name}
+                      </ExerciseNameText>
+                    </View>
+                    <Text
                       style={[
-                        styles.resultItemDot,
-                        done && styles.resultItemDotDone,
+                        styles.resultItemValue,
+                        done && styles.resultItemValueDone,
                       ]}
-                    />
-                    <Text style={styles.resultItemName}>{block.name}</Text>
+                    >
+                      {done ? '완료' : '미완료'}
+                    </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.resultItemValue,
-                      done && styles.resultItemValueDone,
-                    ]}
-                  >
-                    {done ? '완료' : '미완료'}
-                  </Text>
-                </View>
-              );
-            })}
+                );
+              }}
+            />
           </View>
           {reportNote ? (
             <View style={styles.reportNote}>
@@ -2599,7 +2894,7 @@ function getWorkoutFixture(state: WorkoutPreviewState): WorkoutFixture {
         ...base,
         completedBlockIds: [first],
         elapsedSeconds: 418,
-        overlay: 'safety',
+        overlay: 'stop-reasons',
         result: 'none',
       };
     case 'symptom-mild':
@@ -2654,6 +2949,12 @@ function getWorkoutFixture(state: WorkoutPreviewState): WorkoutFixture {
 }
 
 const styles = StyleSheet.create({
+  blockPhase: {
+    color: '#958476',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
   screen: { flex: 1, overflow: 'hidden', backgroundColor: colors.canvas },
   timerHeader: {
     flexShrink: 0,
@@ -2664,29 +2965,158 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: WORKOUT_LAYOUT.headerHorizontalPadding,
-    paddingBottom: 14,
+    paddingBottom: 34,
   },
   headerTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
   },
-  timerCopy: { minWidth: 0 },
+  timerColumn: {
+    minWidth: 0,
+    flex: 1,
+  },
+  rewardEligibilityShell: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
+    position: 'relative',
+  },
+  rewardEligibilityBanner: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.84)',
+    shadowColor: '#9A650D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  rewardEligibilityNote: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: '#7A5C10',
+    fontWeight: '700',
+  },
+  rewardEligibilityEmphasis: {
+    color: '#694700',
+    fontWeight: '800',
+  },
+  rewardSparkleMark: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  rewardSparkleCore: {
+    backgroundColor: '#D98B16',
+    transform: [{ rotate: '45deg' }],
+  },
+  rewardSparkleDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#F6BA50',
+  },
+  rewardShimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '50%',
+    backgroundColor: 'rgba(255,255,255,.68)',
+  },
+  rewardNotchLeft: {
+    position: 'absolute',
+    top: '50%',
+    left: -1,
+    backgroundColor: colors.green,
+  },
+  rewardNotchRight: {
+    position: 'absolute',
+    top: '50%',
+    right: -1,
+    backgroundColor: colors.green,
+  },
+  timerCopy: {
+    minWidth: 0,
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,.72)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,248,229,.94)',
+    paddingTop: 8,
+    paddingRight: 14,
+    paddingBottom: 8,
+    paddingLeft: 14,
+    shadowColor: '#9A650D',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 9,
+    elevation: 3,
+  },
+  timerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  timerStatusBadge: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#FFE7B0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  timerStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#C26F00',
+  },
+  timerStatusDotPaused: { backgroundColor: '#8A8179' },
   timerCaption: {
     color: colors.text,
     fontSize: 11.5,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    opacity: 0.85,
+    fontWeight: '800',
+    letterSpacing: 0.45,
   },
   timer: {
-    marginTop: 2,
+    marginTop: 5,
     color: colors.text,
-    fontSize: 38,
-    fontWeight: '600',
-    letterSpacing: 1,
-    lineHeight: 40,
+    fontSize: 46,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 1.6,
+    lineHeight: 48,
+  },
+  targetTime: {
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: '#E7CAA0',
+    borderRadius: 999,
+    backgroundColor: '#FFFDF8',
+    color: colors.textSub,
+    fontSize: 11.5,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  elapsedLabel: {
+    marginTop: -1,
+    color: colors.textSub,
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 1.3,
+    opacity: 0.72,
   },
   timerPaused: { opacity: 0.55 },
   timerBrand: { fontFamily: fontFamilies.brand },
@@ -2707,6 +3137,29 @@ const styles = StyleSheet.create({
     borderRadius: 1.4,
     backgroundColor: colors.text,
   },
+  timerMark: {
+    width: 19,
+    height: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.8,
+    borderColor: colors.textSub,
+    borderRadius: 999,
+  },
+  timerMarkHand: {
+    position: 'absolute',
+    width: 1.8,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.textSub,
+    transform: [{ translateY: -2 }, { rotate: '-18deg' }],
+  },
+  timerMarkDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 999,
+    backgroundColor: colors.textSub,
+  },
   playMark: {
     width: 0,
     height: 0,
@@ -2723,13 +3176,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.dangerBorder,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.dangerBg,
     paddingHorizontal: 14,
   },
   stopActionLabel: {
-    color: colors.textSub,
+    color: colors.dangerText,
     fontFamily: Platform.select({
       ios: 'System',
       android: 'sans-serif-medium',
@@ -2739,30 +3192,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.15,
   },
-  progressRow: { flexDirection: 'row', gap: 5, marginTop: 14 },
-  progressSegment: {
-    height: 6,
-    flex: 1,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,.28)',
-  },
-  progressSegmentCurrent: { backgroundColor: 'rgba(255,255,255,.75)' },
-  progressSegmentDone: { backgroundColor: colors.text },
-  routineHeader: {
+  rewardPositionRow: {
+    width: '100%',
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 8,
   },
-  routineTitle: {
-    minWidth: 0,
-    flex: 1,
+  blockPositionBadge: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,.52)',
+    backgroundColor: 'rgba(255,255,255,.28)',
+  },
+  blockPositionText: {
     color: colors.text,
-    fontSize: 12.5,
     fontWeight: '700',
   },
-  routineStep: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
   offlineBanner: {
     flexShrink: 0,
     flexDirection: 'row',
@@ -2895,15 +3343,15 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 0,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   carouselViewport: { flexGrow: 0, flexShrink: 0 },
   carouselHint: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   carouselCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   blockCarousel: {
-    minHeight: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingTop: 14,
+    paddingBottom: 36,
   },
   blockCard: {
     ...shadows.card,
@@ -2963,10 +3411,9 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 8,
-    marginTop: 12,
   },
   infoButton: {
+    marginTop: 8,
     minHeight: 44,
     minWidth: 0,
     width: '100%',
@@ -2991,6 +3438,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cardVariantAction: {
+    marginTop: 8,
     minHeight: 44,
     minWidth: 0,
     width: '100%',
@@ -3063,24 +3511,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexShrink: 0,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     paddingTop: 6,
     paddingRight: 18,
     paddingBottom: 24,
     paddingLeft: 18,
   },
-  secondaryActions: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    flexDirection: 'row',
-    gap: 8,
-  },
   smashAction: {
     height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
+    flexGrow: 0,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -3114,74 +3556,88 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   restAction: {
-    height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
+    borderColor: '#AAA8A1',
+    shadowColor: '#74716B',
+    shadowOpacity: 0.14,
+  },
+  restActionContent: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
+    gap: 7,
   },
-  painAction: {
-    height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.dangerBorder,
-    borderRadius: 18,
-    backgroundColor: colors.dangerBg,
-    paddingHorizontal: 8,
-  },
-  restActionText: { color: colors.textSub, fontSize: 13.5, fontWeight: '700' },
-  painActionText: {
-    color: colors.dangerText,
-    fontSize: 12.5,
+  restActionText: {
+    color: '#55534E',
+    fontSize: 18,
     fontWeight: '800',
-    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   pressed: { opacity: 0.82 },
-  restSheet: {
+  restOverlay: {
     position: 'absolute',
+    top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    zIndex: 30,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: colors.primary,
-    paddingTop: 20,
-    paddingRight: 18,
-    paddingBottom: 28,
-    paddingLeft: 18,
-  },
-  restSheetRow: {
-    flexDirection: 'row',
+    zIndex: 40,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,32,16,.62)',
+    padding: 24,
+  },
+  restTimerCard: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,.82)',
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,253,248,.96)',
+    paddingTop: 28,
+    paddingRight: 24,
+    paddingBottom: 24,
+    paddingLeft: 24,
+    shadowColor: '#8D5C09',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  restCloseButton: {
+    position: 'absolute',
+    top: 0,
+    right: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restMessage: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textAlign: 'center',
   },
   restLabel: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    opacity: 0.85,
+    marginTop: 12,
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   restTimer: {
-    marginTop: 2,
+    textAlign: 'center',
+    marginTop: 4,
     color: colors.text,
-    fontSize: 44,
-    fontWeight: '900',
-    lineHeight: 44,
+    fontSize: 56,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 2,
+    lineHeight: 58,
   },
-  restActions: { flexDirection: 'row', gap: 8 },
   restAddButton: {
     minHeight: 46,
     justifyContent: 'center',
@@ -3196,23 +3652,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
-  },
-  restEndButton: {
-    minHeight: 46,
-    justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: colors.yellow,
-    paddingVertical: 13,
-    paddingHorizontal: 17,
-  },
-  restEndButtonText: { color: '#342E17', fontSize: 16, fontWeight: '900' },
-  restDescription: {
-    marginTop: 10,
-    color: colors.text,
-    fontSize: 12.5,
-    fontWeight: '600',
-    lineHeight: 18,
-    opacity: 0.85,
   },
   sheetOverlay: {
     position: 'absolute',
@@ -3270,22 +3709,6 @@ const styles = StyleSheet.create({
   },
   detailSheetTitle: {
     marginTop: 4,
-  },
-  detailCloseButton: {
-    minWidth: 52,
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 13,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-  },
-  detailCloseButtonText: {
-    color: colors.textSub,
-    fontSize: 13,
-    fontWeight: '800',
   },
   detailSheetScroll: {
     flexShrink: 1,
@@ -3370,17 +3793,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.15,
     textAlign: 'center',
   },
-  textButton: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  textButtonLabel: {
-    color: colors.textMuted,
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
   choiceTitle: {
     marginTop: 16,
     color: colors.text,
@@ -3445,6 +3857,129 @@ const styles = StyleSheet.create({
     color: colors.dangerText,
     fontSize: 12.5,
     fontWeight: '700',
+    lineHeight: 18,
+  },
+  stopReasonList: { gap: 8, marginTop: 6 },
+  stopReasonChoiceButton: {
+    width: '100%',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+  },
+  stopReasonChoiceSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  stopReasonChoiceText: {
+    textAlign: 'left',
+  },
+  safetyReasonSection: {
+    gap: 10,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 18,
+    backgroundColor: colors.dangerBg,
+    padding: 14,
+  },
+  safetyReasonEyebrow: {
+    color: colors.dangerText,
+    fontSize: 12.5,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  safetyReasonChoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  safetyReasonChoice: {
+    flex: 1,
+    width: 'auto',
+  },
+  inlineHelpAction: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  inlineHelpActionText: {
+    color: colors.dangerText,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  inlineHelpPopup: {
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    padding: 12,
+  },
+  safetyReasonWarning: {
+    color: colors.dangerText,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  acknowledgementRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  acknowledgementBox: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 7,
+    backgroundColor: colors.surface,
+  },
+  acknowledgementBoxChecked: {
+    borderColor: colors.dangerText,
+    backgroundColor: colors.dangerText,
+  },
+  acknowledgementMark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  acknowledgementText: {
+    flex: 1,
+    color: colors.dangerText,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  helpSection: {
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    padding: 14,
+  },
+  helpSectionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  helpSectionBody: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  helpNote: {
+    color: colors.textSub,
+    fontSize: 12.5,
+    fontWeight: '600',
     lineHeight: 18,
   },
   actionDisabled: { opacity: 0.5 },

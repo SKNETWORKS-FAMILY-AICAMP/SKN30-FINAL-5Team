@@ -11,13 +11,10 @@ import { useEffect, useState } from 'react';
 
 import { useSession } from './SessionProvider';
 import { MainFlow } from './MainFlow';
-import { Button } from '../components/primitives';
 import {
-  ErrorState,
-  LoadingState,
-  ScreenHeading,
-  ScreenShell,
-} from '../components/states/ScreenState';
+  ProfileErrorScreen,
+  ProfileLoadingScreen,
+} from './SessionStatusScreens';
 import { AuthFlow } from '../features/auth/AuthFlow';
 import { ConfigurationRequiredScreen } from '../features/config/ConfigurationRequiredScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
@@ -59,27 +56,15 @@ export function DemoApp() {
       );
 
     case 'loadingProfile':
-      return (
-        <ScreenShell>
-          <ScreenHeading title="불러오는 중" />
-          <LoadingState label="계정 정보를 확인하고 있어요" />
-        </ScreenShell>
-      );
+      return <ProfileLoadingScreen />;
 
     case 'profileError':
       return (
-        <ScreenShell>
-          <ScreenHeading title="연결하지 못했어요" />
-          <ErrorState
-            message={session.status.message}
-            onRetry={() => void session.refreshMe()}
-          />
-          <Button
-            label="로그아웃"
-            tone="secondary"
-            onPress={() => void session.signOut()}
-          />
-        </ScreenShell>
+        <ProfileErrorScreen
+          message={session.status.message}
+          onRetry={() => void session.refreshMe()}
+          onSignOut={() => void session.signOut()}
+        />
       );
 
     case 'signedIn': {

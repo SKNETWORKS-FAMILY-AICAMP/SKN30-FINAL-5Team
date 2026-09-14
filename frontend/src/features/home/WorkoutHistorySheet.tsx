@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 import {
   Modal,
   Pressable,
@@ -46,14 +47,10 @@ export function WorkoutHistorySheet({
                 선택한 날의 블록별 수행 기록이에요.
               </Text>
             </View>
-            <Pressable
+            <CloseButton
               accessibilityLabel="운동 기록 닫기"
-              accessibilityRole="button"
               onPress={onClose}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeText}>닫기</Text>
-            </Pressable>
+            />
           </View>
 
           {state.status === 'loading' ? (
@@ -197,13 +194,6 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.text, fontSize: 20, fontWeight: '800' },
   subtitle: { marginTop: 4, color: colors.textMuted, fontSize: 12.5 },
-  closeButton: {
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-  },
-  closeText: { color: colors.textSub, fontSize: 12.5, fontWeight: '800' },
   stateBox: { gap: spacing.md },
   stateText: { color: colors.textSub, fontSize: 14, paddingVertical: 28 },
   errorText: { color: colors.dangerText, fontSize: 13, lineHeight: 19 },

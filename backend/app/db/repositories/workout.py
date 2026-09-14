@@ -3,21 +3,20 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.catalog import CatalogVersion, Exercise
 from backend.app.db.models.decision import DecisionRun, PlanCandidate, PlanItem
-from backend.app.db.models.profile import MutationIdempotencyRecord
+from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
 from backend.app.db.models.workout import (
     DecisionSelection,
     WorkoutAdditionalActivity,
     WorkoutFeedback,
     WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDifficultyReason,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
-    WorkoutSafetyEventAdverseReaction,
-    WorkoutSafetyEventDiscomfort,
     WorkoutSession,
     WorkoutSessionItem,
     WorkoutSkipFeedback,
@@ -26,6 +25,8 @@ from backend.app.db.models.workout import (
 from backend.app.domain.rules.safety import EMERGENCY_REACTION_CODES
 from backend.app.modules.workouts.codes import WORKOUT_RESPONSE_SCHEMA_VERSION
 from backend.app.modules.workouts.ports import (
+    CalorieEstimateSource,
+    CompletedWorkoutBlock,
     IdempotencyRecord,
     ReturnHistory,
     SelectionSource,
@@ -36,6 +37,22 @@ from backend.app.modules.workouts.ports import (
     WorkoutLogItem,
     WorkoutLogSummary,
 )
+
+
+def _plan_item_order() -> Any:
+    """The order the user sees, which their own reorder may have rewritten.
+
+    A reorder writes `user_sequence` and leaves the decision's `sequence` alone,
+    so anything that reads a plan in running order has to coalesce the two. Three
+    queries in this module expressed that separately and one of them drifted:
+    `get_session_state` ordered by `sequence`, so after a reorder its
+    `next_pending_plan_item_id` named a different block than the one the client
+    had on screen. The client moves to the server's next block and then refuses
+    to complete it, because it is no longer the first pending block it knows
+    about -- the reordered blocks simply could not be finished.
+    """
+
+    return func.coalesce(PlanItem.user_sequence, PlanItem.sequence)
 
 
 class WorkoutRepository:
@@ -133,7 +150,19 @@ class WorkoutRepository:
             estimated_calories_burned=None
             if candidate is None
             else candidate.estimated_calories_burned,
+            target_duration_seconds=(
+                0 if candidate is None else candidate.estimated_duration_seconds
+            ),
             already_selected=existing_selection is not None,
+            safety_excluded_exercise_ids=()
+            if safety is None
+            else tuple(UUID(str(value)) for value in safety.excluded_exercise_ids),
+            plan_exercise_ids=()
+            if candidate is None
+            else tuple(
+                item.exercise_id
+                for item in sorted(candidate.items, key=lambda value: value.sequence)
+            ),
         )
 
     def create_selection(
@@ -168,9 +197,18 @@ class WorkoutRepository:
             plan_candidate_id=source.selected_candidate_id,
             scheduled_workout_id=None,
             status_code="PLANNED",
+            completion_code=None,
+            execution_state_code=None,
             started_at=None,
             ended_at=None,
             actual_elapsed_seconds=None,
+            target_duration_seconds=source.target_duration_seconds,
+            accumulated_progress_seconds=0,
+            accumulated_rest_seconds=0,
+            accumulated_paused_seconds=0,
+            last_state_changed_at=None,
+            is_resumable=False,
+            stop_reason_code=None,
             estimated_calories_burned=source.estimated_calories_burned,
             idempotency_key=idempotency_key,
             created_at=now,
@@ -209,8 +247,13 @@ class WorkoutRepository:
             )
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .where(WorkoutSessionItem.workout_session_id == workout.id)
-            .order_by(PlanItem.sequence)
+            .order_by(_plan_item_order())
         ).all()
+        local_date = session.scalar(
+            select(DecisionRun.local_date)
+            .join(PlanCandidate, PlanCandidate.decision_run_id == DecisionRun.id)
+            .where(PlanCandidate.id == workout.plan_candidate_id)
+        )
         return SessionState(
             workout.id,
             workout.status_code,
@@ -220,6 +263,16 @@ class WorkoutRepository:
                 (plan_item_id, status, completed_at) for plan_item_id, status, completed_at in items
             ),
             workout.estimated_calories_burned,
+            workout.completion_code,
+            workout.execution_state_code,
+            workout.target_duration_seconds,
+            workout.accumulated_progress_seconds,
+            workout.accumulated_rest_seconds,
+            workout.accumulated_paused_seconds,
+            workout.last_state_changed_at,
+            workout.is_resumable,
+            workout.stop_reason_code,
+            local_date,
         )
 
     def start_session(
@@ -230,11 +283,148 @@ class WorkoutRepository:
             raise LookupError("locked workout session disappeared")
         workout.status_code = "IN_PROGRESS"
         workout.started_at = started_at
+        workout.execution_state_code = "RUNNING"
+        workout.last_state_changed_at = started_at
+        workout.is_resumable = False
         session.flush()
         state = self.get_session_state(session, workout.user_id, workout.id)
         if state is None:
             raise LookupError("started workout session cannot be read")
         return state
+
+    def transition_execution_state(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        execution_state_code: str,
+        occurred_at: datetime,
+        is_resumable: bool,
+        stop_reason_code: str | None,
+        completion_code: str | None = None,
+        ended_at: datetime | None = None,
+    ) -> SessionState:
+        workout = session.get(WorkoutSession, session_id)
+        if workout is None:
+            raise LookupError("locked workout session disappeared")
+        previous = workout.execution_state_code
+        if workout.last_state_changed_at is not None:
+            elapsed = max(0, int((occurred_at - workout.last_state_changed_at).total_seconds()))
+            if previous in {"RUNNING", "RESTING"}:
+                workout.accumulated_progress_seconds += elapsed
+            if previous == "RESTING":
+                workout.accumulated_rest_seconds += elapsed
+            if previous == "PAUSED":
+                workout.accumulated_paused_seconds += elapsed
+        workout.execution_state_code = execution_state_code
+        workout.last_state_changed_at = occurred_at
+        workout.is_resumable = is_resumable
+        workout.stop_reason_code = stop_reason_code
+        if completion_code is not None:
+            workout.completion_code = completion_code
+        if ended_at is not None:
+            workout.ended_at = ended_at
+            workout.actual_elapsed_seconds = workout.accumulated_progress_seconds
+        if execution_state_code == "STOPPED_SAFETY":
+            workout.status_code = "STOPPED_FOR_SAFETY"
+        elif execution_state_code == "COMPLETED" and completion_code is not None:
+            workout.status_code = completion_code
+        else:
+            workout.status_code = "IN_PROGRESS"
+        session.flush()
+        state = self.get_session_state(session, workout.user_id, workout.id)
+        if state is None:
+            raise LookupError("transitioned workout session cannot be read")
+        return state
+
+    def get_calorie_estimate_source(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> CalorieEstimateSource | None:
+        workout = session.scalar(
+            select(WorkoutSession.id).where(
+                WorkoutSession.id == session_id, WorkoutSession.user_id == user_id
+            )
+        )
+        if workout is None:
+            return None
+        weight_kg = session.scalar(
+            select(UserProfile.weight_kg).where(UserProfile.user_id == user_id)
+        )
+        effective_work_seconds = func.coalesce(PlanItem.user_work_seconds, PlanItem.work_seconds)
+        effective_rest_seconds = func.coalesce(PlanItem.user_rest_seconds, PlanItem.rest_seconds)
+        rows = session.execute(
+            select(
+                PlanItem.exercise_id,
+                Exercise.stable_code,
+                CatalogVersion.version_code,
+                Exercise.met_value,
+                Exercise.met_source_code,
+                Exercise.met_source_activity_code,
+                Exercise.met_mapping_method_code,
+                Exercise.met_review_status_code,
+                Exercise.met_policy_version,
+                (
+                    effective_work_seconds + effective_rest_seconds + PlanItem.transition_seconds
+                ).label("planned_seconds"),
+            )
+            .select_from(WorkoutSessionItem)
+            .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
+            .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .join(CatalogVersion, CatalogVersion.id == Exercise.catalog_version_id)
+            .where(
+                WorkoutSessionItem.workout_session_id == session_id,
+                WorkoutSessionItem.status_code == "COMPLETED",
+            )
+            .order_by(_plan_item_order())
+        ).all()
+        return CalorieEstimateSource(
+            weight_kg=weight_kg,
+            completed_blocks=tuple(
+                CompletedWorkoutBlock(
+                    exercise_id=exercise_id,
+                    exercise_stable_code=stable_code,
+                    catalog_version_code=catalog_version_code,
+                    met_value=met_value,
+                    met_source_code=met_source_code,
+                    met_source_activity_code=met_source_activity_code,
+                    met_mapping_method_code=met_mapping_method_code,
+                    met_review_status_code=met_review_status_code,
+                    met_policy_version=met_policy_version,
+                    planned_seconds=max(0, int(planned_seconds)),
+                )
+                for (
+                    exercise_id,
+                    stable_code,
+                    catalog_version_code,
+                    met_value,
+                    met_source_code,
+                    met_source_activity_code,
+                    met_mapping_method_code,
+                    met_review_status_code,
+                    met_policy_version,
+                    planned_seconds,
+                ) in rows
+            ),
+        )
+
+    def save_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        estimated_calories_burned: float | None,
+        source_code: str,
+        policy_version: str,
+        input_snapshot: dict[str, object],
+    ) -> None:
+        workout = session.get(WorkoutSession, session_id)
+        if workout is None:
+            raise LookupError("locked workout session disappeared")
+        workout.estimated_calories_burned = estimated_calories_burned
+        workout.calorie_source_code = source_code
+        workout.calorie_policy_version = policy_version
+        workout.calorie_input_snapshot = input_snapshot
+        session.flush()
 
     def update_session_item(
         self,
@@ -318,14 +508,9 @@ class WorkoutRepository:
         event_id: UUID,
         session_id: UUID,
         occurred_at: datetime,
-        instruction_code: str,
-        resulting_action_code: str | None,
-        session_status_code: str,
-        guidance_code: str,
-        reason_code: str,
+        result_code: str,
+        completion_code: str,
         rule_version: str,
-        discomforts: tuple[tuple[str, str], ...],
-        adverse_reaction_codes: tuple[str, ...],
         now: datetime,
     ) -> None:
         session.add(
@@ -333,41 +518,16 @@ class WorkoutRepository:
                 id=event_id,
                 workout_session_id=session_id,
                 occurred_at=occurred_at,
-                instruction_code=instruction_code,
-                resulting_action_code=resulting_action_code,
-                guidance_code=guidance_code,
-                reason_code=reason_code,
+                instruction_code=None,
+                resulting_action_code=None,
+                guidance_code=None,
+                reason_code=None,
+                plan_item_id=None,
+                result_code=result_code,
                 rule_version=rule_version,
                 created_at=now,
             )
         )
-        session.add_all(
-            [
-                WorkoutSafetyEventDiscomfort(
-                    id=uuid4(),
-                    workout_safety_event_id=event_id,
-                    body_area_code=body_area_code,
-                    severity_code=severity_code,
-                )
-                for body_area_code, severity_code in discomforts
-            ]
-        )
-        session.add_all(
-            [
-                WorkoutSafetyEventAdverseReaction(
-                    workout_safety_event_id=event_id, reaction_code=reaction_code
-                )
-                for reaction_code in adverse_reaction_codes
-            ]
-        )
-        if session_status_code == "STOPPED_FOR_SAFETY":
-            self.finish_session(
-                session,
-                session_id=session_id,
-                status_code=session_status_code,
-                ended_at=occurred_at,
-                actual_elapsed_seconds=None,
-            )
         session.flush()
 
     def finish_session(
@@ -376,6 +536,8 @@ class WorkoutRepository:
         *,
         session_id: UUID,
         status_code: str,
+        completion_code: str | None = None,
+        execution_state_code: str | None = None,
         ended_at: datetime,
         actual_elapsed_seconds: int | None,
     ) -> None:
@@ -383,11 +545,15 @@ class WorkoutRepository:
         if workout is None:
             raise LookupError("locked workout session disappeared")
         workout.status_code = status_code
+        if completion_code is not None:
+            workout.completion_code = completion_code
+        if execution_state_code is not None:
+            workout.execution_state_code = execution_state_code
         workout.ended_at = ended_at
         workout.actual_elapsed_seconds = actual_elapsed_seconds
         session.flush()
 
-    def create_skip_feedback(
+    def upsert_skip_feedback(
         self,
         session: Session,
         *,
@@ -395,26 +561,27 @@ class WorkoutRepository:
         reason_code: str,
         now: datetime,
     ) -> None:
-        session.add(
-            WorkoutSkipFeedback(
-                workout_session_id=session_id,
-                reason_code=reason_code,
-                created_at=now,
-            )
-        )
-        session.flush()
+        """Store why the session was not performed, replacing any earlier reason.
 
-    def feedback_exists(self, session: Session, session_id: UUID) -> bool:
-        return (
-            session.scalar(
-                select(WorkoutFeedback.workout_session_id).where(
-                    WorkoutFeedback.workout_session_id == session_id
+        A resumable stop can happen more than once in a session, and the reason the
+        user gives last is the one that describes how the session actually ended.
+        """
+
+        existing = session.get(WorkoutSkipFeedback, session_id)
+        if existing is None:
+            session.add(
+                WorkoutSkipFeedback(
+                    workout_session_id=session_id,
+                    reason_code=reason_code,
+                    created_at=now,
                 )
             )
-            is not None
-        )
+        else:
+            existing.reason_code = reason_code
+            existing.created_at = now
+        session.flush()
 
-    def create_feedback(
+    def upsert_feedback(
         self,
         session: Session,
         *,
@@ -425,18 +592,40 @@ class WorkoutRepository:
         pain_occurred: bool,
         discomforts: tuple[tuple[str, str], ...],
         adverse_reaction_codes: tuple[str, ...],
+        difficulty_reason_codes: tuple[str, ...],
         now: datetime,
     ) -> None:
-        session.add(
-            WorkoutFeedback(
-                workout_session_id=session_id,
-                difficulty_code=difficulty_code,
-                fatigue_code=fatigue_code,
-                satisfaction_code=satisfaction_code,
-                pain_occurred=pain_occurred,
-                created_at=now,
-            )
-        )
+        """Store the session's feedback, replacing whatever was stored before.
+
+        A session can now be stopped, resumed and stopped again, and the user is
+        asked how it felt each time. The last answer describes the session as it
+        actually ended, so it wins outright rather than being rejected as a
+        duplicate. The child rows are replaced wholesale for the same reason:
+        merging an old answer's discomforts into a new one would store a
+        combination the user never gave.
+
+        Past decisions stay reproducible because they read their own
+        `input_snapshot`, not this row -- the same reason daily check-ins are
+        mutable (`DATA_MODEL.md` 10.4.1).
+        """
+
+        feedback = session.get(WorkoutFeedback, session_id)
+        if feedback is None:
+            feedback = WorkoutFeedback(workout_session_id=session_id, created_at=now)
+            session.add(feedback)
+        else:
+            for table in (
+                WorkoutFeedbackDiscomfort,
+                WorkoutFeedbackAdverseReaction,
+                WorkoutFeedbackDifficultyReason,
+            ):
+                session.execute(delete(table).where(table.workout_session_id == session_id))
+        feedback.difficulty_code = difficulty_code
+        feedback.fatigue_code = fatigue_code
+        feedback.satisfaction_code = satisfaction_code
+        feedback.pain_occurred = pain_occurred
+        feedback.updated_at = now
+        session.flush()
         session.add_all(
             [
                 WorkoutFeedbackDiscomfort(
@@ -454,6 +643,17 @@ class WorkoutRepository:
                     workout_session_id=session_id, reaction_code=reaction_code
                 )
                 for reaction_code in adverse_reaction_codes
+            ]
+        )
+        session.add_all(
+            [
+                WorkoutFeedbackDifficultyReason(
+                    id=uuid4(),
+                    workout_session_id=session_id,
+                    reason_code=reason_code,
+                    created_at=now,
+                )
+                for reason_code in difficulty_reason_codes
             ]
         )
         session.flush()
@@ -511,7 +711,10 @@ class WorkoutRepository:
             .where(
                 WorkoutSession.user_id == user_id,
                 DecisionRun.local_date == local_date,
-                WorkoutSafetyEvent.resulting_action_code.in_({"REST", "STOP_AND_SEEK_HELP"}),
+                or_(
+                    WorkoutSafetyEvent.resulting_action_code.in_({"REST", "STOP_AND_SEEK_HELP"}),
+                    WorkoutSafetyEvent.result_code.in_({"SESSION_STOPPED", "STOP_AND_SEEK_HELP"}),
+                ),
             )
             .limit(1)
         )
@@ -626,6 +829,24 @@ class WorkoutRepository:
             for row in rows
         )
 
+    def get_workout_log_detail_for_plan(
+        self, session: Session, user_id: UUID, plan_id: UUID
+    ) -> WorkoutLogDetail | None:
+        """Return the newest session for exactly the plan rendered by the home state."""
+
+        session_id = session.scalar(
+            select(WorkoutSession.id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.plan_candidate_id == plan_id,
+            )
+            .order_by(WorkoutSession.created_at.desc(), WorkoutSession.id.desc())
+            .limit(1)
+        )
+        if session_id is None:
+            return None
+        return self.get_workout_log_detail(session, user_id, session_id)
+
     def get_workout_log_detail(
         self, session: Session, user_id: UUID, session_id: UUID
     ) -> WorkoutLogDetail | None:
@@ -655,21 +876,23 @@ class WorkoutRepository:
         ).one_or_none()
         if row is None:
             return None
+        # A user edit lives in the override columns beside the decision's own numbers,
+        # so the session has to read the same effective values the plan renders.
         item_rows = session.execute(
             select(
                 WorkoutSessionItem.plan_item_id,
                 PlanItem.exercise_id,
                 Exercise.name_ko,
                 WorkoutSessionItem.status_code,
-                PlanItem.sets,
-                PlanItem.reps,
-                PlanItem.work_seconds_per_set,
+                func.coalesce(PlanItem.user_sets, PlanItem.sets),
+                func.coalesce(PlanItem.user_reps, PlanItem.reps),
+                func.coalesce(PlanItem.user_work_seconds_per_set, PlanItem.work_seconds_per_set),
                 WorkoutSessionItem.completed_at,
             )
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .join(Exercise, Exercise.id == PlanItem.exercise_id)
             .where(WorkoutSessionItem.workout_session_id == session_id)
-            .order_by(PlanItem.sequence)
+            .order_by(_plan_item_order())
         ).all()
         items = tuple(
             WorkoutLogItem(

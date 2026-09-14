@@ -1,0 +1,50 @@
+{
+  "catalog_version": {
+    "status_code": "DRAFT",
+    "version_code": "exercise-catalog-v2.0.8-final"
+  },
+  "files": [
+    {
+      "bytes": 392538,
+      "path": "exercises.jsonl",
+      "records": 237,
+      "sha256": "83c0a0e54e27b146e1f67de785e97595498fd780aa374ee6250431fca0aa4693"
+    }
+  ],
+  "generator_version": "integrated-catalog-v2.0.7-projection-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.1",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 9785,
+        "path": "input/representative_exercises.csv",
+        "role": "representative_catalog_csv",
+        "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627"
+      },
+      {
+        "bytes": 4341,
+        "path": "data/normalized/v2_representative_decisions.json",
+        "role": "recovery_eligibility_policy",
+        "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
+      },
+      {
+        "bytes": 1107,
+        "path": "input/met_review_approval_manifest.json",
+        "role": "met_review_approval_manifest",
+        "sha256": "2568be6b2b8197abadcf511638f1ed42bdc5f36793313673ce2a1b3168310162"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "gymvisual"
+  },
+  "summary": {
+    "exercise_records": 237
+  }
+}

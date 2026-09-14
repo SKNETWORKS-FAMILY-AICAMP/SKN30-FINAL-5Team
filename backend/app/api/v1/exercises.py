@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -17,7 +18,13 @@ from backend.app.modules.catalog.codes import (
     BodyAreaCode,
     DifficultyCode,
     EquipmentCode,
+    LocationCode,
     TrainingTypeCode,
+)
+from backend.app.modules.catalog.home_equipment import (
+    FileGymEquipmentGuideProvider,
+    FileHomeEquipmentGuideProvider,
+    HomeEquipmentBundleValidationError,
 )
 from backend.app.modules.catalog.schemas import (
     ExerciseDetailResponse,
@@ -91,12 +98,27 @@ def get_exercise_detail(
 ) -> ExerciseDetailResponse:
     del current_user
     try:
-        return ExerciseReadService(repository, media_url_provider).get_detail(session, exercise_id)
+        return ExerciseReadService(
+            repository,
+            media_url_provider,
+            FileHomeEquipmentGuideProvider(
+                Path("data/generated/integrated-catalog-v2.0.7-final/backend_bundle/home_equipment")
+            ),
+            FileGymEquipmentGuideProvider(
+                Path("data/generated/integrated-catalog-v2.0.7-final/backend_bundle")
+            ),
+        ).get_detail(session, exercise_id)
     except ExerciseNotFoundError:
         raise AppError(
             status_code=HTTPStatus.NOT_FOUND,
             code="RESOURCE_NOT_FOUND",
             message="해당 운동 정보를 찾을 수 없습니다.",
+        ) from None
+    except HomeEquipmentBundleValidationError:
+        raise AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="APPROVED_CATALOG_UNAVAILABLE",
+            message="검수된 생활도구 안내를 사용할 수 없습니다.",
         ) from None
     except SQLAlchemyError:
         raise AppError(
@@ -112,10 +134,15 @@ def get_exercise_variants(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ExerciseReadRepositoryPort, Depends(get_catalog_repository)],
+    location_code: Annotated[LocationCode | None, Query()] = None,
 ) -> ExerciseVariantsResponse:
     del current_user
     try:
-        return ExerciseReadService(repository).get_equipment_variants(session, exercise_id)
+        return ExerciseReadService(repository).get_equipment_variants(
+            session,
+            exercise_id,
+            location_code=location_code,
+        )
     except ExerciseNotFoundError:
         raise AppError(
             status_code=HTTPStatus.NOT_FOUND,

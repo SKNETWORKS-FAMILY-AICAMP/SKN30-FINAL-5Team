@@ -1,16 +1,21 @@
 export type PreviewMode =
   | 'account'
+  | 'app-status'
   | 'auth'
   | 'background_test'
+  | 'banana-catch'
   | 'calendar-report'
   | 'exercise-catalog'
   | 'gallery'
   | 'home'
   | 'home-map'
+  | 'kikki-merge'
+  | 'kikki-runner'
   | 'login'
   | 'loading'
   | 'mascot-house'
   | 'my-page'
+  | 'notifications'
   | 'onboarding'
   | 'profile'
   | 'signup'
@@ -22,6 +27,12 @@ export type PreviewMode =
   | 'workout'
   | null;
 
+export type PreviewViewportMode = 'device' | null;
+
 export function getPreviewMode(): PreviewMode {
+  return null;
+}
+
+export function getPreviewViewportMode(): PreviewViewportMode {
   return null;
 }

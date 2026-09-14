@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from backend.app.db import models as db_models
@@ -73,6 +73,31 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
             WeeklyReport.__table__,
         ],
     )
+    # This focused SQLite fixture predates catalog persistence. The repository
+    # joins these tables only to enrich completed blocks, so minimal compatible
+    # tables keep the test scoped while the unit suite covers those aggregates.
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE plan_items ("
+                "id CHAR(32) PRIMARY KEY, exercise_id CHAR(32) NOT NULL, "
+                "sequence INTEGER NOT NULL, intensity_code VARCHAR(32) NOT NULL)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE TABLE exercises ("
+                "id CHAR(32) PRIMARY KEY, training_type_code VARCHAR(32) NOT NULL, "
+                "name_ko VARCHAR(200) NOT NULL)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE TABLE daily_contexts ("
+                "id CHAR(32) PRIMARY KEY, fatigue_level_code VARCHAR(16) NOT NULL, "
+                "pain_present BOOLEAN NOT NULL)"
+            )
+        )
     user_id = uuid4()
     completed_run = _decision(user_id, WEEK_START)
     missed_run = _decision(user_id, WEEK_START.replace(day=5))
@@ -80,6 +105,8 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
     missed_selection_id = uuid4()
     completed_session_id = uuid4()
     missed_session_id = uuid4()
+    completed_plan_item_id = uuid4()
+    completed_exercise_id = uuid4()
     with Session(engine, expire_on_commit=False) as session, session.begin():
         session.add(
             UserProfile(
@@ -89,13 +116,9 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=30,
                 desired_weekly_workout_count=3,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=None,
                 weight_kg=None,
-                sex_code=None,
                 code_set_version=PROFILE_CODE_SET_VERSION,
                 profile_version=1,
                 created_at=NOW,
@@ -103,6 +126,16 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
             )
         )
         session.add_all([completed_run, missed_run])
+        session.execute(
+            text(
+                "INSERT INTO daily_contexts (id, fatigue_level_code, pain_present) "
+                "VALUES (:first_id, 'HIGH', 1), (:second_id, 'LOW', 0)"
+            ),
+            {
+                "first_id": completed_run.daily_context_id.hex,
+                "second_id": missed_run.daily_context_id.hex,
+            },
+        )
         session.add_all(
             [
                 DecisionSelection(
@@ -135,7 +168,8 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                     started_at=NOW,
                     ended_at=NOW,
                     actual_elapsed_seconds=9999,
-                    estimated_calories_burned=None,
+                    accumulated_progress_seconds=720,
+                    estimated_calories_burned=123.5,
                     idempotency_key=uuid4(),
                     created_at=NOW,
                 ),
@@ -160,7 +194,7 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                 WorkoutSessionItem(
                     id=uuid4(),
                     workout_session_id=completed_session_id,
-                    plan_item_id=uuid4(),
+                    plan_item_id=completed_plan_item_id,
                     status_code="COMPLETED",
                     completed_at=NOW,
                     updated_at=NOW,
@@ -179,6 +213,29 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                     created_at=NOW,
                 ),
             ]
+        )
+        session.execute(
+            text(
+                "INSERT INTO exercises (id, training_type_code, name_ko) "
+                "VALUES (:id, :training_type_code, :name_ko)"
+            ),
+            {
+                "id": completed_exercise_id.hex,
+                "training_type_code": "STRENGTH",
+                "name_ko": "스쿼트",
+            },
+        )
+        session.execute(
+            text(
+                "INSERT INTO plan_items (id, exercise_id, sequence, intensity_code) "
+                "VALUES (:id, :exercise_id, :sequence, :intensity_code)"
+            ),
+            {
+                "id": completed_plan_item_id.hex,
+                "exercise_id": completed_exercise_id.hex,
+                "sequence": 1,
+                "intensity_code": "LOW",
+            },
         )
         session.flush()
 
@@ -205,6 +262,11 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
         evidence = repository.get_week_evidence(session, user_id, WEEK_START, WEEK_END)
         assert [row.stored_status_code for row in evidence] == ["COMPLETED", "NOT_COMPLETED"]
         assert evidence[0].block_status_codes == ("COMPLETED",)
+        assert evidence[0].progress_seconds == 720
+        assert evidence[0].estimated_calories_burned == 123.5
+        assert evidence[0].training_type_codes == ("STRENGTH",)
+        assert evidence[0].intensity_codes == ("LOW",)
+        assert evidence[0].exercise_names == ("스쿼트",)
         assert evidence[1].not_completed_reason_code == "TIME_SHORTAGE"
 
         report_id = uuid4()
@@ -214,12 +276,35 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
             values=ReportValues(
                 report_id=report_id,
                 input_schema_version="weekly-report-input-v1",
-                input_snapshot={"counts": {"completed": 1, "not_completed": 1}},
+                input_snapshot={
+                    "counts": {"completed": 1, "not_completed": 1},
+                    "weekly_metrics": {
+                        "total_workout_seconds": 720,
+                        "total_estimated_calories_burned": None,
+                        "average_intensity_code": "LOW",
+                        "most_performed_training_type_code": "STRENGTH",
+                        "most_performed_exercise_name": "스쿼트",
+                        "completed_count_change": None,
+                        "highlight_codes": ["COMPLETED_SESSION_RECORDED"],
+                        "improvement_codes": ["MISSED_SESSION_PATTERN_RECORDED"],
+                        "routine_difficulty_code": "APPROPRIATE",
+                    },
+                    "condition_summary": {
+                        "checkin_count": 2,
+                        "fatigue_level_counts": {"MODERATE": 2},
+                        "fatigue_change_code": "STABLE",
+                        "pain_checkin_count": 0,
+                        "workout_pain_or_safety_stop_count": 0,
+                    },
+                    "outcome_reason_summary": {"not_completed": {"TIME_SHORTAGE": 1}},
+                    "recommendation_action_counts": {"KEEP": 2},
+                },
                 input_hash="a" * 64,
                 completed_count=1,
                 partial_count=0,
                 not_completed_count=1,
                 stopped_for_safety=0,
+                safety_stopped_session_count=0,
                 primary_miss_reason_code="TIME_SHORTAGE",
                 completion_rate=1 / 3,
                 persistence_rate=1 / 3,
@@ -237,12 +322,39 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                 next_action="next",
                 agent_summaries=None,
                 summary="summary",
+                total_workout_seconds=0,
+                total_estimated_calories_burned=None,
+                average_intensity_code=None,
+                most_performed_training_type_code=None,
+                most_performed_exercise_name=None,
+                completed_count_change=None,
+                highlight_codes=[],
+                improvement_codes=["MISSED_SESSION_PATTERN_RECORDED"],
+                routine_difficulty_code="APPROPRIATE",
+                condition_summary={
+                    "checkin_count": 2,
+                    "fatigue_level_counts": {"MODERATE": 2},
+                    "fatigue_change_code": "STABLE",
+                    "pain_checkin_count": 0,
+                    "workout_pain_or_safety_stop_count": 0,
+                },
+                outcome_reason_summary={"not_completed": {"TIME_SHORTAGE": 1}},
+                recommendation_action_counts={"KEEP": 2},
+                next_week_recommendation={
+                    "intensity": "강도 안내",
+                    "volume": "운동량 안내",
+                    "duration": "시간 안내",
+                    "pain_response": "통증 대응 안내",
+                },
+                coach_message="summary",
                 report_policy_version="weekly-report-policy-v1",
                 generated_at=NOW,
             ),
         )
         assert stored.input_hash == "a" * 64
         assert stored.response_payload["counts"]["completed"] == 1
+        assert stored.response_payload["total_workout_seconds"] == 720
+        assert stored.response_payload["total_estimated_calories_burned"] is None
         fetched = repository.get_report_by_id(session, user_id, report_id)
         assert fetched is not None
         assert fetched.input_hash == stored.input_hash

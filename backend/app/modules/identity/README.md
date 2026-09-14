@@ -1,5 +1,8 @@
 # Identity module
 
+Firebase ID Token 검증과 내부 identity 연결을 담당합니다. Google·Kakao server-bound OAuth 교환은
+`social_auth` 모듈과 provider adapter가 검증한 subject만 이 모듈의 persistence 경계로 전달합니다.
+
 Firebase ID Token 검증 결과와 내부 사용자 identity 연결, 비활성 계정 접근 차단을 담당합니다.
 
 - `codes.py`: `identity-mvp-v1` machine code 집합

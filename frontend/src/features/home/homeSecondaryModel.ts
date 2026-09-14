@@ -10,7 +10,7 @@ export type MyPagePreviewState =
   | 'logout'
   | 'withdraw';
 export type CalendarDayStatus =
-  'done' | 'partial' | 'miss' | 'rest' | 'today' | 'upcoming';
+  'done' | 'partial' | 'rest' | 'safety' | 'today' | 'upcoming';
 export type CalendarWeekState =
   'progress' | 'make' | 'unread' | 'read' | 'unavailable' | 'upcoming';
 
@@ -18,12 +18,14 @@ export type CalendarDay = {
   day: string;
   status: CalendarDayStatus;
   inCurrentMonth: boolean;
+  /** Today is highlighted independently so it can coexist with a status mark. */
+  isToday?: boolean;
   localDate?: string;
   sessionIds?: readonly string[];
 };
 
 export type CalendarMonthStat = {
-  key: 'done' | 'partial' | 'rest' | 'miss';
+  key: 'done' | 'partial' | 'rest' | 'safety';
   label: string;
   value: number;
   color: string;
@@ -76,9 +78,10 @@ export const CALENDAR_DAY_VISUALS = {
   done: {
     label: '완료',
     glyph: '✓',
-    backgroundColor: '#F6BA50',
+    backgroundColor: '#5E8342',
     color: '#FFFFFF',
-    borderColor: '#F6BA50',
+    borderColor: '#5E8342',
+    accentColor: '#4F7238',
   },
   partial: {
     label: '부분 수행',
@@ -86,13 +89,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: '#F6BA50',
     color: '#6B520C',
     borderColor: '#F6BA50',
-  },
-  miss: {
-    label: '미수행',
-    glyph: '×',
-    backgroundColor: '#FFFFFF',
-    color: '#C0BBB1',
-    borderColor: '#E2DED4',
+    accentColor: '#A45F00',
   },
   rest: {
     label: '휴식',
@@ -100,6 +97,19 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: '#EDEAE2',
     color: '#8B8780',
     borderColor: '#EDEAE2',
+    accentColor: '#6F6B63',
+  },
+  /**
+   * A pain or adverse-reaction stop is its own outcome, not a rest day. The
+   * colors mirror the weekly report's safety icon so both screens read alike.
+   */
+  safety: {
+    label: '안전 중단',
+    glyph: '!',
+    backgroundColor: '#FCE3E7',
+    color: '#C45C70',
+    borderColor: '#FCE3E7',
+    accentColor: '#C45C70',
   },
   today: {
     label: '오늘',
@@ -107,6 +117,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: 'transparent',
     color: 'transparent',
     borderColor: 'transparent',
+    accentColor: '#A45F00',
   },
   upcoming: {
     label: '예정',
@@ -114,6 +125,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: 'transparent',
     color: 'transparent',
     borderColor: 'transparent',
+    accentColor: '#B7B2A8',
   },
 } as const satisfies Record<
   CalendarDayStatus,
@@ -123,8 +135,21 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: string;
     color: string;
     borderColor: string;
+    accentColor: string;
   }
 >;
+
+/**
+ * One order for the four recorded statuses. The monthly summary, the calendar
+ * legend and the expanded week summary all read from this list so labels,
+ * icons and colors never drift apart.
+ */
+export const CALENDAR_STATUS_ORDER = [
+  'done',
+  'partial',
+  'rest',
+  'safety',
+] as const satisfies readonly CalendarMonthStat['key'][];
 
 export const CALENDAR_WEEK_CHIPS = {
   progress: {
@@ -191,10 +216,10 @@ export const CALENDAR_WEEKDAYS = [
 ] as const;
 
 export const CALENDAR_MONTH_STATS = [
-  { key: 'done', label: '완료', value: 4, color: '#A45F00' },
-  { key: 'partial', label: '부분 수행', value: 3, color: '#EE875B' },
-  { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
-  { key: 'miss', label: '미수행', value: 1, color: '#C0BBB1' },
+  { key: 'done', label: '완료', value: 4, color: '#4F7238' },
+  { key: 'partial', label: '부분 수행', value: 3, color: '#A45F00' },
+  { key: 'rest', label: '휴식', value: 4, color: '#6F6B63' },
+  { key: 'safety', label: '안전 중단', value: 0, color: '#C45C70' },
 ] as const satisfies readonly CalendarMonthStat[];
 
 export const CALENDAR_WEEKS = [
@@ -210,7 +235,7 @@ export const CALENDAR_WEEKS = [
       { day: '28', status: 'done', inCurrentMonth: false },
       { day: '29', status: 'partial', inCurrentMonth: false },
       { day: '30', status: 'done', inCurrentMonth: false },
-      { day: '31', status: 'miss', inCurrentMonth: false },
+      { day: '31', status: 'rest', inCurrentMonth: false },
       { day: '1', status: 'partial', inCurrentMonth: true },
       { day: '2', status: 'rest', inCurrentMonth: true },
     ],
@@ -230,10 +255,10 @@ export const CALENDAR_WEEKS = [
       { day: '5', status: 'done', inCurrentMonth: true },
       { day: '6', status: 'partial', inCurrentMonth: true },
       { day: '7', status: 'done', inCurrentMonth: true },
-      { day: '8', status: 'miss', inCurrentMonth: true },
+      { day: '8', status: 'rest', inCurrentMonth: true },
       { day: '9', status: 'rest', inCurrentMonth: true },
     ],
-    stats: [3, 1, 2, 1],
+    stats: [3, 1, 3, 0],
     note: '한 주가 끝났어요. 리포트를 만들면 이번 주 운동 패턴을 정리해드려요.',
   },
   {
@@ -246,14 +271,14 @@ export const CALENDAR_WEEKS = [
     days: [
       { day: '10', status: 'done', inCurrentMonth: true },
       { day: '11', status: 'partial', inCurrentMonth: true },
-      { day: '12', status: 'today', inCurrentMonth: true },
+      { day: '12', status: 'upcoming', inCurrentMonth: true, isToday: true },
       { day: '13', status: 'upcoming', inCurrentMonth: true },
       { day: '14', status: 'upcoming', inCurrentMonth: true },
       { day: '15', status: 'upcoming', inCurrentMonth: true },
       { day: '16', status: 'upcoming', inCurrentMonth: true },
     ],
     stats: [1, 1, 0, 0],
-    note: '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.',
+    note: '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.',
   },
   {
     id: 'week-4',
@@ -317,15 +342,12 @@ export const CALENDAR_WEEKS = [
 export const MY_PAGE_PROFILE_ROWS = [
   ['primary_goal_code', '운동 목표', '체력 증진'],
   ['experience_level_code', '운동 경험', '초급'],
-  ['available_location_codes', '운동 장소', '헬스장'],
-  ['default_requested_duration_minutes', '희망 시간', '40분'],
-  ['desired_weekly_workout_count', '주간 목표', '4회'],
-  ['attention_area_codes', '통증 부위', '무릎'],
+  ['desired_weekly_workout_count', '주간 운동 횟수', '주 4회'],
+  ['persistent_pains', '통증 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [
-  ['연동 기기', '없음'],
-  ['개인정보 및 동의', ''],
+  ['개인정보 처리방침 및 이용', ''],
   ['문의하기', ''],
   ['이용약관', ''],
   ['앱 버전', '0.1.0'],

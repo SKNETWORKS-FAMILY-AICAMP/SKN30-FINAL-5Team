@@ -34,7 +34,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import envelope, pool
+from backend.tests.unit.test_v3_agent_contracts import A, B, C, envelope, pool, prescription
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 
 
@@ -206,15 +206,21 @@ class _FallbackProvider:
 def test_provider_failure_uses_validated_deterministic_fallback_without_coordinator() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
-    source_proposal = proposals(current_envelope, current_pool)[0]
+    # A deterministic fallback that skipped a phase used to reach the user; it
+    # now fails integrity validation, so the fixture carries the real shape.
+    fallback_prescriptions = (
+        prescription(A, 1, phase_code="WARMUP"),
+        prescription(B, 2),
+        prescription(C, 3, phase_code="COOLDOWN"),
+    )
     fallback = DeterministicFallbackPlanSpec.create(
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version="v3-deterministic-fallback-v2",
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,
         requested_duration_minutes=current_envelope.requested_duration_minutes,
         estimated_duration_seconds=current_envelope.requested_duration_minutes * 60,
-        exercise_prescriptions=source_proposal.exercise_prescriptions,
+        exercise_prescriptions=fallback_prescriptions,
         reason_codes=("PROVIDER_FAILURE",),
     )
     fallback_provider = _FallbackProvider(fallback)
@@ -241,7 +247,9 @@ def test_provider_failure_uses_validated_deterministic_fallback_without_coordina
     assert result.terminal_status_code is GraphTerminalStatusCode.COMPLETED
     assert result.fallback_used
     assert result.plan is not None
-    assert fallback_provider.calls == 1
+    # One deterministic call supplies Training's feasibility preflight; the
+    # second builds the actual fallback after the provider failure.
+    assert fallback_provider.calls == 2
     assert all(metric.role_code.value != "COORDINATOR" for metric in result.invocation_metrics)
     assert "provider-secret-response-sentinel" not in repr(result)
 

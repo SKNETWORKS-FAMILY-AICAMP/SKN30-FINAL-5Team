@@ -117,6 +117,12 @@ class AgentOutcome:
     failure_code: str | None = None
     telemetry: LlmInvocationTelemetry | None = None
 
+    # Why the agent declined, when it did. A rejected proposal is dropped, and
+    # the prompt asks the agent to name the condition in `reason_codes`, so
+    # dropping it with the proposal discards the one diagnostic that was
+    # requested. Never merged into the proposals the Coordinator sees.
+    decline_reason_codes: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class InvocationAudit:
@@ -129,6 +135,7 @@ class InvocationAudit:
     output_token_count: int | None = None
     provider_usage_present: bool = False
     failure_code: str | None = None
+    decline_reason_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,7 +148,7 @@ class V3GraphResult:
     used_fallback: bool
     repair_attempts: int
     round_one_proposals: tuple[SpecialistAgentProposal, ...] = ()
-    coordinator_initial_plan: PlanSpec | None = None
+    coordinator_agent_plan: PlanSpec | None = None
     coordinator_repair_plan: PlanSpec | None = None
     fallback_plan_spec: DeterministicFallbackPlanSpec | None = None
     integrity_validations: tuple[IntegrityValidation, ...] = ()
@@ -162,7 +169,7 @@ class V3GraphState(TypedDict, total=False):
     integrity_validation: IntegrityValidation
     integrity_validations: Annotated[tuple[IntegrityValidation, ...], operator.add]
     compiled_plans: Annotated[tuple[object, ...], operator.add]
-    coordinator_initial_plan: PlanSpec | None
+    coordinator_agent_plan: PlanSpec | None
     coordinator_repair_plan: PlanSpec | None
     repair_attempts: int
     failure_codes: tuple[str, ...]

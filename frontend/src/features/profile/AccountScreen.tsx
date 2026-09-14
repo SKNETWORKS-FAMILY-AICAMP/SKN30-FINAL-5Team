@@ -23,6 +23,7 @@ import {
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { colors, spacing } from '../../components/theme';
+import { ONBOARDING_COACHING_STYLE_OPTIONS } from '../onboarding/onboardingOptions';
 
 /**
  * The required pair cannot be withdrawn here: revoking them means the service
@@ -30,16 +31,10 @@ import { colors, spacing } from '../../components/theme';
  * not a toggle.
  */
 const OPTIONAL_CONSENTS = [
-  { key: 'wearable_integration', label: '웨어러블 연동' },
-  { key: 'calendar_integration', label: '캘린더 연동' },
   { key: 'marketing', label: '마케팅 정보 수신' },
 ] as const;
 
-const COACHING_STYLES = [
-  { code: 'SUPPORTIVE', label: '다정하게' },
-  { code: 'CONCISE', label: '간결하게' },
-  { code: 'ENERGETIC', label: '에너지 넘치게' },
-] as const;
+const COACHING_STYLES = ONBOARDING_COACHING_STYLE_OPTIONS;
 
 export function AccountScreen({
   api,
@@ -254,7 +249,7 @@ export function AccountScreen({
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>선택 동의 관리</Text>
           <Text style={styles.body}>
-            필수 동의는 서비스 이용에 필요해 여기서 바꿀 수 없어요.
+            필수 동의 항목은 여기에서 변경할 수 없어요.
           </Text>
           {OPTIONAL_CONSENTS.map(({ key, label }) => {
             const current = pendingConsents ?? storedConsents;

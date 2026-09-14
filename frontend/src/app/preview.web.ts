@@ -1,16 +1,21 @@
 export type PreviewMode =
   | 'account'
+  | 'app-status'
   | 'auth'
   | 'background_test'
+  | 'banana-catch'
   | 'calendar-report'
   | 'exercise-catalog'
   | 'gallery'
   | 'home'
   | 'home-map'
+  | 'kikki-merge'
+  | 'kikki-runner'
   | 'login'
   | 'loading'
   | 'mascot-house'
   | 'my-page'
+  | 'notifications'
   | 'onboarding'
   | 'profile'
   | 'signup'
@@ -21,6 +26,8 @@ export type PreviewMode =
   | 'weekly-report'
   | 'workout'
   | null;
+
+export type PreviewViewportMode = 'device' | null;
 
 export function getPreviewMode(): PreviewMode {
   if (!__DEV__ || typeof window === 'undefined') {
@@ -33,17 +40,22 @@ export function getPreviewMode(): PreviewMode {
 
   if (
     requestedPreview === 'account' ||
+    requestedPreview === 'app-status' ||
     requestedPreview === 'auth' ||
     requestedPreview === 'background_test' ||
+    requestedPreview === 'banana-catch' ||
     requestedPreview === 'calendar-report' ||
     requestedPreview === 'exercise-catalog' ||
     requestedPreview === 'gallery' ||
     requestedPreview === 'home' ||
     requestedPreview === 'home-map' ||
+    requestedPreview === 'kikki-merge' ||
+    requestedPreview === 'kikki-runner' ||
     requestedPreview === 'login' ||
     requestedPreview === 'loading' ||
     requestedPreview === 'mascot-house' ||
     requestedPreview === 'my-page' ||
+    requestedPreview === 'notifications' ||
     requestedPreview === 'onboarding' ||
     requestedPreview === 'profile' ||
     requestedPreview === 'signup' ||
@@ -58,4 +70,15 @@ export function getPreviewMode(): PreviewMode {
   }
 
   return null;
+}
+
+export function getPreviewViewportMode(): PreviewViewportMode {
+  if (!__DEV__ || typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('viewport') ===
+    'device'
+    ? 'device'
+    : null;
 }

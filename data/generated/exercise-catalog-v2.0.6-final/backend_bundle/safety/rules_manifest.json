@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "bytes": 1831639,
+      "path": "safety_rules.jsonl",
+      "records": 2131,
+      "sha256": "e422f06d21961501cbd8c22fd021594baaa30489f1630f632334399311e41414"
+    }
+  ],
+  "generator_version": "v2-0-6-normalized-backend-projection-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "rule_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "safety-rule-set-v2.0.6"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+    "catalog_version_code": "exercise-catalog-v2.0.6-final",
+    "policy_path": "data/normalized/exercise_safety_rule_policy.json",
+    "policy_sha256": "376e01a98449bdc9fd26c11492fb05753928cb0caf71c3a3ab4dbf8a510de165"
+  },
+  "summary": {
+    "exercise_records": 237,
+    "exercise_scope_rules": 2131,
+    "pattern_scope_rules": 0,
+    "rule_records": 2131
+  }
+}

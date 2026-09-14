@@ -12,6 +12,7 @@ import type {
   RoutineResponse,
   WeekResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import type { Api } from '../../api/endpoints';
@@ -149,12 +150,13 @@ const CONTEXT: DailyContextResponse = {
   local_date: LOCAL_DATE,
   context_version: 1,
   fatigue_level_code: 'MODERATE',
-  requested_duration_minutes: 40,
-  duration_adjustment_source_code: 'PROFILE',
+  available_time_minutes: 40,
   location_code: 'HOME',
   sleep_minutes: 420,
-  discomforts: [],
-  adverse_reaction_codes: [],
+  sleep_source_code: 'MANUAL',
+  pain_present: false,
+  red_flag_present: false,
+  pains: [],
   created_at: `${LOCAL_DATE}T08:00:00+09:00`,
   updated_at: `${LOCAL_DATE}T08:00:00+09:00`,
 };
@@ -301,14 +303,38 @@ function decision(adjusted: boolean): DecisionResponse {
         summary: '운동 목표와 희망 운동 시간을 유지했어요.',
       },
       {
+        agent_type_code: 'RECOVERY',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: adjusted
+          ? ['MODERATE_FATIGUE_DOWNSHIFT']
+          : ['RECOVERY_CONTEXT_REVIEWED'],
+        summary: adjusted
+          ? '오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'
+          : '오늘의 회복 상태에서 계획한 운동을 진행할 수 있어요.',
+      },
+      {
         agent_type_code: 'SAFETY',
         recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
         reason_codes: adjusted
           ? ['MODERATE_FATIGUE_DOWNSHIFT']
           : ['NO_SAFETY_SIGNAL_REPORTED'],
         summary: adjusted
-          ? '오늘의 피로도를 고려해 부담을 낮췄어요.'
-          : '현재 체크인에서 운동을 막는 위험 신호는 확인되지 않았어요.',
+          ? '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.'
+          : '제외한 운동 없이 계획한 강도 상한을 적용했어요.',
+      },
+      {
+        agent_type_code: 'FEASIBILITY',
+        recommendation_code: 'KEEP',
+        reason_codes: ['TIME_LOCATION_EQUIPMENT_MATCHED'],
+        summary: '희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.',
+      },
+      {
+        agent_type_code: 'COORDINATOR',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+        summary: adjusted
+          ? '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.'
+          : '모든 조건을 함께 확인해 계획한 루틴을 최종 추천했어요.',
       },
     ],
     safety_summary: {
@@ -335,27 +361,128 @@ function decision(adjusted: boolean): DecisionResponse {
   };
 }
 
+function sessionDetail(
+  status: WorkoutSessionDetailResponse['status_code'],
+): WorkoutSessionDetailResponse {
+  const completedCount = status === 'COMPLETED' ? 3 : 1;
+  return {
+    session_id: `session-${status.toLowerCase()}`,
+    local_date: LOCAL_DATE,
+    status_code: status,
+    completed_item_count: completedCount,
+    total_item_count: 3,
+    requested_duration_minutes: 40,
+    items: plan().items.map((item, index) => ({
+      plan_item_id: item.plan_item_id,
+      exercise_id: item.exercise_id,
+      exercise_name: item.exercise_name,
+      status_code: index < completedCount ? 'COMPLETED' : 'PENDING',
+      sets: item.sets,
+      reps: item.reps,
+      work_seconds_per_set: item.work_seconds,
+      completed_at:
+        index < completedCount ? `${LOCAL_DATE}T08:15:00+09:00` : null,
+    })),
+    completed_plan_item_ids: plan()
+      .items.slice(0, completedCount)
+      .map((item) => item.plan_item_id),
+    current_plan_item_id:
+      status === 'IN_PROGRESS' || status === 'PLANNED'
+        ? (plan().items[completedCount]?.plan_item_id ?? null)
+        : null,
+    feedback: null,
+    not_completed_reason_code: null,
+    started_at: `${LOCAL_DATE}T08:00:00+09:00`,
+    finished_at:
+      status === 'IN_PROGRESS' || status === 'PLANNED'
+        ? null
+        : `${LOCAL_DATE}T08:25:00+09:00`,
+  };
+}
+
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
+  if (state === 'routine-phases') {
+    const props = homePreviewProps('routine');
+    const base = decision(false);
+    const source = plan();
+    return {
+      ...props,
+      decision: {
+        ...base,
+        final_plan: {
+          ...source,
+          items: [
+            ...source.items.map((item, index) => ({
+              ...item,
+              phase_code: index === 0 ? ('WARMUP' as const) : ('MAIN' as const),
+            })),
+            {
+              ...source.items[0]!,
+              plan_item_id: 'phase-cooldown',
+              exercise_name: '마무리 스트레칭',
+              sequence: 4,
+              phase_code: 'COOLDOWN',
+              instruction_available: false,
+            },
+          ],
+        },
+      },
+    };
+  }
+
+  const showsRoutineLookup =
+    state === 'routine-lookup-loading' || state === 'routine-lookup-failed';
   const showsRoutine =
-    state === 'routine' || state === 'adjusted' || state === 'editing';
+    state === 'routine' ||
+    state === 'decision-recovered' ||
+    state === 'decision-retry' ||
+    state === 'adjusted' ||
+    state === 'editing' ||
+    state === 'session-active' ||
+    state === 'session-resumable' ||
+    state === 'session-safety-stopped' ||
+    state === 'session-completed';
   const showsGeneration =
     state === 'generating' || state === 'generating-final';
+  const decisionResponseLost = state === 'decision-retry';
 
   return {
     nickname: '헬끼',
     localDate: LOCAL_DATE,
-    status: 'ready',
-    routine: ROUTINE,
-    context: state === 'pre-checkin' ? null : CONTEXT,
+    status:
+      state === 'routine-lookup-loading'
+        ? 'loading'
+        : state === 'routine-lookup-failed'
+          ? 'error'
+          : 'ready',
+    routine: showsRoutineLookup ? null : ROUTINE,
+    context: state === 'pre-checkin' || showsRoutineLookup ? null : CONTEXT,
     decision: showsRoutine ? decision(state === 'adjusted') : null,
+    todaySession:
+      state === 'session-active' || state === 'session-resumable'
+        ? sessionDetail('IN_PROGRESS')
+        : state === 'session-safety-stopped'
+          ? sessionDetail('STOPPED_FOR_SAFETY')
+          : state === 'session-completed'
+            ? sessionDetail('COMPLETED')
+            : null,
+    localSessionState:
+      state === 'session-resumable' ? 'STOPPED_RESUMABLE' : 'ACTIVE',
     week: WEEK,
     sessions: SESSIONS,
     planRevision: null,
     restToday: state === 'rest',
-    defaultDurationMinutes: 40,
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
     busy: showsGeneration ? 'decision-generation' : null,
+    errorMessage:
+      state === 'routine-lookup-failed'
+        ? '운동 계획을 준비하지 못했어요.'
+        : undefined,
+    actionError: decisionResponseLost
+      ? '체크인은 저장됐지만 오늘 루틴 생성 결과를 확인하지 못했어요. 저장된 체크인으로 루틴 생성만 다시 시도할 수 있어요.'
+      : null,
+    onRetryDecision: decisionResponseLost ? () => undefined : undefined,
     routineLoadingPhaseCode:
       state === 'generating-final' ? 'FINAL_VALIDATION' : undefined,
     previewState: state,

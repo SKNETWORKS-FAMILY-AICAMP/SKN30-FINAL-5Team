@@ -26,7 +26,7 @@ Coordinator의 정의된 임무는 "세 proposal을 종합·선택해 하나의 
    (`STRUCTURED_PROPOSALS_INCOMPATIBLE`)는 계획 제안자가 하나가 되면 성립하지 않는다.
 2. **review는 안전 veto를 강제하던 지점이 아니다.** review는 Coordinator보다 **앞**에서 proposal을
    검사하므로 Coordinator의 출력을 막을 수 없다. "Coordinator 출력이 Safety veto를 덮을 수 없다"는
-   불변조건을 실제로 지키는 것은 `coordinator_initial → compile → validate` 경로의 integrity
+   불변조건을 실제로 지키는 것은 `coordinator_agent → compile → validate` 경로의 integrity
    validator다.
 3. **의견 불일치 판정이 사실상 항상 발생한다.** `STRUCTURED_PROPOSALS_INCOMPATIBLE`이
    `exercise_prescriptions` 튜플의 완전 일치를 요구한다. 세 Agent가 독립적으로 동일한 처방에

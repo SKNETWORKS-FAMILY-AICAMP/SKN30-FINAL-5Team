@@ -4,9 +4,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import (
+    ExerciseFittContext,
+    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
     RetrievalMetadata,
@@ -43,9 +44,22 @@ QUERY_HASH = "c" * 64
 VALIDATOR_VERSION = "v3-integrity-validator-v1"
 
 
-def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord:
+# The catalog approves each exercise for the phases it may serve, and the pool
+# snapshot carries that projection forward. These fixtures exercise duration
+# arithmetic rather than session shape, so they default to a record every phase
+# can use; the shape tests pass the narrower values they need.
+ALL_PHASES: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN")
+
+
+def reps_record(
+    exercise_id: UUID = REPS_EXERCISE,
+    phase_codes: tuple[str, ...] = ALL_PHASES,
+    family_code: str | None = None,
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
+        family_code=family_code,
         catalog_version="catalog-v3",
         content_version="content-v1",
         stable_code=f"reps-exercise-{exercise_id.int}",
@@ -57,6 +71,24 @@ def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord
         default_seconds_per_rep=4,
         default_rest_seconds=30,
         default_transition_seconds=15,
+        fitt_context=ExerciseFittContext(
+            source_code="fitt-test-source-v1",
+            policy_version="fitt-test-policy-v1",
+            review_status_code="DOMAIN_APPROVED",
+            template_id="FITT-COMPOUND-PUSH-V1",
+            frequency_code="PER_SESSION",
+            intensity_code="MODERATE",
+            time_mode_code="REPS",
+            type_code="STRENGTH",
+            volume=ExerciseFittVolumeRange(
+                min_sets=2,
+                max_sets=3,
+                min_reps=8,
+                max_reps=12,
+                default_sets=3,
+                default_reps=8,
+            ),
+        ),
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("BODYWEIGHT",),
@@ -67,8 +99,12 @@ def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord
     )
 
 
-def timed_record(exercise_id: UUID = TIMED_EXERCISE) -> ExercisePoolExerciseRecord:
+def timed_record(
+    exercise_id: UUID = TIMED_EXERCISE,
+    phase_codes: tuple[str, ...] = ALL_PHASES,
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
         content_version="content-v1",
@@ -81,6 +117,16 @@ def timed_record(exercise_id: UUID = TIMED_EXERCISE) -> ExercisePoolExerciseReco
         default_work_seconds=45,
         default_rest_seconds=20,
         default_transition_seconds=10,
+        fitt_context=ExerciseFittContext(
+            source_code="fitt-test-source-v1",
+            policy_version="fitt-test-policy-v1",
+            review_status_code="DOMAIN_APPROVED",
+            template_id="FITT-MOBILITY-V1",
+            frequency_code="PER_SESSION",
+            intensity_code="LOW",
+            time_mode_code="DURATION",
+            type_code="MOBILITY",
+        ),
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("MAT",),
@@ -189,6 +235,7 @@ def _envelope(
     # Production sends (): the 2026-08-27 approval dropped equipment from
     # onboarding, so a real user has no UserEquipment rows.
     allowed_equipment_codes: tuple[str, ...] = ("BODYWEIGHT",),
+    maximum_sets_per_exercise: int | None = 3,
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
         requested_duration_minutes=requested_duration_minutes,
@@ -201,7 +248,7 @@ def _envelope(
             policy_version="recovery-policy-v1",
             allowed_intensity_codes=("LOW", "MODERATE"),
             allowed_load_codes=("BODYWEIGHT",),
-            maximum_sets_per_exercise=3,
+            maximum_sets_per_exercise=maximum_sets_per_exercise,
             maximum_repetitions_per_set=12,
             maximum_work_seconds_per_set=60,
             minimum_rest_seconds_between_sets=30,
@@ -253,21 +300,36 @@ def _fallback_spec(
     )
 
 
-def test_compilation_rejects_a_plan_that_cannot_fill_the_requested_duration() -> None:
-    # The reported defect: a plan declaring the requested duration while
-    # prescribing a fraction of it. Compilation now measures the prescriptions,
-    # so the claim can no longer stand in for the work.
+def test_compilation_exposes_a_duration_mismatch_to_the_integrity_validator() -> None:
+    # Compilation must measure rather than trust the plan's duration claim, but
+    # the downstream integrity validator owns rejection and bounded repair.
     envelope = _envelope(requested_duration_minutes=30)
     pool = _pool(envelope)
     spec = _fallback_spec(envelope, pool, (reps_prescription(),))
 
-    with pytest.raises(ValidationError):
-        compile_plan(
-            spec,
-            envelope=envelope,
-            pool=pool,
-            compiler_version="v3-plan-compiler-v1",
-        )
+    compiled = compile_plan(
+        spec,
+        envelope=envelope,
+        pool=pool,
+        compiler_version="v3-plan-compiler-v1",
+    )
+
+    result = validate_plan_integrity(
+        compiled,
+        envelope=envelope,
+        pool=pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=IntegrityValidationContext(),
+    )
+
+    assert compiled.estimated_duration_seconds == 195
+    violation = next(
+        item
+        for item in result.violations
+        if item.code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+    )
+    assert violation.repairable
 
 
 def test_compiled_duration_is_the_measured_sum_of_its_prescriptions() -> None:
@@ -303,8 +365,7 @@ class _StubCompiledExercise:
 class _StubCompiledPlan:
     """A compiled plan whose measured duration can be set independently.
 
-    CompiledPlan itself now rejects an out-of-window duration, so reaching the
-    validator's own duration rule needs a stand-in that skips that constructor.
+    Used to exercise validator boundary values independently from compilation.
     """
 
     def __init__(

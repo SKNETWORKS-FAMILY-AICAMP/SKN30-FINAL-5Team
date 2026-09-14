@@ -1,5 +1,8 @@
 # TASK-DATA-003: MVP 운동 대체 관계 DRAFT 생성
 
+> 상태: `SUPERSEDED` — 통증 시 Alternative 자동 교체 정책은 2026-09-02 폐지됐다. 이 문서는
+> 당시의 DRAFT 산출물·감사 근거만 보존하며 현재 Safety 또는 추천 구현의 기준이 아니다.
+
 - Primary owner: 개발 리드·백엔드/데이터 리드
 - 관련 문서: `docs/DATA_MODEL.md` 5.7~5.8, `docs/DOMAIN_RULES.md` 4.3,
   `docs/MVP_SCOPE.md` 11.4, `data/AGENTS.md`

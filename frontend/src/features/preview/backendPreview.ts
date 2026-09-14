@@ -1,6 +1,7 @@
 import type { Api } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import type {
+  BananaSpendRequest,
   ConsentValues,
   RoutineResponse,
   SafetyEventResponse,
@@ -33,7 +34,7 @@ export type SessionPreviewState =
 export const SESSION_RESULT_PREVIEW_OPTIONS = [
   { id: 'completed', label: '완료' },
   { id: 'partial', label: '일부 완료' },
-  { id: 'not-completed', label: '미수행' },
+  { id: 'not-completed', label: '휴식' },
   { id: 'safety-stop', label: '안전 중단' },
 ] as const;
 
@@ -174,13 +175,48 @@ const PREVIEW_REPORT: WeeklyReportResponse = {
     completed: 3,
     partial: 1,
     not_completed: 0,
-    stopped_for_safety: 0,
+    stopped_for_safety: 1,
+    safety_stopped_session_count: 1,
   },
+  total_workout_seconds: 4860,
+  total_estimated_calories_burned: 312.5,
+  average_intensity_code: 'MODERATE',
+  most_performed_training_type_code: 'STRENGTH',
+  most_performed_exercise_name: '스쿼트',
+  completed_count_change: 1,
+  highlight_codes: [
+    'COMPLETED_SESSION_RECORDED',
+    'ADJUSTED_PLAN_PROGRESS_RECORDED',
+  ],
+  improvement_codes: ['SAFETY_STOPPED_SESSION_RECORDED'],
+  routine_difficulty_code: 'APPROPRIATE',
+  condition_summary: {
+    checkin_count: 4,
+    fatigue_level_counts: { HIGH: 1, LOW: 1, MODERATE: 2 },
+    fatigue_change_code: 'IMPROVED',
+    pain_checkin_count: 1,
+    workout_pain_or_safety_stop_count: 1,
+  },
+  outcome_reason_summary: {
+    partial: { TIME_SHORTAGE: 1 },
+    stopped_for_safety: { PAIN_OR_ABNORMAL_RESPONSE: 1 },
+  },
+  recommendation_action_counts: { DOWNSHIFT: 2, KEEP: 2 },
+  adjustment_summary:
+    '피로와 통증 신호를 확인한 날에는 실제 추천의 부담을 낮췄어요.',
+  next_week_recommendation: {
+    intensity: '잘 맞았던 강도를 기준으로 조정할게요.',
+    volume: '끝까지 수행 가능한 운동량을 우선할게요.',
+    duration: '요청한 운동 시간 안에서 구성할게요.',
+    pain_response: '통증 신호에는 안전 기준을 우선할게요.',
+  },
+  coach_message:
+    '이번 주에는 몸 상태에 맞춰 안전하게 조절했어요. 다음 주에도 잘 맞았던 흐름을 이어갈게요.',
   weekday_failure_summary: {
     WEDNESDAY: {
       partial: 1,
       not_completed: 0,
-      stopped_for_safety: 0,
+      stopped_for_safety: 1,
     },
   },
   pattern_summary: {
@@ -228,6 +264,8 @@ export function createHousePreviewApi(state: HousePreviewState): Api {
           previewHouseSession('house-session-3', '2026-08-22', 'COMPLETED'),
         ]
       : [];
+  let bananaBalance = state === 'loaded' ? 120 : 45;
+  let dailyRewardClaimed = false;
 
   return {
     async getWeek() {
@@ -238,6 +276,75 @@ export function createHousePreviewApi(state: HousePreviewState): Api {
     },
     async listWorkoutSessions() {
       return { items: sessions, next_cursor: null };
+    },
+    async getRewards() {
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: !dailyRewardClaimed,
+          is_claimed: dailyRewardClaimed,
+          claimed_at: dailyRewardClaimed ? '2026-08-22T10:00:00+09:00' : null,
+        },
+      };
+    },
+    async claimDailyReward() {
+      if (!dailyRewardClaimed) bananaBalance += 15;
+      dailyRewardClaimed = true;
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: false,
+          is_claimed: true,
+          claimed_at: '2026-08-22T10:00:00+09:00',
+        },
+        transaction: {
+          transaction_id: 'preview-daily-reward',
+          transaction_type: 'DAILY_REWARD' as const,
+          amount: 15,
+          balance_after: bananaBalance,
+          created_at: '2026-08-22T10:00:00+09:00',
+        },
+      };
+    },
+    async spendBananas(body: BananaSpendRequest) {
+      const costs: Record<string, number> = {
+        yoga_mat: 20,
+        dumbbell: 20,
+        plant: 25,
+        cushion: 25,
+        lamp: 30,
+        star_frame: 35,
+        window: 35,
+      };
+      const cost =
+        body.action_code === 'FEED_MASCOT'
+          ? 10
+          : (costs[body.house_item_code ?? ''] ?? 0);
+      bananaBalance = Math.max(0, bananaBalance - cost);
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: !dailyRewardClaimed,
+          is_claimed: dailyRewardClaimed,
+          claimed_at: dailyRewardClaimed ? '2026-08-22T10:00:00+09:00' : null,
+        },
+        transaction: {
+          transaction_id: `preview-${body.action_code}`,
+          transaction_type:
+            body.action_code === 'FEED_MASCOT'
+              ? ('HOUSE_FEED' as const)
+              : ('HOUSE_ITEM_PURCHASE' as const),
+          amount: -cost,
+          balance_after: bananaBalance,
+          created_at: '2026-08-22T10:00:00+09:00',
+        },
+      };
     },
   } as unknown as Api;
 }
@@ -430,6 +537,24 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
         alternative_set_version: hasVariant ? 'alternative-set-v2.0.1' : null,
       };
     },
+    async stopSession(
+      _sessionId: string,
+      _stoppedAt: string,
+      _reasonCode: NotCompletedReasonCode,
+    ) {
+      // Deliberately leaves `sessionStatus` alone: a resumable stop does not end
+      // the session, which is the whole point of it.
+      return {
+        session_id: 'session-preview',
+        completion_code: null,
+        execution_state_code: 'STOPPED_RESUMABLE' as const,
+        stop_reason_code: 'RESUME_LATER' as const,
+        is_resumable: true,
+        accumulated_progress_seconds: 0,
+        accumulated_rest_seconds: 0,
+        accumulated_paused_seconds: 0,
+      };
+    },
     async finishSession(
       _sessionId: string,
       finishedAt: string,
@@ -441,7 +566,7 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
           kind: 'conflict',
           code: 'NOT_COMPLETED_REASON_REQUIRED',
           status: 409,
-          message: '완료한 블록이 없어 미수행 이유가 필요해요.',
+          message: '완료한 블록이 없어 휴식 이유가 필요해요.',
         });
       }
       sessionStatus =
@@ -483,44 +608,24 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
     async reportSafetyEvent(
       _sessionId: string,
       body: {
-        discomforts: { severity_code: string }[];
-        adverse_reaction_codes: string[];
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE';
       },
     ) {
-      const hasAdverseReaction = body.adverse_reaction_codes.length > 0;
-      const hasSevereDiscomfort = body.discomforts.some(
-        (item) => item.severity_code === 'SEVERE',
-      );
-      if (hasAdverseReaction || hasSevereDiscomfort) {
-        sessionStatus = 'STOPPED_FOR_SAFETY';
-        sessionEndedAt = new Date().toISOString();
-        return {
-          event_id: 'safety-event-preview',
-          instruction_code: hasAdverseReaction
-            ? ('STOP_AND_SEEK_HELP' as const)
-            : ('STOP_SESSION' as const),
-          resulting_action_code: hasAdverseReaction
-            ? ('STOP_AND_SEEK_HELP' as const)
-            : ('REST' as const),
-          session_status_code: 'STOPPED_FOR_SAFETY' as const,
-          guidance_code: hasAdverseReaction
-            ? 'SERIOUS_ADVERSE_REACTION_STOP'
-            : 'SEVERE_OR_ACUTE_STOP',
-          guidance: hasAdverseReaction
-            ? '운동을 중단하고 필요하면 의료 도움을 받으세요.'
-            : '운동을 중단하고 상태를 확인해주세요.',
-          pressure_notifications_allowed: false,
-        };
+      if (body.stop_reason_code !== 'PAIN_OR_ABNORMAL_RESPONSE') {
+        throw previewError('지원하지 않는 안전 중단 사유입니다.');
       }
+      sessionStatus = 'STOPPED_FOR_SAFETY';
+      sessionEndedAt = new Date().toISOString();
       return {
         event_id: 'safety-event-preview',
-        instruction_code: 'SHOW_CAUTION' as const,
-        resulting_action_code: null,
-        session_status_code: 'IN_PROGRESS' as const,
-        guidance_code: 'MILD_DISCOMFORT_CAUTION',
-        guidance:
-          '불편한 부위에 부담이 가는 동작은 피하고, 불편함이 커지면 운동을 중단해주세요.',
-        pressure_notifications_allowed: true,
+        result_code: 'SESSION_STOPPED' as const,
+        execution_state_code: 'STOPPED_SAFETY' as const,
+        completion_code:
+          completedCount() > 0
+            ? ('PARTIAL' as const)
+            : ('NOT_COMPLETED' as const),
+        is_resumable: false as const,
+        guidance: '운동을 중단하고 상태를 확인해주세요.',
       };
     },
     async submitFeedback(
@@ -675,12 +780,11 @@ function notCompletedOutcome(): SessionNotCompletedResponse {
 function safetyStopOutcome(): SafetyEventResponse {
   return {
     event_id: 'safety-event-preview',
-    instruction_code: 'STOP_SESSION',
-    resulting_action_code: 'REST',
-    session_status_code: 'STOPPED_FOR_SAFETY',
-    guidance_code: 'STOP_FOR_SAFETY',
+    result_code: 'SESSION_STOPPED',
+    execution_state_code: 'STOPPED_SAFETY',
+    completion_code: 'PARTIAL',
+    is_resumable: false,
     guidance: '운동을 중단하고 상태를 확인해주세요.',
-    pressure_notifications_allowed: false,
   };
 }
 

@@ -1,0 +1,64 @@
+{
+  "equipment_updates": [],
+  "gym_home_count": 129,
+  "gym_only_count": 108,
+  "home_eligible_equipment_codes": [
+    "BENCH",
+    "BODYWEIGHT",
+    "CHAIR",
+    "DUMBBELL",
+    "FOAM_ROLLER",
+    "HOUSEHOLD_WEIGHT",
+    "MAT",
+    "RESISTANCE_BAND"
+  ],
+  "input_record_count": 237,
+  "location_updates": [],
+  "name_en_version_suffix_updates": [],
+  "name_ko_updates": [],
+  "production_eligible": false,
+  "row_187_source_identity": "1259",
+  "stable_code_updates": [
+    {
+      "after": "roller_back_stretch",
+      "before": "roller_back_stretch_mobility_stretch_foam_roller",
+      "source_identity": "2208"
+    },
+    {
+      "after": "roller_hip_stretch",
+      "before": "roller_hip_stretch_mobility_stretch_foam_roller",
+      "source_identity": "2202"
+    },
+    {
+      "after": "foam_roller_hamstring_stretch",
+      "before": "roller_seated_shoulder_flexor_depresor_retractor",
+      "source_identity": "2203"
+    },
+    {
+      "after": "foam_roller_thigh_stretch",
+      "before": "roller_body_saw",
+      "source_identity": "2204"
+    },
+    {
+      "after": "foam_roller_outer_thigh_stretch_2205",
+      "before": "roller_hip_lat_stretch",
+      "source_identity": "2205"
+    },
+    {
+      "after": "foam_roller_calf_stretch_2206",
+      "before": "roller_reverse_crunch",
+      "source_identity": "2206"
+    },
+    {
+      "after": "foam_roller_outer_thigh_stretch_2207",
+      "before": "roller_side_lat_stretch",
+      "source_identity": "2207"
+    },
+    {
+      "after": "foam_roller_calf_stretch_2209",
+      "before": "roller_seated_single_leg_shoulder_flexor_depresor_retractor",
+      "source_identity": "2209"
+    }
+  ],
+  "status": "DRAFT"
+}

@@ -88,7 +88,7 @@ BACKUP_EXPIRY_VERIFICATION
 
 - identity, profile, 암호화 생년월일, 동의 현재 상태와 event
 - equipment, attention area, preference, routine, daily context
-- wearable·calendar 연결과 사용자별 integration metadata
+- wearable 연결과 사용자별 integration metadata
 - decision run, proposal, candidate, safety review, option, explanation
 - workout, timer, safety event, feedback, weekly report와 plan revision
 - mutation idempotency response, 사용자별 cache·work payload·snapshot

@@ -149,11 +149,11 @@ class ProviderPolicy:
 PROVIDER_POLICIES = {
     AuthProviderCode.GOOGLE: ProviderPolicy(
         provider_code=AuthProviderCode.GOOGLE,
-        authentication_path_code=AuthenticationPathCode.FIREBASE_NATIVE,
-        allowed_scopes=frozenset(),
-        state_mode_code=SecurityControlModeCode.FIREBASE_SDK_MANAGED,
-        nonce_mode_code=SecurityControlModeCode.FIREBASE_SDK_MANAGED,
-        pkce_mode_code=SecurityControlModeCode.FIREBASE_SDK_MANAGED,
+        authentication_path_code=AuthenticationPathCode.BACKEND_AUTHORIZATION_CODE,
+        allowed_scopes=frozenset({"openid"}),
+        state_mode_code=SecurityControlModeCode.REQUIRED,
+        nonce_mode_code=SecurityControlModeCode.REQUIRED,
+        pkce_mode_code=SecurityControlModeCode.REQUIRED,
     ),
     AuthProviderCode.KAKAO: ProviderPolicy(
         provider_code=AuthProviderCode.KAKAO,
@@ -369,6 +369,10 @@ class ProviderTokenEvidence:
     token_not_expired: bool
     provider_subject: str | None
     nonce_matches: bool | None
+    # Ephemeral claim passed to the application service for a constant-time
+    # comparison against the consumed authorization-flow nonce digest. It is
+    # deliberately never persisted or logged.
+    token_nonce_claim: str | None = dataclass_field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

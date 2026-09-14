@@ -1,0 +1,27 @@
+{
+  "artifact_version": "gymvisual-cross-source-media-v0.1.0",
+  "decision": "REVIEW_ONLY_NO_AUTOMATIC_BINDING",
+  "inputs": [
+    {
+      "path": "data/generated/exercise-catalog-v2.0.4-final/backend_bundle/catalog/exercises.jsonl",
+      "sha256": "f409f9e5d5932907a53a1a504f3dcf2c1a255f4f4461a5ab3a35fd2977a8f631"
+    },
+    {
+      "path": "data/generated/exercise-catalog-v2.0.4-final/backend_bundle/catalog/input/representative_exercises.csv",
+      "sha256": "5cfdafc73dc5f7101269889955b69348116b27ba5b3902043a3eb897e8e66db1"
+    },
+    {
+      "path": "data/raw/gym_visual/exercises.json",
+      "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+    }
+  ],
+  "output": {
+    "candidate_rows": 8,
+    "catalog_exercises": 4,
+    "exact_match_candidates": 2,
+    "path": "data/validation/review_batches/gymvisual-cross-source-media-v0.1.0/cross_source_media_candidates.csv",
+    "review_required_candidates": 6,
+    "sha256": "b17b20c80a5f48c2375596b5ff73c60dd83d7fd54fe5e570c214aae708544b64"
+  },
+  "production_eligible": false
+}

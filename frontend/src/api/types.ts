@@ -28,6 +28,25 @@ export type MeaningfulDifferenceCode =
   | 'EXERCISE_ORDER_CHANGED'
   | 'ROUTINE_STRUCTURE_CHANGED';
 
+export type BodyFocusCode =
+  | 'UPPER_BODY'
+  | 'LOWER_BODY'
+  | 'CHEST'
+  | 'BACK'
+  | 'SHOULDERS'
+  | 'BICEPS'
+  | 'TRICEPS'
+  | 'FOREARMS'
+  | 'GLUTES'
+  | 'QUADRICEPS'
+  | 'HAMSTRINGS'
+  | 'CALVES'
+  | 'ADDUCTORS'
+  | 'CORE'
+  | 'FULL_BODY'
+  | 'CARDIO'
+  | 'MOBILITY';
+
 export type SexCode = 'FEMALE' | 'MALE' | 'PREFER_NOT_TO_SAY';
 
 export type SessionStatusCode =
@@ -38,8 +57,8 @@ export type SessionStatusCode =
   | 'NOT_COMPLETED'
   | 'STOPPED_FOR_SAFETY';
 
-export type SafetyInstructionCode =
-  'SHOW_CAUTION' | 'STOP_SESSION' | 'STOP_AND_SEEK_HELP';
+/** Reordering is allowed inside one phase only (ADR-0018 D5). */
+export type PlanPhaseCode = 'WARMUP' | 'MAIN' | 'COOLDOWN';
 
 export type NotCompletedReasonCode =
   | 'TIME_SHORTAGE'
@@ -53,10 +72,23 @@ export type NotCompletedReasonCode =
   | 'LOW_INTEREST'
   | 'LOW_MOTIVATION';
 
+export type PainAreaInput = {
+  body_area_code: string;
+  intensity_score: number;
+};
+
 export type MeProfile = {
   nickname: string;
   profile_image_url?: string | null;
   age: number | null;
+  /**
+   * The stored birthdate, returned to its own owner so the settings editor can
+   * show what the user saved (ADR-0020). Null when the deployment cannot
+   * decrypt it, which is not an error: the profile still loads.
+   */
+  date_of_birth?: string | null;
+  /** The stored weight; null on a profile written before it was collected. */
+  weight_kg?: number | null;
   primary_goal_code: string;
   experience_level_code: string;
   timezone: string;
@@ -66,6 +98,14 @@ export type MeProfile = {
   desired_weekly_workout_count: number;
   coaching_style_code: string;
   attention_area_codes: string[];
+  /** Present only after the additive pain-intensity profile contract is available. */
+  pain_areas?: PainAreaInput[];
+  /**
+   * Daily Check-in defaults; never treat these as submitted daily pain. Null
+   * means the profile still uses legacy attention_area_codes, while [] means
+   * the user has explicitly stored no persistent pain.
+   */
+  persistent_pains?: PainAreaInput[] | null;
   preferred_exercise_type_codes: string[];
   profile_version: number;
   created_at: string;
@@ -86,7 +126,6 @@ export type ConsentValues = {
   general_personal_data: boolean;
   sensitive_data: boolean;
   wearable_integration: boolean;
-  calendar_integration: boolean;
   marketing: boolean;
 };
 
@@ -95,6 +134,20 @@ export type ConsentState = {
   granted: boolean;
   policy_version: string;
   updated_at: string;
+};
+
+/**
+ * What the deployment requires before onboarding may be submitted.
+ *
+ * The terms revision is decided by the server, not by a build-time constant in
+ * the client: a stored agreement has to name the revision the user was actually
+ * shown, and the oldest installed build must not get to decide that.
+ */
+export type OnboardingRequirementsResponse = {
+  terms_version: string;
+  consent_policy_version: string;
+  required_consent_type_codes: string[];
+  optional_consent_type_codes: string[];
 };
 
 export type ConsentResponse = {
@@ -109,6 +162,8 @@ export type ProfileSettingsUpdateRequest = {
   preferred_location_code?: string;
   available_location_codes?: string[];
   attention_area_codes?: string[];
+  /** Daily Check-in defaults; never send with attention_area_codes. */
+  persistent_pains?: PainAreaInput[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
   experience_level_code?: string;
@@ -144,19 +199,14 @@ export type ProfileImageMutationResponse = {
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
-  sex_code: SexCode;
-  height_cm: number;
+  medical_exercise_restriction: boolean;
   weight_kg: number;
   primary_goal_code: string;
   experience_level_code: string;
+  weekly_target_sessions: number;
   timezone: string;
-  preferred_location_code: string;
-  available_location_codes: string[];
-  default_requested_duration_minutes: number;
-  desired_weekly_workout_count: number;
-  attention_area_codes: string[];
-  preferred_exercise_type_codes?: string[];
-  coaching_style_code?: string;
+  terms_version: string;
+  persistent_pains: PainAreaInput[];
   consents: ConsentValues;
 };
 
@@ -192,6 +242,10 @@ export type RoutineDay = {
   title: string;
   training_type_code: string;
   body_focus_code: string | null;
+  /** Server-owned display name; absent on responses created before BM-5. */
+  routine_name?: string | null;
+  routine_name_reason_codes?: string[] | null;
+  routine_naming_rule_version?: string | null;
   requested_duration_minutes: number;
   estimated_duration_seconds: number;
   estimated_calories_burned: number | null;
@@ -221,25 +275,44 @@ export type AvailabilitySlotInput = {
 
 export type DailyContextRequest = {
   fatigue_level_code: FatigueLevelCode;
-  requested_duration_minutes: number;
-  duration_adjustment_source_code: 'PROFILE' | 'USER_OVERRIDE';
+  available_time_minutes: number;
   location_code: string;
   sleep_minutes?: number | null;
-  fasting_state_code?: string | null;
-  hydration_state_code?: string | null;
-  discomforts: DiscomfortInput[];
-  adverse_reaction_codes: string[];
-  /** `null`/omitted means unanswered; `[]` means explicitly unavailable. */
-  available_slots?: AvailabilitySlotInput[] | null;
+  sleep_source_code?: 'MANUAL' | 'WEARABLE' | null;
+  pain_present: boolean;
+  red_flag_present: boolean;
+  pains: PainAreaInput[];
 };
 
 export type DailyContextResponse = DailyContextRequest & {
   id: string;
   local_date: string;
-  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
   context_version: number;
   created_at: string;
   updated_at: string;
+  /** Transitional read compatibility for screens that still render archived contexts. */
+  requested_duration_minutes?: number;
+  duration_adjustment_source_code?: 'PROFILE' | 'USER_OVERRIDE';
+  discomforts?: DiscomfortInput[];
+  adverse_reaction_codes?: string[];
+  available_slots?: AvailabilitySlotInput[] | null;
+  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
+};
+
+/**
+ * Editable defaults for a check-in the user has not submitted yet. The server
+ * owns which pains are pre-filled, so the client must not derive them from the
+ * profile while this is available. They are display defaults, never submitted
+ * daily pain.
+ */
+export type DailyContextDefaultsResponse = {
+  local_date: string;
+  pains: PainAreaInput[];
+  /** Server-owned choices for the daily check-in; legacy responses may omit it. */
+  selectable_location_codes?: string[];
+  /** Guidance only. The user's requested duration may exceed this value. */
+  recommended_duration_minutes?: number;
+  duration_recommendation_policy_version?: string;
 };
 
 export type WorkoutPlanItem = {
@@ -247,10 +320,15 @@ export type WorkoutPlanItem = {
   exercise_id: string;
   exercise_name: string;
   sequence: number;
+  /** Absent on legacy plans, which the server treated as MAIN. */
+  phase_code?: PlanPhaseCode;
   tier_code: string;
   sets: number;
   reps: number | null;
+  /** The item total across every set, not one set's work. */
   work_seconds: number;
+  /** One set's work. Absent on plans stored before the server carried it. */
+  work_seconds_per_set?: number | null;
   rest_seconds: number;
   transition_seconds: number;
   estimated_item_seconds: number;
@@ -261,9 +339,15 @@ export type WorkoutPlanItem = {
 
 export type WorkoutPlan = {
   plan_id: string;
+  /** Absent on historical plans created before decision-plan editing shipped. */
+  plan_revision?: number;
   action_code: ActionCode;
   training_type_code: string;
   body_focus_code: string | null;
+  /** Server-owned display name; absent on historical and legacy plans. */
+  routine_name?: string | null;
+  routine_name_reason_codes?: string[] | null;
+  routine_naming_rule_version?: string | null;
   requested_duration_minutes: number;
   estimated_duration_seconds: number;
   estimated_calories_burned: number | null;
@@ -289,15 +373,18 @@ export type Guidance = {
   tone_code: ToneCode;
 };
 
+export type AgentTypeCode =
+  'TRAINING' | 'RECOVERY' | 'SAFETY' | 'FEASIBILITY' | 'COORDINATOR';
+
 export type AgentSummary = {
-  agent_type_code: string;
-  recommendation_code: string | null;
+  agent_type_code: AgentTypeCode;
+  recommendation_code: ActionCode | null;
   reason_codes: string[];
   summary: string;
 };
 
 export type SafetySummary = {
-  safety_status_code: string;
+  safety_status_code: SafetyStatusCode;
   vetoed: boolean;
   reason_codes: string[];
   summary: string;
@@ -327,6 +414,51 @@ export type DecisionResponse = {
   regeneration_sequence?: RegenerationSequence | null;
   meaningful_difference_codes?: MeaningfulDifferenceCode[] | null;
   created_at: string;
+};
+
+/**
+ * A consistent snapshot used to restore Home after a client restart.
+ * `final_plan` mirrors the returned decision's plan and `workout_session`, when
+ * present, is already scoped by the server to that exact plan.
+ */
+export type HomeStateResponse = {
+  local_date: string;
+  decision: DecisionResponse | null;
+  final_plan: WorkoutPlan | null;
+  workout_session: WorkoutSessionDetailResponse | null;
+};
+
+export type PlanItemPrescriptionEdit = {
+  plan_item_id: string;
+  sets: number;
+  reps: number | null;
+  /** One set's work, for a duration-based item. Absent means "leave it alone". */
+  workSecondsPerSet?: number | null;
+};
+
+export type PlanItemSetRepetitionRequest = {
+  expected_plan_id: string;
+  expected_plan_revision: number;
+  sets: number;
+  reps: number | null;
+  /**
+   * One set's work, for a duration-based item. The server rejects it on a
+   * repetition-based item, whose per-set work comes from reps and the catalog.
+   */
+  work_seconds_per_set?: number | null;
+};
+
+export type PlanItemOrderRequest = {
+  expected_plan_id: string;
+  expected_plan_revision: number;
+  /** All movable items; completed session items are deliberately omitted. */
+  ordered_plan_item_ids: string[];
+};
+
+export type PlanRevisionResponse = {
+  decision_id: string;
+  plan_revision: number;
+  final_plan: WorkoutPlan;
 };
 
 export type DecisionRegenerationRequest = {
@@ -403,12 +535,26 @@ export type WorkoutAdditionalActivityResponse = {
 
 export type SafetyEventResponse = {
   event_id: string;
-  instruction_code: SafetyInstructionCode;
-  resulting_action_code: 'REST' | 'STOP_AND_SEEK_HELP' | null;
-  session_status_code: 'IN_PROGRESS' | 'STOPPED_FOR_SAFETY';
-  guidance_code: string;
+  result_code: 'SESSION_STOPPED' | 'STOP_AND_SEEK_HELP';
+  execution_state_code: 'STOPPED_SAFETY';
+  completion_code: 'PARTIAL' | 'NOT_COMPLETED';
+  is_resumable: false;
   guidance: string;
-  pressure_notifications_allowed: boolean;
+};
+
+export type SessionStopResponse = {
+  session_id: string;
+  completion_code: 'PARTIAL' | 'NOT_COMPLETED' | null;
+  execution_state_code: 'STOPPED_RESUMABLE' | 'STOPPED_SAFETY';
+  stop_reason_code:
+    | 'HIGH_FATIGUE'
+    | 'TIME_SHORTAGE'
+    | 'RESUME_LATER'
+    | 'PAIN_OR_ABNORMAL_RESPONSE';
+  is_resumable: boolean;
+  accumulated_progress_seconds: number;
+  accumulated_rest_seconds: number;
+  accumulated_paused_seconds: number;
 };
 
 export type SessionFinishResponse = {
@@ -447,7 +593,11 @@ export type WorkoutFeedbackSummary = {
 export type WorkoutFeedbackResponse = {
   session_id: string;
   session_status_code:
-    'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED' | 'STOPPED_FOR_SAFETY';
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'PARTIAL'
+    | 'NOT_COMPLETED'
+    | 'STOPPED_FOR_SAFETY';
   created_at: string;
   guidance_code: string | null;
   guidance: string | null;
@@ -462,6 +612,8 @@ export type WorkoutSessionDetailResponse = {
   total_item_count: number;
   requested_duration_minutes: number;
   items: WorkoutSessionItemResult[];
+  completed_plan_item_ids: string[];
+  current_plan_item_id: string | null;
   feedback: WorkoutFeedbackSummary | null;
   not_completed_reason_code: string | null;
   started_at: string | null;
@@ -473,6 +625,8 @@ export type ExerciseListItem = {
   name: string;
   training_type_code: string;
   difficulty_code: string;
+  /** Catalog-owned representative focus; legacy responses may omit it. */
+  body_focus_code?: BodyFocusCode | null;
   primary_body_area_codes: string[];
   required_equipment_codes: string[];
   media_asset_key: string | null;
@@ -488,14 +642,36 @@ export type ExerciseDetailResponse = {
   exercise_id: string;
   exercise_name: string;
   training_type_code: string;
+  /** Catalog-owned representative focus; legacy responses may omit it. */
+  body_focus_code?: BodyFocusCode | null;
   primary_body_area_codes: string[];
   instruction_summary: string;
   form_cues: string[];
+  /** Server-separated reviewed steps; legacy responses may omit this field. */
+  instruction_steps?: string[] | null;
+  /** Reviewed form cues plus applicable equipment cautions. */
+  cautions?: string[] | null;
   media_asset_key: string | null;
-  /** Short-lived URL resolved by the backend; absent until the backend PR lands. */
+  /** Short-lived URL resolved by the backend when approved media is available. */
   media_url?: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
+  household_equipment_guides?: HouseholdEquipmentGuide[] | null;
+  gym_equipment_starting_guides?: GymEquipmentStartingGuide[] | null;
+};
+
+export type HouseholdEquipmentGuide = {
+  equipment_code: string;
+  proposal_ko: string;
+  examples_ko: string[];
+  cautions_ko: string[];
+};
+
+export type GymEquipmentStartingGuide = {
+  equipment_code: string;
+  proposal_ko: string;
+  examples_ko: string[];
+  cautions_ko: string[];
 };
 
 export type ExerciseVariantItem = {
@@ -514,6 +690,99 @@ export type ExerciseVariantsResponse = {
   items: ExerciseVariantItem[];
   catalog_version: string;
   alternative_set_version: string | null;
+};
+
+export type NotificationTypeCode =
+  'DAILY_REWARD' | 'WEEKLY_GOAL_REMINDER' | 'KIKKI_RETURN';
+
+export type NotificationActionType =
+  'CLAIM_DAILY_REWARD' | 'OPEN_KIKKI_HOME' | null;
+
+export type NotificationResponse = {
+  notification_id: string;
+  type: NotificationTypeCode;
+  title: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+  is_read: boolean;
+  action_type: NotificationActionType;
+  payload: {
+    remaining_workout_count?: number;
+    [key: string]: unknown;
+  };
+};
+
+export type NotificationListResponse = {
+  items: NotificationResponse[];
+  unread_count: number;
+};
+
+export type BananaTransactionType =
+  | 'DAILY_REWARD'
+  | 'WORKOUT_COMPLETED'
+  | 'WORKOUT_PARTIAL'
+  | 'WORKOUT_SAFETY_STOPPED'
+  | 'WORKOUT_DAILY_QUEST'
+  | 'HOUSE_FEED'
+  | 'HOUSE_ITEM_PURCHASE'
+  | 'MINI_GAME'
+  | 'HOUSE_BONDING_QUEST';
+
+export type DailyRewardStatus = {
+  local_date: string;
+  reward_amount: number;
+  is_claimable: boolean;
+  is_claimed: boolean;
+  claimed_at: string | null;
+};
+
+export type BananaWalletResponse = {
+  balance: number;
+  daily_reward: DailyRewardStatus;
+};
+
+export type BananaTransactionResponse = {
+  transaction_id: string;
+  transaction_type: BananaTransactionType;
+  amount: number;
+  balance_after: number;
+  created_at: string;
+};
+
+export type DailyRewardClaimResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+export type BananaSpendRequest =
+  | { action_code: 'FEED_MASCOT'; house_item_code?: never }
+  | {
+      action_code: 'PURCHASE_HOUSE_ITEM';
+      house_item_code: string;
+    };
+
+export type BananaSpendResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+/**
+ * One finished mini-game round. Only the score is sent: the payout, its cap and
+ * the once-a-day limit are the server's to decide.
+ */
+export type MiniGameRewardRequest = {
+  score: number;
+};
+
+export type MiniGameRewardResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+/**
+ * The house bonding quest, paid once a local day. The server owns the amount and
+ * the limit, so the request carries nothing.
+ */
+export type BondingQuestRewardResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
 };
 
 export type WeekResponse = {
@@ -580,7 +849,37 @@ export type WeeklyReportResponse = {
     partial: number;
     not_completed: number;
     stopped_for_safety: number;
+    /** Additive alias; absent on reports generated before the split-axis contract. */
+    safety_stopped_session_count?: number | null;
   };
+  /** Additive BL-4 aggregates. Absent on reports generated before that contract. */
+  total_workout_seconds?: number | null;
+  total_estimated_calories_burned?: number | null;
+  average_intensity_code?: string | null;
+  most_performed_training_type_code?: string | null;
+  most_performed_exercise_name?: string | null;
+  completed_count_change?: number | null;
+  highlight_codes?: string[] | null;
+  improvement_codes?: string[] | null;
+  routine_difficulty_code?: 'EASY' | 'APPROPRIATE' | 'HARD' | null;
+  condition_summary?: {
+    checkin_count: number;
+    fatigue_level_counts: Record<string, number>;
+    fatigue_change_code:
+      'IMPROVED' | 'STABLE' | 'DECLINED' | 'INSUFFICIENT_DATA';
+    pain_checkin_count: number;
+    workout_pain_or_safety_stop_count: number;
+  } | null;
+  outcome_reason_summary?: Record<string, Record<string, number>> | null;
+  recommendation_action_counts?: Record<string, number> | null;
+  adjustment_summary?: string | null;
+  next_week_recommendation?: {
+    intensity: string;
+    volume: string;
+    duration: string;
+    pain_response: string;
+  } | null;
+  coach_message?: string | null;
   weekday_failure_summary: Record<
     string,
     {

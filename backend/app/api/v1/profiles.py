@@ -4,7 +4,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, File, Header, Request, UploadFile
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,13 @@ from backend.app.modules.profiles.age import (
     InvalidBirthdateError,
     InvalidTimezoneError,
 )
+from backend.app.modules.profiles.images import (
+    MAX_PROFILE_IMAGE_BYTES,
+    InvalidProfileImageError,
+    ProfileImageService,
+    ProfileImageStorageUnavailableError,
+)
+from backend.app.modules.profiles.legal import TermsVersionMismatchError
 from backend.app.modules.profiles.onboarding_completion import OnboardingCompletionService
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
@@ -35,13 +42,14 @@ from backend.app.modules.profiles.schemas import (
     MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
+    ProfileImageMutationResponse,
     ProfileSettingsUpdateRequest,
     ProfileSettingsUpdateResponse,
 )
 from backend.app.modules.profiles.service import (
     IdempotencyKeyReusedError,
     InvalidOnboardingCodeError,
-    InvalidProfileSettingsError,
+    MedicalExerciseRestrictionError,
     ProfileConfigurationError,
     ProfileNotFoundError,
     ProfileService,
@@ -81,7 +89,9 @@ def _service(
         primary_goal_codes=settings.onboarding_primary_goal_codes,
         experience_level_codes=settings.onboarding_experience_level_codes,
         consent_policy_version=settings.consent_policy_version,
+        terms_version=settings.terms_version,
         stale_routines=stale_routines,
+        profile_image_url_provider=getattr(request.app.state, "profile_image_storage", None),
     )
 
 
@@ -140,8 +150,14 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
     if isinstance(exc, AgeRequirementNotMetError):
         return AppError(
             status_code=HTTPStatus.FORBIDDEN,
-            code="AGE_REQUIREMENT_NOT_MET",
-            message="만 14세 미만은 이용할 수 없습니다.",
+            code="OUT_OF_SCOPE_AGE",
+            message="현재 서비스는 만 18–64세 성인을 대상으로 제공됩니다.",
+        )
+    if isinstance(exc, MedicalExerciseRestrictionError):
+        return AppError(
+            status_code=HTTPStatus.FORBIDDEN,
+            code="OUT_OF_SCOPE_MEDICAL_MANAGEMENT",
+            message="개별 운동 관리는 의료진 또는 전문가와 상의해주세요.",
         )
     if isinstance(exc, InvalidBirthdateError):
         return AppError(
@@ -167,6 +183,12 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
             code="REQUIRED_CONSENT_MISSING",
             message="필수 동의가 필요합니다.",
         )
+    if isinstance(exc, TermsVersionMismatchError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="TERMS_VERSION_MISMATCH",
+            message="약관이 업데이트되었습니다. 최신 약관을 다시 확인해 주세요.",
+        )
     if isinstance(exc, IdempotencyKeyReusedError):
         return AppError(
             status_code=HTTPStatus.CONFLICT,
@@ -176,6 +198,23 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
     if isinstance(exc, (ProfileConfigurationError, SQLAlchemyError)):
         if isinstance(exc, ProfileConfigurationError) and request is not None:
             _log_profile_configuration_error(request)
+        elif isinstance(exc, SQLAlchemyError) and request is not None:
+            # Keep production diagnostics limited to a safe exception class.
+            # Never log SQL text, bound parameters, tokens, or profile data.
+            original = getattr(exc, "orig", None)
+            diagnostics = getattr(original, "diag", None)
+            logger.error(
+                "profile_database_error",
+                extra={
+                    "event_code": "PROFILE_DATABASE_ERROR",
+                    "request_id": str(getattr(request.state, "request_id", "unavailable")),
+                    "error_type": type(exc).__name__,
+                    "sqlstate": getattr(original, "sqlstate", None)
+                    or getattr(original, "pgcode", None),
+                    "database_schema": getattr(diagnostics, "schema_name", None),
+                    "database_table": getattr(diagnostics, "table_name", None),
+                },
+            )
         return AppError(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
             code=(
@@ -216,12 +255,6 @@ def _translate_profile_update_error(exc: Exception, *, request: Request) -> AppE
             code="STALE_PROFILE",
             message="프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.",
         )
-    if isinstance(exc, InvalidProfileSettingsError):
-        return AppError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            code="INVALID_REQUEST",
-            message="프로필 설정 조합이 올바르지 않습니다.",
-        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -229,6 +262,22 @@ def _translate_profile_update_error(exc: Exception, *, request: Request) -> AppE
             message="프로필에 허용되지 않은 코드가 포함되어 있습니다.",
         )
     return _translate_profile_error(exc, request=request)
+
+
+def _translate_profile_image_error(exc: Exception, *, request: Request) -> AppError:
+    if isinstance(exc, InvalidProfileImageError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="INVALID_PROFILE_IMAGE",
+            message="JPEG, PNG, WEBP 형식의 5MB 이하 이미지만 업로드할 수 있습니다.",
+        )
+    if isinstance(exc, ProfileImageStorageUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="PROFILE_IMAGE_STORAGE_UNAVAILABLE",
+            message="프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.",
+        )
+    return _translate_profile_update_error(exc, request=request)
 
 
 @router.get("", response_model=MeResponse)
@@ -263,6 +312,11 @@ def upsert_onboarding(
     birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
 ) -> OnboardingResponse:
     try:
+        # Authentication and return-notification dependencies may have issued
+        # a read after their own transaction completed.  SQLAlchemy starts a
+        # new transaction for that read, so close it before the onboarding
+        # service opens its atomic write transaction.
+        session.rollback()
         return OnboardingCompletionService(
             _service(request, repository, birthdate_cipher), RoutineService(routine_repository)
         ).complete(session, current_user.user_id, payload, idempotency_key)
@@ -271,7 +325,9 @@ def upsert_onboarding(
         InvalidBirthdateError,
         InvalidTimezoneError,
         InvalidOnboardingCodeError,
+        MedicalExerciseRestrictionError,
         RequiredConsentMissingError,
+        TermsVersionMismatchError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
         ApprovedCatalogUnavailableError,
@@ -349,7 +405,6 @@ def update_profile_settings(
         InvalidBirthdateError,
         InvalidTimezoneError,
         InvalidOnboardingCodeError,
-        InvalidProfileSettingsError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
         ProfileNotFoundError,
@@ -358,6 +413,70 @@ def update_profile_settings(
         SQLAlchemyError,
     ) as exc:
         raise _translate_profile_update_error(exc, request=request) from None
+
+
+@router.post("/profile-image", response_model=ProfileImageMutationResponse)
+async def upload_profile_image(
+    file: Annotated[UploadFile, File()],
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> ProfileImageMutationResponse:
+    try:
+        result = ProfileImageService(
+            repository, getattr(request.app.state, "profile_image_storage", None)
+        ).upload(
+            session,
+            current_user.user_id,
+            idempotency_key,
+            _expected_profile_version(if_match),
+            file.content_type,
+            await file.read(MAX_PROFILE_IMAGE_BYTES + 1),
+        )
+        return ProfileImageMutationResponse(**result.__dict__)
+    except (
+        InvalidProfileImageError,
+        ProfileImageStorageUnavailableError,
+        ProfileNotFoundError,
+        StaleProfileError,
+        IdempotencyKeyReusedError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _translate_profile_image_error(exc, request=request) from None
+    finally:
+        await file.close()
+
+
+@router.delete("/profile-image", response_model=ProfileImageMutationResponse)
+def delete_profile_image(
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> ProfileImageMutationResponse:
+    try:
+        result = ProfileImageService(
+            repository, getattr(request.app.state, "profile_image_storage", None)
+        ).delete(
+            session,
+            current_user.user_id,
+            idempotency_key,
+            _expected_profile_version(if_match),
+        )
+        return ProfileImageMutationResponse(**result.__dict__)
+    except (
+        ProfileImageStorageUnavailableError,
+        ProfileNotFoundError,
+        StaleProfileError,
+        IdempotencyKeyReusedError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _translate_profile_image_error(exc, request=request) from None
 
 
 __all__ = ["router"]

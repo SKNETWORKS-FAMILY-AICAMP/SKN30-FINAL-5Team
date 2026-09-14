@@ -26,7 +26,15 @@ from backend.app.domain.agents.v3_validation import (
     validate_plan_integrity,
 )
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
-from backend.tests.unit.test_v3_agent_contracts import OUTSIDE, A, B, envelope, pool, prescription
+from backend.tests.unit.test_v3_agent_contracts import (
+    OUTSIDE,
+    A,
+    B,
+    C,
+    envelope,
+    pool,
+    prescription,
+)
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 
 COMPILER_VERSION = "v3-plan-compiler-v1"
@@ -45,8 +53,14 @@ def fallback_spec(
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,
         requested_duration_minutes=6,
-        estimated_duration_seconds=330,
-        exercise_prescriptions=(prescription(A, 1), prescription(second_id, 2)),
+        estimated_duration_seconds=495,
+        # A valid plan covers all three phases; integrity validation rejects one
+        # that does not, so a fixture standing in for a good fallback has to.
+        exercise_prescriptions=(
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(second_id, 2),
+            prescription(C, 3, phase_code="COOLDOWN"),
+        ),
         reason_codes=("DETERMINISTIC_FALLBACK",),
         fallback_version="fallback-v1",
     )
@@ -196,7 +210,7 @@ def test_completed_graph_result_is_canonical_and_hash_stable() -> None:
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         round_one_proposals=current_proposals,
-        coordinator_initial_plan=current_plan,
+        coordinator_agent_plan=current_plan,
         compiled_plan=compiled,
         integrity_violation_codes=tuple(item.code for item in validation.violations),
         final_plan=compiled,
@@ -219,7 +233,7 @@ def test_graph_result_rejects_sensitive_extra_fields() -> None:
                 "envelope_hash": "a" * 64,
                 "pool_hash": "b" * 64,
                 "round_one_proposals": (),
-                "coordinator_initial_plan": None,
+                "coordinator_agent_plan": None,
                 "coordinator_repair_plan": None,
                 "compiled_plan": None,
                 "integrity_violation_codes": (),
@@ -261,3 +275,36 @@ def test_v3_domain_modules_have_no_framework_or_infrastructure_imports() -> None
             elif isinstance(node, ast.ImportFrom) and node.module is not None:
                 imported.add(node.module.split(".", maxsplit=1)[0])
         assert imported.isdisjoint(forbidden)
+
+
+def test_a_shape_violation_routes_to_repair_without_any_approved_alternative() -> None:
+    """ADR-0022: the routing that no production run could reach.
+
+    `approved_safe_alternative_ids` is populated nowhere outside these tests, so
+    requiring it made every violation NON_REPAIRABLE and this branch dead --
+    measured across 29 paid runs in `docs/test/ROUND2_HELDOUT_RESULTS.md` (D-6).
+    The context here is the one a real run actually builds: empty.
+    """
+
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_input = coordinator_input(current_envelope, current_pool)
+    compiled = compile_plan(
+        plan(current_input),
+        envelope=current_envelope,
+        pool=current_pool,
+        compiler_version=COMPILER_VERSION,
+        coordinator_input=current_input,
+    ).model_copy(update={"estimated_duration_seconds": 1799})
+
+    validation = validate_plan_integrity(
+        compiled,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=IntegrityValidationContext(),
+    )
+
+    assert validation.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    assert route_after_integrity_validation(validation) is OrchestrationRouteCode.COORDINATOR_REPAIR

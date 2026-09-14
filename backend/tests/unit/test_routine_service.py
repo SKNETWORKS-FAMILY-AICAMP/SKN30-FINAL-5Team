@@ -1,14 +1,19 @@
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
+from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.domain.rules.duration import (
     DURATION_TOLERANCE_SECONDS,
     SECONDS_PER_MINUTE,
 )
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.modules.routines.ports import (
     RoutineCandidate,
     RoutineCreationContext,
@@ -31,12 +36,18 @@ class FakeSession:
         return nullcontext()
 
 
-def _candidate(phase: str, seconds: int, *, tier: str = "SUPPORT") -> RoutineCandidate:
+def _candidate(
+    phase: str,
+    seconds: int,
+    *,
+    tier: str = "SUPPORT",
+    body_focus_code: str = "FULL_BODY",
+) -> RoutineCandidate:
     return RoutineCandidate(
         exercise_id=uuid4(),
         exercise_name=f"{phase} 운동",
         training_type_code="STRENGTH" if phase == "MAIN" else "MOBILITY",
-        body_focus_code="FULL_BODY",
+        body_focus_code=body_focus_code,
         timing_mode_code="DURATION",
         seconds_per_rep=None,
         transition_seconds=10,
@@ -87,6 +98,7 @@ class FakeRoutineRepository:
         self.versions: dict[UUID, int] = {}
         self.current: dict[UUID, UUID] = {}
         self.days: tuple[RoutineDayValues, ...] = ()
+        self.recent_performed_body_focus_codes: tuple[str, ...] = ()
 
     def acquire_creation_lock(self, session: FakeSession, user_id: UUID) -> None:
         del session, user_id
@@ -121,6 +133,12 @@ class FakeRoutineRepository:
         del session
         return user_id in self.current
 
+    def get_recent_performed_body_focus_codes(
+        self, session: FakeSession, user_id: UUID, local_date: date
+    ) -> tuple[str, ...]:
+        del session, user_id, local_date
+        return self.recent_performed_body_focus_codes
+
     def create_routine(
         self,
         session: FakeSession,
@@ -139,6 +157,19 @@ class FakeRoutineRepository:
         exercise_names = {
             candidate.exercise_id: candidate.exercise_name for candidate in self.context.candidates
         }
+        candidates = {candidate.exercise_id: candidate for candidate in self.context.candidates}
+
+        def routine_name(day: RoutineDayValues):
+            main = tuple(
+                candidates[item.exercise_id] for item in day.items if item.phase_code == "MAIN"
+            )
+            return build_plan_name(
+                action_code="KEEP",
+                main_body_focus_codes=(item.body_focus_code for item in main),
+                main_movement_pattern_codes=(),
+                main_training_type_codes=(item.training_type_code for item in main),
+            )
+
         payload = {
             "id": routine_id,
             "version": version,
@@ -153,6 +184,9 @@ class FakeRoutineRepository:
                     "title": day.title,
                     "training_type_code": day.training_type_code,
                     "body_focus_code": day.body_focus_code,
+                    "routine_name": (plan_name := routine_name(day)).value,
+                    "routine_name_reason_codes": list(plan_name.reason_codes),
+                    "routine_naming_rule_version": plan_name.rule_version,
                     "requested_duration_minutes": day.requested_duration_minutes,
                     "estimated_duration_seconds": day.estimated_duration_seconds,
                     "estimated_calories_burned": None,
@@ -215,6 +249,73 @@ def test_first_and_next_routine_versions_preserve_phase_order_and_duration() -> 
         "COOLDOWN",
     ]
     assert second.days[0].items[1].tier_code == "CORE"
+    assert second.days[0].routine_name == second.days[0].title
+    assert second.days[0].routine_name_reason_codes is not None
+    assert second.days[0].routine_naming_rule_version == "1.0.0"
+
+
+def test_rotation_avoids_the_latest_actual_body_focus_without_fixed_order() -> None:
+    repository = FakeRoutineRepository()
+    repository.context = replace(
+        repository.context,
+        candidates=(
+            _candidate("WARMUP", 60),
+            _candidate("MAIN", 490, tier="CORE", body_focus_code="UPPER_BODY"),
+            _candidate("MAIN", 490, tier="CORE", body_focus_code="LOWER_BODY"),
+            _candidate("COOLDOWN", 45),
+        ),
+    )
+    # This is the repository's actual-session result: a body-focus history,
+    # not a safety body-area label or a generated-but-unperformed routine.
+    repository.recent_performed_body_focus_codes = ("UPPER_BODY",)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    assert [day.body_focus_code for day in response.days] == ["LOWER_BODY", "UPPER_BODY"]
+
+
+def test_no_actual_session_history_does_not_create_a_rotation_constraint() -> None:
+    repository = FakeRoutineRepository()
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    assert repository.recent_performed_body_focus_codes == ()
+    assert [day.body_focus_code for day in response.days] == ["FULL_BODY", "FULL_BODY"]
+
+
+def test_rotation_history_query_includes_only_actual_completed_or_partial_sessions() -> None:
+    class CapturingSession:
+        statement: object | None = None
+
+        def get(self, model: object, user_id: UUID) -> SimpleNamespace:
+            del model, user_id
+            return SimpleNamespace(timezone="Asia/Seoul")
+
+        def scalars(self, statement: object) -> SimpleNamespace:
+            self.statement = statement
+            return SimpleNamespace(all=lambda: ["BACK", None])
+
+    session = CapturingSession()
+    result = RoutineRepository().get_recent_performed_body_focus_codes(
+        session,  # type: ignore[arg-type]
+        uuid4(),
+        date(2026, 8, 14),
+    )
+
+    assert result == ("BACK",)
+    assert session.statement is not None
+    sql = str(
+        session.statement.compile(  # type: ignore[union-attr]
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+    )
+    assert "'COMPLETED', 'PARTIAL'" in sql
+    assert "NOT_COMPLETED" not in sql
+    assert "PLANNED" not in sql
+    assert "plan_candidates.body_focus_code" in sql
+    assert "safety" not in sql.lower()
 
 
 def test_routine_creation_uses_the_duration_the_user_entered() -> None:
@@ -309,6 +410,23 @@ def test_a_split_exercise_counts_once_against_the_type_budget() -> None:
     # more than the split allowance.
     for exercise_id in types:
         assert sum(item.exercise_id == exercise_id for item in items) <= 2
+
+
+def test_a_split_exercise_is_spread_rather_than_repeated_back_to_back() -> None:
+    # _subsets builds a split candidate as adjacent blocks, so two blocks of one
+    # movement used to arrive next to each other and the session read as one long
+    # exercise. The blocks stay; they are separated.
+    repository = FakeRoutineRepository(duration_minutes=40, wide_pool=True)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    main = [item for item in response.days[0].items if item.phase_code == "MAIN"]
+    neighbours = list(zip(main, main[1:], strict=False))
+    assert neighbours, "expected a MAIN block sequence to check"
+    assert all(left.exercise_id != right.exercise_id for left, right in neighbours), [
+        item.exercise_id for item in main
+    ]
 
 
 def test_stretching_stays_at_the_start_and_the_end() -> None:

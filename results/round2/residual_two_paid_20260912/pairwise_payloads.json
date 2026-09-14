@@ -1,0 +1,266 @@
+{
+  "blind": true,
+  "cases": {
+    "SQ-HELD-018": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [],
+          "plan": {
+            "action_code": "DOWNSHIFT",
+            "estimated_duration_seconds": 1212,
+            "exercises": [
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 1,
+                "stable_code": "foam_roller_outer_thigh_stretch_2205"
+              },
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 1,
+                "stable_code": "iron_cross_stretch"
+              },
+              {
+                "body_focus_code": "CALVES",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band"
+              },
+              {
+                "body_focus_code": "GLUTES",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "walking_lunge"
+              },
+              {
+                "body_focus_code": "CARDIO",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 5,
+                "sets": 1,
+                "stable_code": "astride_jumps_male"
+              },
+              {
+                "body_focus_code": "CALVES",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band"
+              },
+              {
+                "body_focus_code": "GLUTES",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 12,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 7,
+                "sets": 2,
+                "stable_code": "walking_lunge"
+              },
+              {
+                "body_focus_code": "CARDIO",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 8,
+                "sets": 1,
+                "stable_code": "astride_jumps_male"
+              },
+              {
+                "body_focus_code": "CALVES",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 15,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 9,
+                "sets": 2,
+                "stable_code": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band"
+              },
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 30,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 10,
+                "sets": 1,
+                "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": true,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 42,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW",
+                "MODERATE"
+              ],
+              "maximum_repetitions_per_set": null,
+              "maximum_sets_per_exercise": null,
+              "minimum_rest_seconds_between_sets": 30
+            },
+            "requested_duration_minutes": 20
+          }
+        }
+      },
+      "category": "complex"
+    },
+    "SQ-HELD-022": {
+      "architectures": {
+        "MULTI_AGENT": {
+          "decision_codes": [
+            "FEASIBILITY_CONSTRAINTS_PRESERVED",
+            "RECOVERY_CONSTRAINTS_PRESERVED"
+          ],
+          "plan": {
+            "action_code": "KEEP",
+            "estimated_duration_seconds": 850,
+            "exercises": [
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 1,
+                "sets": 2,
+                "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight"
+              },
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "WARMUP",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 2,
+                "sets": 2,
+                "stable_code": "wrist_circles_mobility_stretch_bodyweight"
+              },
+              {
+                "body_focus_code": "CHEST",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 3,
+                "sets": 2,
+                "stable_code": "push_up_horizontal_push_bodyweight"
+              },
+              {
+                "body_focus_code": "TRICEPS",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "MAIN",
+                "repetitions_per_set": 10,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "CORE",
+                "sequence": 4,
+                "sets": 2,
+                "stable_code": "body_up"
+              },
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 5,
+                "sets": 2,
+                "stable_code": "upper_back_stretch_mobility_stretch_bodyweight"
+              },
+              {
+                "body_focus_code": "MOBILITY",
+                "intensity_code": "LOW",
+                "location_code": "HOME",
+                "phase_code": "COOLDOWN",
+                "repetitions_per_set": null,
+                "rest_seconds_between_sets": 60,
+                "role_eligibility_code": "SUPPORT",
+                "sequence": 6,
+                "sets": 2,
+                "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight"
+              }
+            ]
+          },
+          "schema_version": "service-quality-judge-output-v1",
+          "used_deterministic_fallback": false,
+          "user_context": {
+            "allowed_location_codes": [
+              "HOME"
+            ],
+            "excluded_exercise_count": 172,
+            "primary_goal_code": "GENERAL_FITNESS",
+            "recovery_ceiling": {
+              "allowed_intensity_codes": [
+                "LOW"
+              ],
+              "maximum_repetitions_per_set": 10,
+              "maximum_sets_per_exercise": 2,
+              "minimum_rest_seconds_between_sets": 60
+            },
+            "requested_duration_minutes": 15
+          }
+        }
+      },
+      "category": "conflict"
+    }
+  },
+  "model_label": "OPENAI:gpt-5.6-terra:reasoning-low"
+}

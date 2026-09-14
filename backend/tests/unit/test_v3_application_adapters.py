@@ -3,6 +3,7 @@ from uuid import UUID
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
 from backend.app.domain.rules.safety import (
+    NO_APPROVED_SAFE_EXERCISE_REASON_CODE,
     BodyAreaCode,
     DiscomfortSeverityCode,
     SafetyReviewStatusCode,
@@ -15,9 +16,21 @@ from backend.app.modules.decisions.v3_application import (
     DeterministicV3SafetyPolicyAdapter,
     PostgreSQLV3ExercisePoolSource,
     V3ApplicationContext,
+    V3DecisionResponseProjector,
 )
 from backend.app.modules.decisions.v3_creation import V3CreationSource
-from backend.tests.unit.test_decision_service import FakeRepository, _context
+from backend.tests.unit.test_decision_service import BASE_EXERCISE_ID, FakeRepository, _context
+from backend.tests.unit.test_v3_persistence_service import make_bundle
+
+
+class FailIfNarrated:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def narrate(self, prompt):
+        del prompt
+        self.calls += 1
+        raise AssertionError("a safety-vetoed decision must not be narrated")
 
 
 def _exercise(
@@ -53,6 +66,8 @@ def _shoulder_rule_set(
     scope_code: SafetyRuleScopeCode,
     exercise_code: str | None = None,
     movement_pattern_code: str | None = None,
+    minimum_severity_code: DiscomfortSeverityCode = DiscomfortSeverityCode.MODERATE,
+    effect_code: SafetyRuleEffectCode = SafetyRuleEffectCode.EXCLUDE,
 ) -> SafetyRuleSet:
     return SafetyRuleSet(
         version_code="safety-v2",
@@ -63,9 +78,9 @@ def _shoulder_rule_set(
                 rule_code="SHOULDER_EXCLUDE",
                 catalog_version_code="catalog-v1",
                 body_area_code=BodyAreaCode.SHOULDER,
-                minimum_severity_code=DiscomfortSeverityCode.MODERATE,
+                minimum_severity_code=minimum_severity_code,
                 maximum_severity_code=DiscomfortSeverityCode.SEVERE,
-                effect_code=SafetyRuleEffectCode.EXCLUDE,
+                effect_code=effect_code,
                 reason_code="DIRECT_JOINT_LOAD",
                 scope_code=scope_code,
                 rule_version="2.0.0",
@@ -82,9 +97,24 @@ def _source(
     experience_level_code: str | None = None,
     exercises: tuple[ExercisePoolExerciseRecord, ...] = (),
     discomforts: tuple[tuple[str, str], ...] = (),
+    pains: tuple[tuple[str, int, str, str], ...] = (),
+    red_flag_present: bool = False,
+    sleep_minutes: int | None = None,
+    fatigue_level_code: str | None = None,
     safety_rule_set: SafetyRuleSet | None = None,
+    latest_difficulty_code: str | None = None,
+    latest_difficulty_reason_codes: tuple[str, ...] = (),
 ) -> V3CreationSource:
     context = _context(discomforts=discomforts)
+    context = replace(
+        context,
+        pains=pains,
+        red_flag_present=red_flag_present,
+        sleep_minutes=sleep_minutes,
+        fatigue_level_code=fatigue_level_code or context.fatigue_level_code,
+        latest_difficulty_code=latest_difficulty_code,
+        latest_difficulty_reason_codes=latest_difficulty_reason_codes,
+    )
     if emergency:
         context = replace(context, adverse_reaction_codes=("CHEST_DISCOMFORT",))
     assembly = FakeRepository(context, safety_rule_set=safety_rule_set).assembly
@@ -114,6 +144,48 @@ def test_deterministic_safety_veto_is_immutable_and_terminal() -> None:
 
     assert not envelope.plan_generation_allowed
     assert envelope.safety_required_action_code == "STOP_AND_SEEK_HELP"
+
+
+def test_red_flag_is_an_immutable_terminal_safety_veto() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(_source(red_flag_present=True))
+
+    assert not envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code == "STOP_AND_SEEK_HELP"
+
+
+def test_nrs_seven_to_ten_blocks_plan_generation() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(
+            discomforts=(("SHOULDER", "SEVERE"),),
+            pains=(("SHOULDER", 7, "SEVERE", "pain-intensity-action-v2"),),
+        )
+    )
+
+    assert not envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code == "REST"
+
+
+def test_nrs_moderate_pain_applies_immutable_low_intensity_ceiling() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(
+            discomforts=(("SHOULDER", "MODERATE"),),
+            pains=(("SHOULDER", 6, "MODERATE", "pain-intensity-action-v2"),),
+            safety_rule_set=_shoulder_rule_set(
+                scope_code=SafetyRuleScopeCode.EXERCISE,
+                exercise_code=str(BASE_EXERCISE_ID),
+            ),
+        )
+    )
+
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("LOW",)
+
+
+def test_sleep_and_fatigue_light_recovery_applies_low_intensity_ceiling() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(sleep_minutes=360, fatigue_level_code="MODERATE")
+    )
+
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("LOW",)
 
 
 def test_v3_pool_beginner_user_excludes_intermediate_exercise() -> None:
@@ -233,6 +305,159 @@ def test_v3_envelope_excludes_pool_exercise_by_movement_pattern() -> None:
     envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
 
     assert envelope.excluded_exercise_ids == (unsafe_id,)
+
+
+def test_v3_rebuilds_mild_pain_excluded_base_routine_from_remaining_safe_pool() -> None:
+    """Mild pain must not force REST when an approved safe pool survives."""
+
+    safe_id = UUID(int=102)
+    source = _source(
+        exercises=(
+            _exercise(BASE_EXERCISE_ID, "BEGINNER", movement_pattern_code="KNEE_DOMINANT"),
+            _exercise(safe_id, "BEGINNER", movement_pattern_code="HINGE"),
+        ),
+        discomforts=(("SHOULDER", "MILD"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(BASE_EXERCISE_ID),
+            minimum_severity_code=DiscomfortSeverityCode.MILD,
+        ),
+    )
+
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    assert envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code is None
+    assert envelope.excluded_exercise_ids == (BASE_EXERCISE_ID,)
+    # Rebuilding from the pool must preserve the original workload ceiling
+    # even when every item in the base routine was excluded.
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("MODERATE",)
+    assert envelope.recovery_ceiling.maximum_sets_per_exercise == 1
+
+    eligible = PostgreSQLV3ExercisePoolSource().load_eligible(source=source, envelope=envelope)
+
+    assert tuple(item.exercise_id for item in eligible.exercises) == (safe_id,)
+
+
+def test_v3_rebuild_blocks_when_only_safety_survivor_is_not_user_eligible() -> None:
+    """Fail closed before retrieval when difficulty removes the last survivor."""
+
+    source = _source(
+        experience_level_code="BEGINNER",
+        exercises=(
+            _exercise(BASE_EXERCISE_ID, "BEGINNER", movement_pattern_code="KNEE_DOMINANT"),
+            _exercise(UUID(int=102), "INTERMEDIATE", movement_pattern_code="HINGE"),
+        ),
+        discomforts=(("SHOULDER", "MODERATE"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(BASE_EXERCISE_ID),
+        ),
+    )
+
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    assert not envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code == "REST"
+
+    projection = V3DecisionResponseProjector().project_terminal(source=source, envelope=envelope)
+
+    assert projection.response.safety_status_code == "BLOCKED"
+    assert projection.response.action_code == "REST"
+    assert projection.response.final_plan is None
+    assert NO_APPROVED_SAFE_EXERCISE_REASON_CODE in projection.response.reason_codes
+    assert projection.response.safety_summary is not None
+    assert NO_APPROVED_SAFE_EXERCISE_REASON_CODE in projection.response.safety_summary.reason_codes
+
+
+def test_v3_caution_freezes_low_intensity_downshift_ceiling() -> None:
+    """A caution cannot surface as REVISE while allowing a moderate KEEP plan."""
+
+    source = _source(
+        exercises=(_exercise(BASE_EXERCISE_ID, "BEGINNER", movement_pattern_code="KNEE_DOMINANT"),),
+        discomforts=(("SHOULDER", "MILD"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(BASE_EXERCISE_ID),
+            minimum_severity_code=DiscomfortSeverityCode.MILD,
+            effect_code=SafetyRuleEffectCode.CAUTION,
+        ),
+    )
+
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    assert envelope.plan_generation_allowed
+    assert envelope.excluded_exercise_ids == ()
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("LOW",)
+
+
+def test_v3_projector_reports_exclusion_rebuild_as_revised_change() -> None:
+    safe_id = UUID(int=102)
+    source = _source(
+        exercises=(
+            _exercise(BASE_EXERCISE_ID, "BEGINNER", movement_pattern_code="KNEE_DOMINANT"),
+            _exercise(safe_id, "BEGINNER", movement_pattern_code="HINGE"),
+        ),
+        discomforts=(("SHOULDER", "MODERATE"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(BASE_EXERCISE_ID),
+        ),
+    )
+    DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    provider = FailIfNarrated()
+    projection = V3DecisionResponseProjector(narration_provider=provider).project_success(
+        source=source,
+        bundle=make_bundle(),
+    )
+    response = projection.response
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "CHANGE"
+    assert response.final_plan is not None
+    assert response.final_plan.action_code == "CHANGE"
+    assert response.final_plan.routine_name is not None
+    assert response.final_plan.routine_name_reason_codes is not None
+    assert "LOAD_ADJUSTED" in response.final_plan.routine_name_reason_codes
+    assert response.final_plan.routine_naming_rule_version == "1.0.0"
+    assert response.safety_summary is not None
+    assert response.safety_summary.vetoed
+    assert response.safety_summary.reason_codes == ["DIRECT_JOINT_LOAD"]
+    assert provider.calls == 0
+    assert response.public_agent_summaries is not None
+    assert [item.agent_type_code for item in response.public_agent_summaries] == [
+        "TRAINING",
+        "RECOVERY",
+        "SAFETY",
+        "FEASIBILITY",
+        "COORDINATOR",
+    ]
+
+
+def test_v3_projector_reports_caution_as_revised_downshift() -> None:
+    source = _source(
+        exercises=(_exercise(BASE_EXERCISE_ID, "BEGINNER"),),
+        discomforts=(("SHOULDER", "MILD"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(BASE_EXERCISE_ID),
+            minimum_severity_code=DiscomfortSeverityCode.MILD,
+            effect_code=SafetyRuleEffectCode.CAUTION,
+        ),
+    )
+    DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    projection = V3DecisionResponseProjector().project_success(
+        source=source,
+        bundle=make_bundle(),
+    )
+    response = projection.response
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "DOWNSHIFT"
+    assert response.safety_summary is not None
+    assert not response.safety_summary.vetoed
 
 
 def test_v3_plan_generation_blocked_when_every_pool_exercise_is_excluded() -> None:

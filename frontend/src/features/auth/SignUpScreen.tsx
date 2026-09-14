@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path } from 'react-native-svg';
 
 import { useAsyncAction } from '../../api/useAsync';
 import { AuthFailure, type AuthAdapter } from '../../auth/firebase';
@@ -42,6 +43,7 @@ type SignUpFixture = {
 };
 
 const MIN_PASSWORD_LENGTH = 6;
+const DEFAULT_PASSWORD_POLICY_HINT = `${MIN_PASSWORD_LENGTH}자 이상`;
 const MIN_PASSWORD_ERROR = `${MIN_PASSWORD_LENGTH}자 이상 입력해주세요.`;
 
 const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
@@ -153,7 +155,9 @@ function SignUpScreenContent({
   );
   const [showPassword, setShowPassword] = useState(false);
   const [validation, setValidation] = useState<string | null>(null);
-  const [policyHint, setPolicyHint] = useState<string | null>(null);
+  const [policyHint, setPolicyHint] = useState<string | null>(
+    DEFAULT_PASSWORD_POLICY_HINT,
+  );
   const isApiFlow = auth !== undefined;
 
   useEffect(() => {
@@ -230,11 +234,12 @@ function SignUpScreenContent({
     : (fixture.confirmationMessageTone ?? 'error');
   const hasMinimumLengthError =
     password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const visiblePolicyHint = hideMaximumPasswordLength(policyHint);
   const passwordMessage = hasMinimumLengthError
     ? MIN_PASSWORD_ERROR
     : isApiFlow
-      ? policyHint
-        ? `비밀번호 조건: ${policyHint}`
+      ? visiblePolicyHint
+        ? `비밀번호 조건: ${visiblePolicyHint}`
         : 'Firebase 비밀번호 정책을 확인해요.'
       : fixture.passwordMessage;
   const passwordMessageTone = hasMinimumLengthError
@@ -255,13 +260,22 @@ function SignUpScreenContent({
           accessibilityLabel="로그인으로 돌아가기"
           onPress={onBack}
           style={styles.backButton}
+          testID="signup-back-button"
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <Svg aria-hidden height={20} viewBox="0 0 20 20" width={20}>
+            <Path
+              d="M12.5 4.5 7 10l5.5 5.5"
+              fill="none"
+              stroke={colors.text}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.2}
+            />
+          </Svg>
         </Pressable>
         <Text accessibilityRole="header" style={styles.headerTitle}>
           회원가입
         </Text>
-        <Text style={styles.stepLabel}>1 / 2 · 계정</Text>
       </View>
 
       <ScrollView
@@ -462,6 +476,16 @@ function RequiredLabel({ label }: { label: string }) {
   );
 }
 
+function hideMaximumPasswordLength(hint: string | null) {
+  if (!hint) return null;
+  const visibleRequirements = hint
+    .split(' · ')
+    .filter((requirement) => !/^\d+자 이하$/.test(requirement));
+  return visibleRequirements.length > 0
+    ? visibleRequirements.join(' · ')
+    : null;
+}
+
 function FieldMessage({
   message,
   tone,
@@ -507,20 +531,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: colors.surface,
   },
-  backIcon: {
-    color: colors.text,
-    fontSize: 30,
-    lineHeight: 32,
-  },
   headerTitle: {
     flex: 1,
     color: colors.text,
     fontSize: 17,
-    fontWeight: '700',
-  },
-  stepLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
     fontWeight: '700',
   },
   content: {

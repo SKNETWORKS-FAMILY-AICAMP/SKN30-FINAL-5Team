@@ -12,6 +12,7 @@ from backend.app.core.config import Settings
 from backend.app.db.models.catalog import CatalogVersion, ExerciseSafetyRule
 from backend.app.db.session import DatabaseManager
 from backend.app.domain.rules.safety import SAFETY_ENGINE_VERSION
+from backend.app.integrations.llm_provider import build_narration_provider
 from backend.app.integrations.qdrant.snapshot_loader import QdrantExercisePoolSnapshotLoader
 from backend.app.integrations.v3_demo_factory import V3DemoRuntimePort
 from backend.app.integrations.v3_demo_retrieval import DatabaseBoundQdrantExerciseRetriever
@@ -81,6 +82,7 @@ def compose_v3_application_services(
     retriever = DatabaseBoundQdrantExerciseRetriever(settings, database.new_session)
     pool_loader = QdrantExercisePoolSnapshotLoader(catalog=catalog, retriever=retriever)
     versions = _current_versions(database)
+    narration_provider = build_narration_provider(settings)
     creation = V3InitialCreationService(
         unit_of_work_factory=cast(
             Callable[[Session], V3CreationUnitOfWork], SqlAlchemyV3CreationUnitOfWork
@@ -89,12 +91,16 @@ def compose_v3_application_services(
         exercise_pool_loader=pool_loader,
         graph_runtime=graph_runtime,
         fallback=FailClosedV3ApplicationFallback(),
-        projector=V3DecisionResponseProjector(),
+        projector=V3DecisionResponseProjector(narration_provider=narration_provider),
     )
     regeneration = V3RegenerationService(
         unit_of_work=cast(
             V3RegenerationUnitOfWork,
-            SqlAlchemyV3RegenerationUnitOfWork(database.new_session, current_versions=versions),
+            SqlAlchemyV3RegenerationUnitOfWork(
+                database.new_session,
+                current_versions=versions,
+                narration_provider=narration_provider,
+            ),
         ),
         graph_runtime=graph_runtime,
         current_versions=versions,

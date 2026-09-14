@@ -122,6 +122,7 @@ export function CalendarReportContainer({
         sessions,
         weeksByStart: new Map<string, WeekResponse>(weekEntries),
         restLocalDate,
+        routineStartLocalDate,
       });
     },
     [api, month, today, currentWeekStart, routineStartLocalDate, restLocalDate],

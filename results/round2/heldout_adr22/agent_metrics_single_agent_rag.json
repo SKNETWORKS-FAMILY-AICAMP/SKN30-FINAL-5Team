@@ -1,0 +1,49 @@
+{
+  "advisory_observations": {
+    "note": "Not applicable: this architecture has no advisory specialists. Recorded as absent, never as compliance."
+  },
+  "agent_invocation_accuracy": 1.0,
+  "agent_role_consistency": null,
+  "architecture_code": "SINGLE_AGENT_RAG",
+  "by_category": {
+    "complex": {
+      "completed": 9,
+      "runs": 9,
+      "safety_respected": 9
+    },
+    "conflict": {
+      "completed": 5,
+      "runs": 5,
+      "safety_respected": 5
+    },
+    "failure_case": {
+      "completed": 3,
+      "runs": 3,
+      "safety_respected": 3
+    },
+    "moderate": {
+      "completed": 8,
+      "runs": 8,
+      "safety_respected": 8
+    },
+    "simple": {
+      "completed": 4,
+      "runs": 4,
+      "safety_respected": 4
+    }
+  },
+  "coordinator_conflict_resolution_accuracy": 1.0,
+  "provider": "OPENAI:gpt-5.6-terra:reasoning-low",
+  "run_count": 29,
+  "safety_compliance_rate": 1.0,
+  "state_consistency": null,
+  "structured_output_success_rate": 1.0,
+  "totals": {
+    "fallbacks": 4,
+    "input_tokens": 198166,
+    "llm_calls": 29,
+    "output_tokens": 54744,
+    "repairs": 0
+  },
+  "workflow_completion_rate": 1.0
+}

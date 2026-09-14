@@ -34,6 +34,175 @@ function hasBrandBand(view: ReturnType<typeof render>) {
 }
 
 describe('SessionResultScreen feedback', () => {
+  it('sends fresh feedback after every stopped workout outcome', async () => {
+    const submitFeedback = jest.fn<Api['submitFeedback']>().mockResolvedValue({
+      session_id: 'session-result',
+      session_status_code: 'PARTIAL',
+      created_at: '2026-09-10T10:00:00+09:00',
+      guidance_code: null,
+      guidance: null,
+      pressure_notifications_allowed: true,
+    });
+    const api = { submitFeedback } as unknown as Api;
+    const outcome = {
+      kind: 'stopped' as const,
+      completedItemCount: 1,
+      result: {
+        session_id: 'session-result',
+        execution_state_code: 'STOPPED_RESUMABLE' as const,
+        completion_code: null,
+        stop_reason_code: 'RESUME_LATER' as const,
+        is_resumable: true,
+        accumulated_progress_seconds: 30,
+        accumulated_rest_seconds: 0,
+        accumulated_paused_seconds: 0,
+      },
+    };
+    const first = render(
+      <SessionResultScreen
+        api={api}
+        sessionId="session-result"
+        outcome={outcome}
+        onDone={jest.fn()}
+      />,
+    );
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '자세가 어려웠어요' }),
+    );
+    fireEvent.press(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    );
+    await waitFor(() =>
+      expect(submitFeedback).toHaveBeenCalledWith(
+        'session-result',
+        expect.objectContaining({
+          difficulty_code: 'HARD',
+          difficulty_reason_codes: ['MOVEMENT_DIFFICULT'],
+        }),
+        expect.any(String),
+      ),
+    );
+    const firstAttemptKey = submitFeedback.mock.calls[0]?.[2];
+    first.unmount();
+    render(
+      <SessionResultScreen
+        api={api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    );
+    await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(2));
+    expect(submitFeedback).toHaveBeenLastCalledWith(
+      'session-result',
+      expect.objectContaining({
+        difficulty_code: 'APPROPRIATE',
+        difficulty_reason_codes: [],
+      }),
+      expect.any(String),
+    );
+    expect(submitFeedback.mock.calls[1]?.[2]).not.toBe(firstAttemptKey);
+  });
+
+  it('requires a successful feedback retry before leaving a stopped session', async () => {
+    const onDone = jest.fn();
+    const submitFeedback = jest
+      .fn<Api['submitFeedback']>()
+      .mockRejectedValueOnce(new Error('conflict'))
+      .mockResolvedValueOnce({
+        session_id: 'session-result',
+        session_status_code: 'PARTIAL',
+        created_at: '2026-09-10T10:00:00+09:00',
+        guidance_code: null,
+        guidance: null,
+        pressure_notifications_allowed: true,
+      });
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'stopped',
+          completedItemCount: 1,
+          result: {
+            session_id: 'session-result',
+            completion_code: null,
+            execution_state_code: 'STOPPED_RESUMABLE',
+            stop_reason_code: 'RESUME_LATER',
+            is_resumable: true,
+            accumulated_progress_seconds: 10,
+            accumulated_rest_seconds: 0,
+            accumulated_paused_seconds: 0,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+    fireEvent.press(screen.getByRole('radio', { name: '쉬웠어요' }));
+    const save = screen.getByRole('button', {
+      name: '피드백 저장하고 홈으로',
+    });
+    fireEvent.press(save);
+    await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(save).toBeEnabled());
+    expect(screen.queryByText('피드백을 저장했어요.')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: '저장하지 않고 홈으로' }),
+    ).toBeNull();
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.press(save);
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(submitFeedback.mock.calls[1]?.[2]).toBe(
+      submitFeedback.mock.calls[0]?.[2],
+    );
+  });
+  it('stays on the feedback screen when saving fails and returns home only after retry succeeds', async () => {
+    const onDone = jest.fn();
+    const submitFeedback = jest
+      .fn<Api['submitFeedback']>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({
+        session_id: 'session-result',
+        session_status_code: 'PARTIAL',
+        created_at: '2026-09-08T10:00:00+09:00',
+        guidance_code: null,
+        guidance: null,
+        pressure_notifications_allowed: true,
+      });
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'finished',
+          result: {
+            ...finished.result,
+            status_code: 'PARTIAL',
+            completed_item_count: 1,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+    const save = screen.getByRole('button', { name: '피드백 저장하고 홈으로' });
+    expect(save).toBeDisabled();
+    fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+    fireEvent.press(save);
+    await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(save).toBeEnabled());
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.press(save);
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+  });
+
   it('uses the Workout canvas treatment for a completed result', () => {
     const view = render(
       <SessionResultScreen
@@ -48,6 +217,9 @@ describe('SessionResultScreen feedback', () => {
       screen.getByRole('header', { name: '오늘 운동을 마쳤어요' }),
     ).toHaveStyle({ color: colors.text });
     expect(hasBrandBand(view)).toBe(false);
+    expect(screen.queryByRole('button', { name: '홈으로' })).toBeNull();
+    expect(screen.getAllByText('블록 3 / 3 완료')).toHaveLength(1);
+    expect(screen.queryByText('체감 난이도 (필수)')).toBeNull();
 
     const feedbackButton = screen.getByTestId('session-feedback-save');
     const buttonStyle = StyleSheet.flatten(feedbackButton.props.style);
@@ -86,29 +258,16 @@ describe('SessionResultScreen feedback', () => {
       },
     },
     {
-      name: 'not-completed',
-      outcome: {
-        kind: 'notCompleted' as const,
-        result: {
-          session_id: 'session-result',
-          status_code: 'NOT_COMPLETED' as const,
-          reason_code: 'TIME_SHORTAGE' as const,
-          ended_at: '2026-08-19T10:00:00+09:00',
-        },
-      },
-    },
-    {
       name: 'safety-stop',
       outcome: {
         kind: 'safetyStop' as const,
         event: {
           event_id: 'safety-event-result',
-          instruction_code: 'STOP_AND_SEEK_HELP' as const,
-          resulting_action_code: 'STOP_AND_SEEK_HELP' as const,
-          session_status_code: 'STOPPED_FOR_SAFETY' as const,
-          guidance_code: 'SEEK_HELP',
+          result_code: 'STOP_AND_SEEK_HELP' as const,
+          execution_state_code: 'STOPPED_SAFETY' as const,
+          completion_code: 'PARTIAL' as const,
+          is_resumable: false as const,
           guidance: '운동을 중단하고 상태를 확인해 주세요.',
-          pressure_notifications_allowed: false,
         },
       },
     },
@@ -123,19 +282,25 @@ describe('SessionResultScreen feedback', () => {
     );
 
     expect(hasBrandBand(view)).toBe(false);
+    expect(screen.queryByRole('button', { name: '홈으로' })).toBeNull();
     expect(
       screen.getByTestId('session-feedback-save-gradient'),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId('session-feedback-save-chevron')).toBeNull();
-    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
+    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: '쉬웠어요' })).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: '적당했어요' })).toBeOnTheScreen();
-    expect(screen.getByRole('radio', { name: '어려워요' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '어려웠어요' })).toBeOnTheScreen();
     expect(screen.queryByText('피로도')).toBeNull();
     expect(screen.queryByText('만족도')).toBeNull();
     expect(screen.queryByText('운동 후 통증')).toBeNull();
     expect(screen.queryByText('불편한 부위')).toBeNull();
     expect(screen.queryByText('이상 반응')).toBeNull();
+    if (outcome.kind === 'safetyStop') {
+      expect(screen.queryByText('일부 완료')).toBeNull();
+      expect(screen.getByText('진행한 운동까지 기록했어요.')).toBeOnTheScreen();
+      expect(screen.getAllByText('운동을 중단했어요')).toHaveLength(1);
+    }
   });
 
   it('submits the selected difficulty with hidden legacy compatibility values', async () => {
@@ -158,22 +323,135 @@ describe('SessionResultScreen feedback', () => {
     );
 
     fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
-    fireEvent.press(screen.getByRole('button', { name: '피드백 저장' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    );
 
     await waitFor(() =>
-      expect(submitFeedback).toHaveBeenCalledWith('session-result', {
-        difficulty_code: 'APPROPRIATE',
-        fatigue_code: null,
-        satisfaction_code: null,
-        pain_occurred: false,
-        discomforts: [],
-        adverse_reaction_codes: [],
-      }),
+      expect(submitFeedback).toHaveBeenCalledWith(
+        'session-result',
+        {
+          difficulty_code: 'APPROPRIATE',
+          // Reasons belong to HARD only; the server rejects them elsewhere.
+          difficulty_reason_codes: [],
+          fatigue_code: null,
+          satisfaction_code: null,
+          pain_occurred: false,
+          discomforts: [],
+          adverse_reaction_codes: [],
+        },
+        expect.any(String),
+      ),
     );
     expect(await screen.findByText('피드백을 저장했어요.')).toBeOnTheScreen();
   });
 
-  it('also exposes feedback after a not-completed outcome', () => {
+  it('sends the hard-workout reasons that pick the next routine adjustment', async () => {
+    // These were collected and dropped: the codes existed only on this screen
+    // and never reached the request, so a HARD session chose no adjustment axis.
+    const submitFeedback = jest.fn<Api['submitFeedback']>(async () => ({
+      session_id: 'session-result',
+      session_status_code: 'COMPLETED',
+      created_at: '2026-08-19T10:01:00+09:00',
+      guidance_code: null,
+      guidance: null,
+      pressure_notifications_allowed: true,
+    }));
+
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: '강도가 높았어요' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    );
+
+    await waitFor(() =>
+      expect(submitFeedback).toHaveBeenCalledWith(
+        'session-result',
+        expect.objectContaining({
+          difficulty_code: 'HARD',
+          difficulty_reason_codes: ['VOLUME_HIGH'],
+        }),
+        expect.any(String),
+      ),
+    );
+  });
+
+  it('shows multi-select details only when the workout felt hard', () => {
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/어떤 점이 어려웠나요/)).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+
+    expect(
+      screen.getByText('어떤 점이 어려웠나요? (복수 선택)'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    ).toBeDisabled();
+
+    const formDifficulty = screen.getByRole('checkbox', {
+      name: '자세가 어려웠어요',
+    });
+    const highIntensity = screen.getByRole('checkbox', {
+      name: '강도가 높았어요',
+    });
+
+    fireEvent.press(formDifficulty);
+    fireEvent.press(highIntensity);
+
+    expect(formDifficulty.props.accessibilityState).toEqual({ checked: true });
+    expect(highIntensity.props.accessibilityState).toEqual({ checked: true });
+    expect(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    ).toBeEnabled();
+  });
+
+  it('clears hard-workout details after another difficulty is selected', () => {
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '자세가 어려웠어요' }),
+    );
+    fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+    expect(screen.queryByText(/어떤 점이 어려웠나요/)).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+    expect(
+      screen.getByRole('checkbox', { name: '자세가 어려웠어요' }).props
+        .accessibilityState,
+    ).toEqual({ checked: false });
+    expect(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    ).toBeDisabled();
+  });
+
+  it('returns home without rendering feedback for a rest outcome', () => {
+    const onDone = jest.fn();
     render(
       <SessionResultScreen
         api={{ submitFeedback: jest.fn() } as unknown as Api}
@@ -187,11 +465,101 @@ describe('SessionResultScreen feedback', () => {
             ended_at: '2026-08-19T10:00:00+09:00',
           },
         }}
-        onDone={jest.fn()}
+        onDone={onDone}
       />,
     );
 
-    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: '피드백 저장' })).toBeDisabled();
+    expect(screen.queryByText('오늘 운동은 어땠나요?')).toBeNull();
+    expect(screen.queryByTestId('session-feedback-save')).toBeNull();
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+  it('asks how it went after a safety stop that completed no block', () => {
+    // This case used to skip the question entirely: a safety stop with nothing
+    // completed counted as rest and went straight home, so the one stop the
+    // user most needs to describe was the one never asked about.
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'safetyStop',
+          event: {
+            event_id: 'safety-event-result',
+            result_code: 'SESSION_STOPPED',
+            execution_state_code: 'STOPPED_SAFETY',
+            completion_code: 'NOT_COMPLETED',
+            is_resumable: false,
+            guidance: '운동을 중단하고 상태를 확인해 주세요.',
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    // Serious throughout, with no mascot and no recovery framing.
+    expect(screen.getAllByText('운동을 중단했어요')).toHaveLength(1);
+    expect(screen.queryByText('오늘의 결과')).toBeNull();
+  });
+
+  it('offers to continue later after a stop that kept the session open', () => {
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'stopped',
+          completedItemCount: 1,
+          result: {
+            session_id: 'session-result',
+            completion_code: null,
+            execution_state_code: 'STOPPED_RESUMABLE',
+            stop_reason_code: 'RESUME_LATER',
+            is_resumable: true,
+            accumulated_progress_seconds: 300,
+            accumulated_rest_seconds: 0,
+            accumulated_paused_seconds: 0,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    expect(
+      screen.getByText('홈에서 이어하기를 누르면 남은 블록부터 계속돼요.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('returns home without feedback after a resumable stop with no completed block', () => {
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'stopped',
+          completedItemCount: 0,
+          result: {
+            session_id: 'session-result',
+            completion_code: null,
+            execution_state_code: 'STOPPED_RESUMABLE',
+            stop_reason_code: 'RESUME_LATER',
+            is_resumable: true,
+            accumulated_progress_seconds: 30,
+            accumulated_rest_seconds: 0,
+            accumulated_paused_seconds: 0,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(screen.queryByText('오늘 운동은 어땠나요?')).toBeNull();
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

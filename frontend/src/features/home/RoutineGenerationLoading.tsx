@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   type ImageSourcePropType,
   StyleSheet,
   Text,
@@ -91,6 +92,18 @@ export const ROUTINE_GENERATION_PHASES: readonly RoutineGenerationPhase[] = [
 const DOT_INTERVAL_MS = 1_000;
 const PHASE_DURATION_SECONDS = 4;
 const MASCOT_INTERVAL_MS = 5_000;
+const MESSAGE_FIRST_LINE_WORD_COUNT = 3;
+
+/** Keeps Korean loading copy on word boundaries with a stable two-line rhythm. */
+export function routineGenerationVisualMessage(text: string): string {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= MESSAGE_FIRST_LINE_WORD_COUNT) {
+    return text;
+  }
+  return `${words.slice(0, MESSAGE_FIRST_LINE_WORD_COUNT).join(' ')}\n${words
+    .slice(MESSAGE_FIRST_LINE_WORD_COUNT)
+    .join(' ')}`;
+}
 
 export const ROUTINE_GENERATION_ASSETS = {
   bubbles: [
@@ -161,6 +174,7 @@ function RoutineGenerationLoadingView({
   const visibleDots = '.'.repeat(dotCount);
   const reservedDots = '.'.repeat(3 - dotCount);
   const finalValidation = phase.code === 'FINAL_VALIDATION';
+  const visualMessage = routineGenerationVisualMessage(phase.text);
   const [progress] = useState(() => new Animated.Value(phase.progress));
 
   useEffect(() => {
@@ -290,12 +304,16 @@ function RoutineGenerationLoadingView({
       </View>
 
       <Text
+        adjustsFontSizeToFit
         accessible={false}
         importantForAccessibility="no"
+        lineBreakStrategyIOS="hangul-word"
+        minimumFontScale={0.85}
+        numberOfLines={2}
         style={styles.message}
         testID="routine-generation-message"
       >
-        {phase.text}
+        {visualMessage}
         <Text style={styles.messageDots} testID="routine-generation-dots">
           {visibleDots}
         </Text>
@@ -377,6 +395,7 @@ function createStyles(
       fontWeight: '800',
       lineHeight: f(21),
       textAlign: 'center',
+      ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
     },
     messageDots: {
       color: '#5A4636',

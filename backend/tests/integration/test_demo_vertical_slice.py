@@ -161,6 +161,8 @@ def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, obj
         json={
             "nickname": "데모사용자",
             "date_of_birth": "1997-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1.0.0",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": DEMO_TIMEZONE,
@@ -278,6 +280,8 @@ def test_onboarding_rolls_back_when_initial_base_routine_cannot_be_created(
         json={
             "nickname": "rollback-user",
             "date_of_birth": "1997-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1.0.0",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": DEMO_TIMEZONE,
@@ -319,8 +323,8 @@ def test_full_vertical_slice_reaches_completed_session(client: TestClient) -> No
     assert body["profile"]["nickname"] == "데모사용자"
     assert body["profile"]["age"] == 29
     assert "equipment_codes" not in body["profile"]
-    # The birthdate itself must never travel back to the client.
-    assert "date_of_birth" not in body["profile"]
+    # The authenticated owner can read the stored birthdate for profile editing.
+    assert body["profile"]["date_of_birth"] == "1997-08-11"
     assert "protected_birthdate" not in body["profile"]
 
     routine = _create_routine(client)
@@ -484,17 +488,22 @@ def test_in_session_severe_report_stops_session_and_blocks_pressure(client: Test
     reported = client.post(
         f"/api/v1/workout-sessions/{session_id}/safety-events",
         headers=_key(),
-        json={
-            "occurred_at": "2026-08-17T10:10:00+09:00",
-            "discomforts": [{"body_area_code": "KNEE", "severity_code": "SEVERE"}],
-            "adverse_reaction_codes": [],
-        },
+        json={"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE"},
     )
     assert reported.status_code in {200, 201}, reported.text
     body = reported.json()
-    assert body["instruction_code"] == "STOP_SESSION"
-    assert body["session_status_code"] == "STOPPED_FOR_SAFETY"
-    assert body["pressure_notifications_allowed"] is False
+    # The stop reason is the whole input; no symptom detail is collected, so this path
+    # always ends in SESSION_STOPPED.
+    assert body["result_code"] == "SESSION_STOPPED"
+    assert body["execution_state_code"] == "STOPPED_SAFETY"
+    assert body["completion_code"] in {"PARTIAL", "NOT_COMPLETED"}
+    # The stop is what suppresses same-day pressure: the session is terminal and the app
+    # offers no resume, skip-and-continue or alternative for the rest of the day.
+    assert body["is_resumable"] is False
+
+    detail = client.get(f"/api/v1/workout-sessions/{session_id}", headers=_key())
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["status_code"] == "STOPPED_FOR_SAFETY"
 
 
 def test_rest_selection_suppresses_pressure_and_creates_no_session(client: TestClient) -> None:

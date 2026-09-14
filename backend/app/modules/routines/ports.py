@@ -41,6 +41,12 @@ class RoutineCreationContext:
     catalog_version_code: str
     candidates: tuple[RoutineCandidate, ...]
 
+    @property
+    def weekly_target_sessions(self) -> int:
+        """The public weekly target, persisted under the legacy column name."""
+
+        return self.desired_weekly_workout_count
+
 
 @dataclass(frozen=True, slots=True)
 class RoutineItemValues:
@@ -87,6 +93,10 @@ class RoutineRepositoryPort(Protocol):
     def get_creation_context(
         self, session: Session, user_id: UUID, goal_code: str
     ) -> RoutineCreationContext | None: ...
+
+    def get_recent_performed_body_focus_codes(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> tuple[str, ...]: ...
 
     def has_any_routine(self, session: Session, user_id: UUID) -> bool: ...
 

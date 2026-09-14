@@ -30,7 +30,7 @@ repository 조회 시점에 하드코딩된 한 문장이었다. 결정 시점�
 4. 다음 경우에는 LLM을 **호출하지 않고** 검수된 템플릿을 사용한다.
    - safety status가 `PASS`/`REVISE`가 아닌 경우
    - 최종 action이 `REST` 또는 `STOP_AND_SEEK_HELP`인 경우
-   - SafetyAgent proposal이 없거나 `safety_vetoed`가 `false`가 아닌 경우. 승인된 대체 운동으로
+   - SafetyPolicyEngine result가 없거나 `safety_vetoed`가 `false`가 아닌 경우. 승인된 대체 운동으로
      바꾼 `REVISE`/`CHANGE`처럼 veto를 동반하는 결정도 여기에 포함한다.
    - 공개 plan이 없는 `NEEDS_INPUT`/`FAILED`
    - 전송 payload에 machine code가 아닌 값이 하나라도 있는 경우

@@ -1,6 +1,7 @@
 import json
 import logging
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -18,9 +19,15 @@ from backend.app.core.config import Settings
 from backend.app.core.logging import JsonFormatter
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
-from backend.app.modules.profiles.codes import ConsentTypeCode, MutationEndpointCode
+from backend.app.modules.profiles.codes import (
+    FIXED_COACHING_STYLE_CODE,
+    CoachingStyleCode,
+    ConsentTypeCode,
+    MutationEndpointCode,
+)
 from backend.app.modules.profiles.ports import (
     ConsentRecord,
     IdempotencyRecord,
@@ -29,14 +36,26 @@ from backend.app.modules.profiles.ports import (
     OnboardingProfileValues,
     OnboardingRecord,
 )
+from backend.app.modules.profiles.schemas import RETIRED_CONSENT_FIELDS
 from backend.tests.unit.test_routine_service import FakeRoutineRepository
 
 NOW = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
 
 
 class FakeSession:
+    last: "FakeSession | None" = None
+
+    def __init__(self, *, active: bool = False) -> None:
+        self.active = active
+        self.rollback_called = False
+        FakeSession.last = self
+
     def begin(self) -> nullcontext[None]:
         return nullcontext()
+
+    def rollback(self) -> None:
+        self.rollback_called = True
+        self.active = False
 
 
 class FakeProfileRepository:
@@ -46,6 +65,9 @@ class FakeProfileRepository:
         self.disabled = False
         self.consent_events = 0
         self.consent_values: dict[ConsentTypeCode, bool] = {}
+        self.terms_versions: list[str] = []
+        self.persistent_pains: tuple[tuple[str, int], ...] = ()
+        self.onboarding_values: OnboardingProfileValues | None = None
         self.me_record: MeRecord | None = None
 
     def get_me(self, session: FakeSession, user_id: UUID) -> MeRecord | None:
@@ -97,6 +119,7 @@ class FakeProfileRepository:
         now: datetime,
     ) -> OnboardingRecord:
         del session
+        self.onboarding_values = values
         self.profile_version += 1
         self.me_record = MeRecord(
             user_id=user_id,
@@ -110,13 +133,11 @@ class FakeProfileRepository:
                 primary_goal_code=values.primary_goal_code,
                 experience_level_code=values.experience_level_code,
                 timezone=values.timezone,
-                preferred_location_code=values.preferred_location_code,
-                available_location_codes=values.available_location_codes,
                 default_requested_duration_minutes=values.default_requested_duration_minutes,
                 desired_weekly_workout_count=values.desired_weekly_workout_count,
-                coaching_style_code=values.coaching_style_code,
                 attention_area_codes=values.attention_area_codes,
                 preferred_exercise_type_codes=values.preferred_exercise_type_codes,
+                weight_kg=values.weight_kg,
                 profile_version=self.profile_version,
                 created_at=now,
                 updated_at=now,
@@ -125,7 +146,6 @@ class FakeProfileRepository:
         return OnboardingRecord(
             user_id=user_id,
             profile_version=self.profile_version,
-            coaching_style_code=values.coaching_style_code,
             ai_trial_started_at=NOW,
             ai_trial_ends_at=datetime(2026, 8, 27, 6, 0, tzinfo=UTC),
             premium_status_code="NOT_AVAILABLE",
@@ -174,11 +194,35 @@ class FakeProfileRepository:
         del session, user_id, now
         self.disabled = True
 
+    def record_terms_agreement(
+        self, session: FakeSession, user_id: UUID, terms_version: str, now: datetime
+    ) -> None:
+        del session, user_id, now
+        if terms_version not in self.terms_versions:
+            self.terms_versions.append(terms_version)
+
+    def replace_persistent_pains(
+        self,
+        session: FakeSession,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None:
+        del session, user_id, now
+        self.persistent_pains = pains
+        if self.me_record is not None and self.me_record.profile is not None:
+            self.me_record = replace(
+                self.me_record,
+                profile=replace(self.me_record.profile, persistent_pains=pains),
+            )
+
 
 def _payload() -> dict[str, object]:
     return {
         "nickname": "러너01",
         "date_of_birth": "2000-08-11",
+        "medical_exercise_restriction": False,
+        "terms_version": "terms-v1",
         "primary_goal_code": "GENERAL_FITNESS",
         "experience_level_code": "BEGINNER",
         "timezone": "Asia/Seoul",
@@ -198,6 +242,7 @@ def _payload() -> dict[str, object]:
             "calendar_integration": False,
             "marketing": False,
         },
+        "persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}],
     }
 
 
@@ -206,10 +251,13 @@ def _client(
     *,
     missing_configuration_keys: tuple[str, ...] = (),
     routine_repository: FakeRoutineRepository | None = None,
+    session_active: bool = False,
+    terms_version: str | None = None,
 ) -> TestClient:
     settings = Settings(
         app_env="test",
         database_url="postgresql+psycopg://test:test@localhost/test",
+        terms_version=terms_version,
         consent_policy_version=(
             None if "CONSENT_POLICY_VERSION" in missing_configuration_keys else "privacy-v1"
         ),
@@ -240,7 +288,7 @@ def _client(
     )
 
     def session_override():
-        yield FakeSession()
+        yield FakeSession(active=session_active)
 
     app.dependency_overrides[get_db_session] = session_override
     app.dependency_overrides[get_profile_repository] = lambda: repository
@@ -248,6 +296,17 @@ def _client(
         routine_repository or FakeRoutineRepository()
     )
     return TestClient(app)
+
+
+def test_onboarding_closes_a_transaction_left_by_authentication_dependencies() -> None:
+    with _client(FakeProfileRepository(), session_active=True) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 200
+    assert FakeSession.last is not None
+    assert FakeSession.last.rollback_called is True
 
 
 def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None:
@@ -269,6 +328,8 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     assert second.json() == first.json()
     assert repository.profile_version == 1
     assert repository.consent_events == 5
+    assert repository.terms_versions == ["terms-v1"]
+    assert repository.persistent_pains == (("KNEE", 3),)
     assert set(first.json()) == {
         "user_id",
         "onboarding_completed",
@@ -305,6 +366,8 @@ def test_onboarding_automatically_creates_exactly_one_base_routine() -> None:
     assert reonboarding.status_code == 200
     assert len(routine_repository.versions) == 1
     assert next(iter(routine_repository.versions.values())) == 1
+    routine_payload = next(iter(routine_repository.payloads.values()))
+    assert {day["requested_duration_minutes"] for day in routine_payload["days"]} == {30}
 
 
 def test_onboarding_returns_routine_creation_failure_as_a_service_error() -> None:
@@ -326,6 +389,11 @@ def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
 
     assert "equipment_codes" not in schemas["OnboardingUpsertRequest"]["properties"]
     assert "equipment_codes" not in schemas["MeProfile"]["properties"]
+    persistent_pains_schema = schemas["MeProfile"]["properties"]["persistent_pains"]
+    assert {item.get("type") for item in persistent_pains_schema["anyOf"]} == {
+        "array",
+        "null",
+    }
 
 
 def test_get_me_profile_response_omits_equipment_codes() -> None:
@@ -341,7 +409,123 @@ def test_get_me_profile_response_omits_equipment_codes() -> None:
     assert onboarding.status_code == 200
     assert response.status_code == 200
     assert response.json()["profile"]["nickname"] == "러너01"
+    assert response.json()["profile"]["persistent_pains"] == [
+        {"body_area_code": "KNEE", "intensity_score": 3}
+    ]
     assert "equipment_codes" not in response.json()["profile"]
+
+
+def test_get_me_marks_a_legacy_attention_only_profile_as_unmigrated() -> None:
+    repository = FakeProfileRepository()
+    repository.me_record = MeRecord(
+        user_id=uuid4(),
+        status_code="ACTIVE",
+        premium_status_code="NOT_AVAILABLE",
+        ai_trial_started_at=NOW,
+        ai_trial_ends_at=NOW,
+        profile=MeProfileRecord(
+            nickname="legacy-user",
+            protected_birthdate="ignored-without-a-cipher",
+            primary_goal_code="GENERAL_FITNESS",
+            experience_level_code="BEGINNER",
+            timezone="Asia/Seoul",
+            default_requested_duration_minutes=40,
+            desired_weekly_workout_count=3,
+            attention_area_codes=("KNEE",),
+            preferred_exercise_type_codes=(),
+            profile_version=1,
+            created_at=NOW,
+            updated_at=NOW,
+        ),
+    )
+
+    with _client(repository) as client:
+        response = client.get("/api/v1/me")
+
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["attention_area_codes"] == ["KNEE"]
+    assert profile["persistent_pains"] is None
+
+
+def test_get_me_returns_the_stored_birthdate_and_weight_to_their_owner() -> None:
+    # 설정 화면은 사용자가 저장한 값을 다시 보여줘야 한다. 서버가 돌려주지 않으면
+    # 클라이언트에 채울 원본이 없어 매번 빈 칸에서 다시 입력하게 된다.
+    repository = FakeProfileRepository()
+    with _client(repository) as client:
+        onboarding = client.put(
+            "/api/v1/me/onboarding",
+            json=_payload(),
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+        response = client.get("/api/v1/me")
+
+    assert onboarding.status_code == 200
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["date_of_birth"] == "2000-08-11"
+    assert profile["weight_kg"] == 68.5
+    # 암호문은 소유자에게도 반환하지 않는다.
+    assert "protected_birthdate" not in profile
+
+
+def test_get_me_without_a_birthdate_cipher_serves_a_null_birthdate() -> None:
+    # 복호화가 불가능한 배포에서도 프로필 조회는 살아 있어야 한다. 여기서 503이
+    # 나면 생년월일 하나 때문에 마이페이지 전체가 열리지 않는다.
+    repository = FakeProfileRepository()
+    repository.me_record = MeRecord(
+        user_id=uuid4(),
+        status_code="ACTIVE",
+        premium_status_code="NOT_AVAILABLE",
+        ai_trial_started_at=NOW,
+        ai_trial_ends_at=NOW,
+        profile=MeProfileRecord(
+            nickname="러너01",
+            protected_birthdate="unreadable-without-a-cipher",
+            primary_goal_code="GENERAL_FITNESS",
+            experience_level_code="BEGINNER",
+            timezone="Asia/Seoul",
+            default_requested_duration_minutes=40,
+            desired_weekly_workout_count=3,
+            attention_area_codes=("KNEE",),
+            preferred_exercise_type_codes=("STRENGTH",),
+            weight_kg=68.5,
+            profile_version=1,
+            created_at=NOW,
+            updated_at=NOW,
+        ),
+    )
+
+    settings = Settings(
+        _env_file=None,
+        app_env="test",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/me")
+
+    assert response.status_code == 200
+    profile = response.json()["profile"]
+    assert profile["date_of_birth"] is None
+    assert profile["age"] is None
+    # 복호화와 무관한 값은 그대로 나와야 한다.
+    assert profile["weight_kg"] == 68.5
+    assert "unreadable-without-a-cipher" not in response.text
 
 
 def test_onboarding_rejects_removed_equipment_field() -> None:
@@ -361,18 +545,22 @@ def test_onboarding_rejects_removed_equipment_field() -> None:
     assert repository.profile_version == 0
 
 
-@pytest.mark.parametrize("field_name", ["sex_code", "height_cm", "weight_kg"])
-@pytest.mark.parametrize("explicit_null", [False, True])
-def test_required_body_metrics_reject_missing_and_null_values(
-    field_name: str,
-    explicit_null: bool,
-) -> None:
+def test_current_frontend_onboarding_contract_does_not_require_legacy_fields() -> None:
     repository = FakeProfileRepository()
     payload = _payload()
-    if explicit_null:
-        payload[field_name] = None
-    else:
-        payload.pop(field_name)
+    for field_name in (
+        "preferred_location_code",
+        "available_location_codes",
+        "default_requested_duration_minutes",
+        "desired_weekly_workout_count",
+        "attention_area_codes",
+        "preferred_exercise_type_codes",
+        "height_cm",
+        "sex_code",
+    ):
+        payload.pop(field_name, None)
+    payload["weekly_target_sessions"] = 3
+    payload["persistent_pains"] = []
 
     with _client(repository) as client:
         response = client.put(
@@ -381,8 +569,30 @@ def test_required_body_metrics_reject_missing_and_null_values(
             headers={"Idempotency-Key": str(uuid4())},
         )
 
-    assert response.status_code == 422
-    assert repository.profile_version == 0
+    assert response.status_code == 200
+    assert repository.profile_version == 1
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("height_cm", None), ("sex_code", None)],
+)
+def test_legacy_body_metrics_accept_explicit_null_for_new_clients(
+    field_name: str,
+    value: None,
+) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload[field_name] = value
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
 
 
 def test_invalid_sex_code_is_rejected() -> None:
@@ -466,7 +676,7 @@ def test_body_metrics_outside_boundaries_are_rejected(
     assert response.status_code == 422
 
 
-def test_attention_area_codes_is_required() -> None:
+def test_attention_area_codes_defaults_to_empty_for_new_clients() -> None:
     repository = FakeProfileRepository()
     payload = _payload()
     payload.pop("attention_area_codes")
@@ -478,8 +688,8 @@ def test_attention_area_codes_is_required() -> None:
             headers={"Idempotency-Key": str(uuid4())},
         )
 
-    assert response.status_code == 422
-    assert repository.profile_version == 0
+    assert response.status_code == 200
+    assert repository.profile_version == 1
 
 
 @pytest.mark.parametrize(
@@ -538,9 +748,41 @@ def test_underage_onboarding_is_blocked_without_leaking_birthdate() -> None:
         )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "AGE_REQUIREMENT_NOT_MET"
-    assert repository.disabled is True
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_AGE"
+    assert repository.disabled is False
     assert secret_birthdate not in response.text
+
+
+def test_medical_exercise_restriction_blocks_onboarding_without_profile_write() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["medical_exercise_restriction"] = True
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=payload, headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_MEDICAL_MANAGEMENT"
+    assert repository.profile_version == 0
+
+
+def test_new_weekly_target_sessions_maps_to_persisted_onboarding_value() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload.pop("desired_weekly_workout_count")
+    payload["weekly_target_sessions"] = 4
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=payload, headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 200
+    assert repository.onboarding_values is not None
+    assert repository.onboarding_values.weekly_target_sessions == 4
+    assert repository.onboarding_values.desired_weekly_workout_count == 4
 
 
 @pytest.mark.parametrize(
@@ -767,3 +1009,165 @@ def test_get_consents_before_onboarding_is_empty() -> None:
         read = client.get("/api/v1/me/consents")
     assert read.status_code == 200
     assert read.json()["consents"] == []
+
+
+def test_onboarding_succeeds_without_a_coaching_style() -> None:
+    """The style is no longer collected, so omitting it must not fail validation."""
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    del payload["coaching_style_code"]
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert repository.onboarding_values is not None
+
+
+@pytest.mark.parametrize("style", [code.value for code in CoachingStyleCode])
+def test_a_deployed_client_may_still_send_a_style_and_it_is_ignored(style: str) -> None:
+    """Write compatibility: the request is accepted, the value is not applied.
+
+    The onboarding model forbids extra keys, so the field has to stay declared;
+    dropping it would turn an older client's request into a 422. Migration 0049
+    removed the column, so the submitted value now reaches nothing at all.
+    """
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    payload["coaching_style_code"] = style
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert repository.onboarding_values is not None
+
+
+def test_me_still_reports_the_retired_profile_fields_with_fixed_values() -> None:
+    """Migrations 0049 and 0050 removed the storage; the response keeps the fields.
+
+    A deployed client reads all three off `/api/v1/me`, so they must not vanish in
+    the release that drops the columns. They report the values the service applies:
+    the one coaching style, and the location every profile already carried after
+    ADR-0017 stopped collecting one.
+    """
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    with client:
+        client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=_payload(),
+        )
+        read = client.get("/api/v1/me")
+
+    assert read.status_code == 200
+    profile = read.json()["profile"]
+    assert profile["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert profile["preferred_location_code"] == DEFAULT_LOCATION_CODE.value
+    assert profile["available_location_codes"] == [DEFAULT_LOCATION_CODE.value]
+
+
+@pytest.mark.parametrize("field_name", RETIRED_CONSENT_FIELDS)
+def test_retired_consents_are_stored_as_not_granted(field_name: str) -> None:
+    """A client that still asks for wearable or calendar consent gets a no-op.
+
+    There is nothing to consent to, so granting must not be recorded. The record
+    itself stays: "not granted" is a truthful state, and dropping it would make
+    "declined" indistinguishable from "never asked".
+    """
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    consents = dict(payload["consents"])  # type: ignore[arg-type]
+    consents[field_name] = True
+    payload["consents"] = consents
+    with client:
+        onboarded = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+        read = client.get("/api/v1/me/consents")
+
+    assert onboarded.status_code == 200
+    states = {item["consent_type_code"]: item["granted"] for item in read.json()["consents"]}
+    assert states[field_name.upper()] is False
+    # The approved consents are untouched by the retirement.
+    assert states["GENERAL_PERSONAL_DATA"] is True
+    assert states["SENSITIVE_DATA"] is True
+
+
+def test_onboarding_requirements_tell_the_client_which_revision_to_submit() -> None:
+    client = _client(FakeProfileRepository(), terms_version="terms-v2.0.0")
+    with client:
+        response = client.get("/api/v1/legal/onboarding-requirements")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["terms_version"] == "terms-v2.0.0"
+    assert body["consent_policy_version"] == "privacy-v1"
+    assert body["required_consent_type_codes"] == ["GENERAL_PERSONAL_DATA", "SENSITIVE_DATA"]
+    # Retired types are absent, so a client rendering this list cannot show them.
+    presented = set(body["required_consent_type_codes"]) | set(body["optional_consent_type_codes"])
+    assert "WEARABLE_INTEGRATION" not in presented
+    assert "CALENDAR_INTEGRATION" not in presented
+
+
+def test_onboarding_requirements_fail_closed_without_an_approved_revision() -> None:
+    client = _client(FakeProfileRepository())
+    with client:
+        response = client.get("/api/v1/legal/onboarding-requirements")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "LEGAL_POLICY_UNAVAILABLE"
+
+
+def test_onboarding_rejects_a_revision_the_deployment_did_not_approve() -> None:
+    """The client used to name the revision it had agreed to, so the stored
+    agreement recorded whatever the oldest installed build believed."""
+
+    repository = FakeProfileRepository()
+    client = _client(repository, terms_version="terms-v2.0.0")
+    payload = _payload()
+    payload["terms_version"] = "terms-v1"
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TERMS_VERSION_MISMATCH"
+    assert repository.terms_versions == []
+
+
+def test_onboarding_accepts_the_approved_revision() -> None:
+    repository = FakeProfileRepository()
+    client = _client(repository, terms_version="terms-v2.0.0")
+    payload = _payload()
+    payload["terms_version"] = "terms-v2.0.0"
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert repository.terms_versions == ["terms-v2.0.0"]

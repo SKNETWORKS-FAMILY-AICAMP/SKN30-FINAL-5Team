@@ -1,0 +1,27 @@
+{
+  "architecture_code": "MULTI_AGENT",
+  "cases": [
+    {
+      "architecture_code": "MULTI_AGENT",
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "findings": [],
+      "has_plan": true,
+      "input_tokens": 24140,
+      "llm_call_count": 4,
+      "output_tokens": 3332,
+      "passed": true,
+      "repair_attempts": 0,
+      "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+      "status_code": "SUCCEEDED",
+      "used_fallback": false,
+      "wall_clock_ms": 27328
+    }
+  ],
+  "critical_failures": 0,
+  "llm_calls_made": 4,
+  "model_label": "OPENAI:gpt-5.6-terra",
+  "passed_runs": 1,
+  "run_count": 1,
+  "tracing": "LangSmith tracing on: project=helkki run=multi-agent-v1"
+}

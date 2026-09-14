@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from backend.app.db.repositories.catalog import _verified_source_object_key
 from backend.app.modules.catalog.schemas import MediaAssetRecord
 from backend.app.modules.catalog.service import CatalogImportError, load_media_artifact
 
@@ -113,3 +114,40 @@ def test_media_loader_rejects_duplicate_exercise(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.code == "DUPLICATE_MEDIA"
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        # Catalogs up to v2.0.4 wrote the verified fields at the top level.
+        ({"source_object_key": "videos/0126-82LxxkW.gif"}, "videos/0126-82LxxkW.gif"),
+        # The v2.0.6 media import nests the same three fields under "record".
+        (
+            {
+                "record": {
+                    "source_object_key": "videos/0002-Hy9D21L.gif",
+                    "source_object_content_type": "image/gif",
+                    "source_object_verified_at": "2026-09-04T03:51:24+00:00",
+                }
+            },
+            "videos/0002-Hy9D21L.gif",
+        ),
+        # A top-level value stays authoritative when both layouts are present.
+        (
+            {
+                "source_object_key": "videos/top.gif",
+                "record": {"source_object_key": "videos/nested.gif"},
+            },
+            "videos/top.gif",
+        ),
+        ({}, None),
+        (None, None),
+        ({"source_object_key": ""}, None),
+        ({"record": {"source_object_key": 7}}, None),
+        ({"record": "not-a-mapping"}, None),
+    ],
+)
+def test_verified_source_object_key_reads_both_import_layouts(metadata, expected) -> None:
+    """Reading only the top level left every v2.0.6 exercise without a media URL."""
+
+    assert _verified_source_object_key(metadata) == expected

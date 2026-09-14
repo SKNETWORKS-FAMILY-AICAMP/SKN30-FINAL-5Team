@@ -11,6 +11,10 @@ from backend.app.core.config import Settings
 COMPOSE_PATH = Path("infra/deployment/compose.staging.yaml")
 CADDYFILE_PATH = Path("infra/deployment/Caddyfile")
 ENV_EXAMPLE_PATH = Path("infra/deployment/.env.staging.example")
+WEB_COMPOSE_PATH = Path("infra/deployment/compose.staging.web.yaml")
+WEB_CADDYFILE_PATH = Path("infra/deployment/Caddyfile.web")
+QDRANT_OVERLAY_PATH = Path("infra/deployment/compose.staging.qdrant.yaml")
+V3_PRODUCTION_OVERLAY_PATH = Path("infra/deployment/compose.staging.v3production.yaml")
 USER_DATA_PATH = Path("infra/aws/user-data.sh")
 
 
@@ -90,6 +94,22 @@ def test_tls_configuration_carries_no_literal_domain_or_secret() -> None:
     assert "CORS_ALLOWED_ORIGINS=*" not in env_example
 
 
+def test_web_overlay_separates_landing_app_and_api_without_literal_domains() -> None:
+    overlay = yaml.safe_load(WEB_COMPOSE_PATH.read_text(encoding="utf-8"))
+    caddyfile = WEB_CADDYFILE_PATH.read_text(encoding="utf-8")
+
+    caddy = overlay["services"]["caddy"]
+    assert "./Caddyfile.web:/etc/caddy/Caddyfile:ro" in caddy["volumes"]
+    assert any("/srv/landing:ro" in item for item in caddy["volumes"])
+    assert any("/srv/app:ro" in item for item in caddy["volumes"])
+    assert "handle /api/*" in caddyfile
+    assert "reverse_proxy api:8000" in caddyfile
+    assert "root * /srv/landing" in caddyfile
+    assert "root * /srv/app" in caddyfile
+    assert "try_files {path} /index.html" in caddyfile
+    assert "helkki.com" not in caddyfile
+
+
 def test_staging_baseline_is_fail_closed_and_contains_no_provider_secret() -> None:
     api = _compose()["services"]["api"]
     environment = _environment(api)
@@ -153,12 +173,35 @@ def test_staging_env_example_and_bootstrap_contain_no_secret_values() -> None:
     assert "BIRTHDATE_KMS_KEY_ID=alias/helkki-staging-birthdate" in env_example
     assert "AWS_ACCESS_KEY_ID" not in env_example
     assert "AWS_SECRET_ACCESS_KEY" not in env_example
-    assert "OPENAI_API_KEY" not in env_example
+    assert "OPENAI_API_KEY=<aws-secrets-manager-injected-openai-api-key>" in env_example
     assert "sk-" not in env_example
     assert "sk-" not in user_data
     assert "v2.40.3" in user_data
     assert "v0.36.1" in user_data
     assert "sha256sum --check" in user_data
+
+
+def test_public_v3_overlay_requires_authoritative_agents_and_vector_retrieval() -> None:
+    qdrant = QDRANT_OVERLAY_PATH.read_text(encoding="utf-8")
+    v3 = yaml.safe_load(V3_PRODUCTION_OVERLAY_PATH.read_text(encoding="utf-8"))["services"]["api"]
+    v3_environment = _environment(v3)
+
+    assert 'QDRANT_ENABLED: "true"' in qdrant
+    assert 'QDRANT_TLS_ENABLED: "true"' in qdrant
+    assert v3_environment == {
+        "V3_EXECUTION_PROFILE": "PRODUCTION",
+        "V3_LANGGRAPH_ENABLED": "true",
+        "V3_REGENERATION_ENABLED": "true",
+        "V3_PRODUCTION_PROMOTION_APPROVED": "true",
+        "LLM_AGENTS_ENABLED": "true",
+        "LLM_AGENTS_PROVIDER_CODE": "OPENAI",
+        "LLM_AGENTS_MODEL_CODE": "gpt-5.6-terra",
+        "LLM_AGENTS_APPROVED_MODEL_CODES": '["gpt-5.6-terra"]',
+        "LLM_AGENTS_TIMEOUT_SECONDS": "60",
+        "LLM_AGENTS_MAX_OUTPUT_TOKENS": "4000",
+        "LLM_AGENTS_REASONING_EFFORT": "low",
+        "LLM_MODEL_CODE": "gpt-5.6-terra",
+    }
 
 
 def test_ec2_role_policy_grants_only_required_birthdate_kms_operations() -> None:
@@ -172,3 +215,61 @@ def test_ec2_role_policy_grants_only_required_birthdate_kms_operations() -> None
     assert statement["Condition"]["ForAnyValue:StringEquals"]["kms:ResourceAliases"] == (
         "alias/helkki-staging-birthdate"
     )
+
+
+def test_staging_firebase_admin_credential_is_host_mounted_read_only() -> None:
+    api = _compose()["services"]["api"]
+    env_example = ENV_EXAMPLE_PATH.read_text(encoding="utf-8")
+
+    assert api["volumes"] == [
+        "${FIREBASE_ADMIN_CREDENTIALS_HOST_PATH:?set "
+        "FIREBASE_ADMIN_CREDENTIALS_HOST_PATH in .env.staging}:"
+        "/run/secrets/firebase-admin-service-account.json:ro"
+    ]
+    assert "FIREBASE_PROJECT_ID=<aws-secrets-manager-injected-firebase-project-id>" in env_example
+    assert "extract its\n# `FIREBASE_PROJECT_ID` scalar field" in env_example
+    assert (
+        "GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-admin-service-account.json"
+        in env_example
+    )
+    assert "private_key" not in env_example
+
+
+def test_ec2_role_policy_can_read_only_the_staging_firebase_secret_names() -> None:
+    policy = json.loads(Path("infra/aws/ec2-staging-secrets-policy.json").read_text())
+    statement = next(
+        item for item in policy["Statement"] if item["Sid"] == "ReadStagingDeploymentSecrets"
+    )
+
+    assert statement["Action"] == "secretsmanager:GetSecretValue"
+    assert (
+        "arn:aws:secretsmanager:ap-northeast-2:343953861875:secret:/helkki/staging/firebase_id-*"
+    ) in statement["Resource"]
+    assert (
+        "arn:aws:secretsmanager:ap-northeast-2:343953861875:secret:"
+        "/helkki/staging/firebase-admin-service-account-*"
+    ) in statement["Resource"]
+
+
+def test_ec2_role_policy_grants_the_writes_profile_image_upload_needs() -> None:
+    """Profile image upload is the only write path into the media bucket.
+
+    `S3ProfileImageAdapter` reuses `exercise_media_s3_bucket` under the
+    `profile-images/` prefix and needs PutObject to store, GetObject to presign
+    and DeleteObject to replace or roll back. The adapter turns a missing grant
+    into a warning log and a False return, so a policy that only grants reads
+    surfaces as "the picture will not change" rather than an obvious error.
+    """
+
+    policy = json.loads(Path("infra/aws/ec2-staging-exercise-media-policy.json").read_text())
+    statement = next(
+        item for item in policy["Statement"] if item["Sid"] == "ManagePrivateProfileImages"
+    )
+
+    assert set(statement["Action"]) == {"s3:GetObject", "s3:PutObject", "s3:DeleteObject"}
+    assert statement["Resource"].endswith("/profile-images/*")
+    # The exercise media grant stays read-only; only the profile prefix is writable.
+    source = next(
+        item for item in policy["Statement"] if item["Sid"] == "ReadExerciseMediaSourceObjects"
+    )
+    assert set(source["Action"]) == {"s3:GetObject"}

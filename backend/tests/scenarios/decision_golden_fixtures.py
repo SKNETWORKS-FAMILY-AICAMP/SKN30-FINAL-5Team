@@ -615,10 +615,9 @@ DECISION_GOLDEN_CASES: Final[tuple[DecisionGoldenCase, ...]] = (
         reason_code="SAFETY_CAUTION_APPLIED",
         context_reference_codes=("CHECK_IN.KNEE_MILD", "RULE.KNEE_CAUTION"),
     ),
-    _caution_downshift_case(
-        "CHRONIC_KNEE_ATTENTION_CAUTION",
-        reason_code="ATTENTION_AREA_CAUTION_APPLIED",
-        context_reference_codes=("PROFILE.ATTENTION_KNEE", "CHECK_IN.NO_DISCOMFORT"),
+    _healthy_case(
+        "PROFILE_ATTENTION_PREFILL_IGNORED",
+        context_codes=("PROFILE.ATTENTION_KNEE", "CHECK_IN.NO_DISCOMFORT"),
     ),
     _blocked_case(
         "KNEE_SEVERE_REST",

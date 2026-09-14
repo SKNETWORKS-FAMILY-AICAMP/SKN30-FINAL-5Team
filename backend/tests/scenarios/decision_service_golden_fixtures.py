@@ -156,15 +156,10 @@ SERVICE_DECISION_GOLDEN_CASES: tuple[ServiceDecisionGoldenCase, ...] = (
         ),
     ),
     ServiceDecisionGoldenCase(
-        case_code="CHRONIC_KNEE_ATTENTION_CAUTION",
+        case_code="PROFILE_ATTENTION_PREFILL_IGNORED",
         attention_area_codes=("KNEE",),
         safety_effect=SafetyRuleEffectCode.CAUTION,
-        expected=ServiceGoldenExpected(
-            "DOWNSHIFT",
-            SafetyStatusCode.REVISE,
-            False,
-            "approved-downshift",
-        ),
+        expected=ServiceGoldenExpected("KEEP", SafetyStatusCode.PASS, False, "candidate-original"),
     ),
 )
 

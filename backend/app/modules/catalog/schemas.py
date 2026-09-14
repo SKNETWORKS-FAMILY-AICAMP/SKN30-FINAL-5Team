@@ -96,6 +96,14 @@ class BundleSummary(CatalogInputModel):
     media_asset_records: Annotated[int | None, Field(ge=0)] = None
 
 
+class BundleInputPolicy(CatalogInputModel):
+    """Auditable exclusions for auxiliary, non-importable catalog inputs."""
+
+    canonical_catalog_source: Annotated[str, Field(min_length=1, max_length=500)]
+    excluded_auxiliary_artifacts: list[Annotated[str, Field(min_length=1, max_length=500)]]
+    excluded_reason: Annotated[str, Field(min_length=1, max_length=500)]
+
+
 class CatalogBundleManifest(CatalogInputModel):
     schema_version: Literal["1.0", "1.1"]
     bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
@@ -108,6 +116,7 @@ class CatalogBundleManifest(CatalogInputModel):
     derived_from: dict[str, Any] | None = None
     files: list[BundleManifestFile]
     importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
+    input_policy: BundleInputPolicy | None = None
     production_eligible: Literal[False]
     projection: dict[str, Any] | None = None
     status_code: Literal["DRAFT"]
@@ -182,6 +191,14 @@ class ExerciseRecord(CatalogInputModel):
     # Provenance for form_cues_ko, so an unreviewed cue is answerable in SQL.
     form_cues_source: Annotated[str, Field(min_length=1, max_length=120)] | None = None
     form_cues_review_status: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
+    # v2.0.7 MET projection. These are optional so historical v2 bundles remain
+    # importable while the new bundle can carry reviewed MET provenance.
+    met_value: Annotated[float, Field(gt=0)] | None = None
+    met_source_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    met_source_activity_code: Annotated[str, Field(min_length=1, max_length=40)] | None = None
+    met_mapping_method_code: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    met_review_status_code: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
+    met_policy_version: Annotated[str, Field(min_length=1, max_length=120)] | None = None
 
     @model_validator(mode="after")
     def validate_family_identity(self) -> "ExerciseRecord":
@@ -190,6 +207,20 @@ class ExerciseRecord(CatalogInputModel):
             raise ValueError("only a VARIANT record names a representative_stable_code")
         if self.representative_stable_code == self.stable_code:
             raise ValueError("a VARIANT must not name itself as its representative")
+        return self
+
+    @model_validator(mode="after")
+    def validate_met_provenance(self) -> "ExerciseRecord":
+        fields = (
+            self.met_value,
+            self.met_source_code,
+            self.met_source_activity_code,
+            self.met_mapping_method_code,
+            self.met_review_status_code,
+            self.met_policy_version,
+        )
+        if any(value is not None for value in fields) and any(value is None for value in fields):
+            raise ValueError("MET provenance must be complete when present")
         return self
 
     @field_validator("body_focus_code", mode="before")
@@ -284,13 +315,32 @@ class ExerciseDetailResponse(BaseModel):
     exercise_id: UUID
     exercise_name: str
     training_type_code: str
+    body_focus_code: BodyFocusCode | None = None
     primary_body_area_codes: list[str]
     instruction_summary: str
     form_cues: list[str]
+    instruction_steps: list[str] | None = None
+    cautions: list[str] | None = None
     media_asset_key: str | None = None
     media_url: str | None = None
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
+    household_equipment_guides: list["HouseholdEquipmentGuide"] | None = None
+    gym_equipment_starting_guides: list["GymEquipmentStartingGuide"] | None = None
+
+
+class HouseholdEquipmentGuide(BaseModel):
+    equipment_code: EquipmentCode
+    proposal_ko: str
+    examples_ko: list[str]
+    cautions_ko: list[str]
+
+
+class GymEquipmentStartingGuide(BaseModel):
+    equipment_code: EquipmentCode
+    proposal_ko: str
+    examples_ko: list[str]
+    cautions_ko: list[str]
 
 
 class ExerciseListItem(BaseModel):
@@ -298,6 +348,7 @@ class ExerciseListItem(BaseModel):
     name: str
     training_type_code: TrainingTypeCode
     difficulty_code: DifficultyCode
+    body_focus_code: BodyFocusCode | None = None
     primary_body_area_codes: list[BodyAreaCode]
     required_equipment_codes: list[EquipmentCode]
     media_asset_key: str | None = None
@@ -317,6 +368,9 @@ class ExerciseVariantItem(BaseModel):
     form_cues: list[str]
     media_asset_key: str | None = None
     goal_preservation_code: str
+    missing_equipment_code: EquipmentCode | None = None
+    selection_rationale_ko: str | None = None
+    household_guide: HouseholdEquipmentGuide | None = None
 
 
 class ExerciseVariantsResponse(BaseModel):

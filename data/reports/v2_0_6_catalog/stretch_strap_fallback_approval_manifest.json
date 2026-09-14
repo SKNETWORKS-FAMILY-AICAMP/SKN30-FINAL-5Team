@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "catalog_version_code": "exercise-catalog-v2.0.6-final",
+  "status": "DOMAIN_APPROVED",
+  "review_method_code": "DOMAIN_REVIEWER",
+  "reviewer_code": "PM_DIRECT_REVIEW",
+  "reviewed_at": "2026-09-04T00:00:00+09:00",
+  "production_eligible": false,
+  "approval_basis": "The STRETCH_STRAP source exercise has an importer-required BODYWEIGHT fallback with the same mobility goal and matching hamstring/glute roles; no household-substitution content is included.",
+  "source_catalog_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+  "source_catalog_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+  "alternative_policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+  "records": [
+    {
+      "source_exercise_stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "alternative_exercise_stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "reason_code": "EQUIPMENT",
+      "goal_preservation_code": "SAME_GOAL"
+    }
+  ]
+}

@@ -218,3 +218,10 @@ def test_agent_timeout_still_has_an_upper_bound() -> None:
         Settings(llm_agents_timeout_seconds=61.0)
     with pytest.raises(ValidationError, match=r"must be within \(0, 60\]"):
         Settings(llm_agents_timeout_seconds=0)
+
+
+def test_agent_reasoning_effort_is_bounded_and_defaults_to_low() -> None:
+    assert Settings().llm_agents_reasoning_effort == "low"
+    assert Settings(llm_agents_reasoning_effort="medium").llm_agents_reasoning_effort == "medium"
+    with pytest.raises(ValidationError):
+        Settings(llm_agents_reasoning_effort="unbounded")

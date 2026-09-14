@@ -6,18 +6,24 @@ import {
   DEFAULT_HOUSE_BACKGROUND_ID,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
+  HOUSE_DAILY_QUESTS,
+  INTIMACY_DAILY_EARN_LIMIT,
+  INTIMACY_POINTS_PER_LEVEL,
   buildHouseView,
   buyItem,
-  claimDailyGift,
   createHouseState,
   feedMascot,
   grantWorkoutRewards,
+  miniGameRewardClaimedToday,
   parseHouseState,
   petMascot,
   placeHouseItem,
+  recordMiniGameReward,
   registerVisit,
   restingPose,
   selectBackground,
+  settleHouseDay,
   type HouseState,
 } from '../src/features/house/houseModel';
 
@@ -62,6 +68,12 @@ function stateWith(overrides: Partial<HouseState>): HouseState {
 }
 
 describe('house rewards', () => {
+  it('uses the shared bonding copy for the mascot interaction quest', () => {
+    expect(HOUSE_DAILY_QUESTS.find((quest) => quest.id === 'pet')?.label).toBe(
+      HOUSE_BONDING_COPY.questLabel,
+    );
+  });
+
   it('pays for a completed workout once, however often the list is re-read', () => {
     const sessions = [session('s1', '2026-08-18', 'COMPLETED')];
 
@@ -100,13 +112,65 @@ describe('house rewards', () => {
   });
 });
 
-describe('daily gift and visits', () => {
-  it('gives the gift once a day', () => {
-    const claimed = claimDailyGift(createHouseState(), TODAY);
-    expect(claimed?.granted).toBe(DAILY_GIFT_BANANAS);
+describe('daily quests and visits', () => {
+  it('pays the visit quest once a day, at the amount the old gift paid', () => {
+    const visited = registerVisit(createHouseState(), TODAY);
+
+    const first = settleHouseDay(visited, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(first.granted).toBe(DAILY_GIFT_BANANAS);
+
+    const second = settleHouseDay(first.state, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(second.granted).toBe(0);
+    expect(second.state.bananas).toBe(DAILY_GIFT_BANANAS);
+  });
+
+  it('pays the workout quest only once the server says a session completed', () => {
+    const visited = registerVisit(createHouseState(), TODAY);
+    const workoutQuest = HOUSE_DAILY_QUESTS.find(
+      (quest) => quest.id === 'workout',
+    );
+
+    const resting = settleHouseDay(visited, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(resting.state.paidQuestIds).not.toContain('workout');
+    expect(resting.state.bananas).toBe(DAILY_GIFT_BANANAS);
+
+    const trained = settleHouseDay(resting.state, {
+      today: TODAY,
+      workoutCompletedToday: true,
+    });
+    expect(trained.granted).toBe(workoutQuest?.reward);
+    // The workout is the third source of intimacy, and it pays once.
+    expect(trained.state.intimacyPoints).toBe(1);
     expect(
-      claimDailyGift(claimed?.state ?? createHouseState(), TODAY),
-    ).toBeNull();
+      settleHouseDay(trained.state, {
+        today: TODAY,
+        workoutCompletedToday: true,
+      }).granted,
+    ).toBe(0);
+  });
+
+  it('never takes a quest reward back when a day ends unfinished', () => {
+    const yesterday = settleHouseDay(registerVisit(createHouseState(), TODAY), {
+      today: TODAY,
+      workoutCompletedToday: true,
+    });
+
+    const tomorrow = settleHouseDay(yesterday.state, {
+      today: '2026-08-23',
+      workoutCompletedToday: false,
+    });
+
+    expect(tomorrow.state.bananas).toBe(yesterday.state.bananas);
+    expect(tomorrow.state.intimacyPoints).toBe(yesterday.state.intimacyPoints);
   });
 
   it('records one visit per day and counts consecutive ones', () => {
@@ -132,14 +196,110 @@ describe('daily gift and visits', () => {
   });
 });
 
+describe('intimacy', () => {
+  it('lets the mascot be petted for free, as often as the user likes', () => {
+    let state = stateWith({ bananas: 0 });
+
+    for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT + 3; index += 1) {
+      state = petMascot(state, TODAY);
+    }
+
+    expect(state.bananas).toBe(0);
+    expect(state.pettedCount).toBe(INTIMACY_DAILY_EARN_LIMIT + 3);
+    // The touch always lands; only the intimacy it pays is capped.
+    expect(state.intimacyPoints).toBe(INTIMACY_DAILY_EARN_LIMIT);
+  });
+
+  it('starts the daily allowance over without touching what was earned', () => {
+    let state = stateWith({ bananas: 0 });
+    for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT; index += 1) {
+      state = petMascot(state, TODAY);
+    }
+
+    const next = petMascot(state, '2026-08-23');
+
+    expect(next.intimacyPoints).toBe(INTIMACY_DAILY_EARN_LIMIT + 1);
+    expect(next.pettedCount).toBe(1);
+  });
+
+  it('reads the level and the remaining allowance onto the view', () => {
+    const state = stateWith({
+      intimacyPoints: INTIMACY_POINTS_PER_LEVEL * 2 + 3,
+      intimacyLocalDate: TODAY,
+      intimacyEarnedToday: 2,
+    });
+
+    const view = buildHouseView({
+      state,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+
+    expect(view.intimacyLevel).toBe(3);
+    expect(view.intimacyRemainingToday).toBe(INTIMACY_DAILY_EARN_LIMIT - 2);
+  });
+});
+
+describe('the mini games', () => {
+  it('keeps every game open after the shared daily reward is recorded', () => {
+    const rewarded = recordMiniGameReward(
+      createHouseState(),
+      'banana_catch',
+      TODAY,
+    );
+
+    const todayView = buildHouseView({
+      state: rewarded,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+    expect(todayView.miniGameRewardClaimedToday).toBe(true);
+    expect(miniGameRewardClaimedToday(rewarded, TODAY)).toBe(true);
+
+    // A second game never creates a second daily reward marker.
+    expect(recordMiniGameReward(rewarded, 'kikki_runner', TODAY)).toBe(
+      rewarded,
+    );
+
+    const tomorrowView = buildHouseView({
+      state: rewarded,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: '2026-08-23',
+    });
+    expect(tomorrowView.miniGameRewardClaimedToday).toBe(false);
+  });
+
+  it('keeps a stored payload from when the banana game was the only one', () => {
+    const legacy = parseHouseState({
+      ...createHouseState(),
+      playedGameLocalDates: undefined,
+      playedGameLocalDate: TODAY,
+    });
+
+    expect(legacy?.playedGameLocalDates).toEqual({
+      banana_catch: TODAY,
+      kikki_runner: null,
+      kikki_merge: null,
+    });
+    expect(
+      legacy === null ? false : miniGameRewardClaimedToday(legacy, TODAY),
+    ).toBe(true);
+  });
+});
+
 describe('spending', () => {
-  it('refuses feeding, petting and buying without enough bananas', () => {
-    const broke = stateWith({ bananas: HOUSE_ACTION_COST.pet - 1 });
+  it('refuses feeding and buying without enough bananas', () => {
+    const broke = stateWith({ bananas: HOUSE_ACTION_COST.feed - 1 });
 
     expect(feedMascot(broke, TODAY)).toBeNull();
-    expect(petMascot(broke, TODAY)).toBeNull();
     expect(buyItem(broke, 'yoga_mat')).toBeNull();
-    expect(broke.bananas).toBe(HOUSE_ACTION_COST.pet - 1);
+    expect(broke.bananas).toBe(HOUSE_ACTION_COST.feed - 1);
   });
 
   it('spends on an item once and keeps it', () => {
@@ -148,7 +308,7 @@ describe('spending', () => {
     const bought = buyItem(rich, 'yoga_mat');
     expect(bought?.bananas).toBe(30);
     expect(bought?.ownedItemIds).toEqual(['yoga_mat']);
-    expect(bought?.itemPlacements.yoga_mat).toEqual({ x: 0.24, y: 0.57 });
+    expect(bought?.itemPlacements.yoga_mat).toEqual({ x: 0.24, y: 0.46 });
     expect(buyItem(bought ?? rich, 'yoga_mat')).toBeNull();
   });
 
@@ -176,6 +336,59 @@ describe('background selection', () => {
 });
 
 describe('house view', () => {
+  it('builds weekly visit, report and workout-goal quest progress', () => {
+    const acknowledgedWeek: WeekResponse = {
+      ...OPEN_WEEK,
+      report_id: 'report-1',
+      report_status_code: 'ACKNOWLEDGED',
+    };
+    const state = stateWith({
+      visitedLocalDates: [
+        '2026-08-10',
+        '2026-08-17',
+        '2026-08-18',
+        '2026-08-19',
+        '2026-08-22',
+      ],
+    });
+
+    const view = buildHouseView({
+      state,
+      week: acknowledgedWeek,
+      sessions: [
+        session('s1', '2026-08-18', 'COMPLETED'),
+        session('s2', '2026-08-19', 'COMPLETED'),
+        session('s3', '2026-08-20', 'COMPLETED'),
+      ],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+
+    expect(view.weeklyQuests).toEqual([
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
+      {
+        id: 'report',
+        label: '주간 리포트 확인',
+        progress: 1,
+        reward: null,
+        target: 1,
+      },
+      {
+        id: 'workout_goal',
+        label: '운동 목표 달성',
+        progress: 3,
+        reward: null,
+        target: 3,
+      },
+    ]);
+  });
+
   it('counts only this week’s completed sessions against the target', () => {
     const view = buildHouseView({
       state: createHouseState(),
@@ -204,6 +417,29 @@ describe('house view', () => {
 
     expect(view.weekTargetCount).toBeNull();
     expect(view.weekProgress).toBeNull();
+    expect(view.weeklyQuests).toEqual([
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
+      {
+        id: 'report',
+        label: '주간 리포트 확인',
+        progress: null,
+        reward: null,
+        target: null,
+      },
+      {
+        id: 'workout_goal',
+        label: '운동 목표 달성',
+        progress: null,
+        reward: null,
+        target: null,
+      },
+    ]);
   });
 
   it('lifts the pose at the target and never lowers it below greeting', () => {

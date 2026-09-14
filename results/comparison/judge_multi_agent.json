@@ -1,0 +1,355 @@
+{
+  "blind": true,
+  "scores": [
+    {
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 3.8333,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전반적인 중간 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 적용 사실을 보여주지만 각 운동 선택과 사용자 조건의 연결은 제한적이다.",
+        "FEASIBILITY": "중간 강도와 세트·반복·휴식 구성이 제시된 한도 안에서 현실적이다.",
+        "GROUNDEDNESS": "계획은 제공된 회복 한도에는 부합하지만 승인 후보 목록은 입력에 제시되지 않았다.",
+        "OVERALL_QUALITY": "홈 환경에서 전신 일반 체력 향상을 위해 제공 가능한 균형 잡힌 구성이다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 요청 시간과 회복 한도를 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-SIMPLE-002",
+      "category": "simple",
+      "deterministic_passed": true,
+      "mean_score": 4.5,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서가 명확하고 전 구간의 강도와 휴식 기준이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 시간, 실행 가능성, 회복 조건 및 단계 순서 충족을 보여주지만 개별 운동 선택의 연결은 제한적이다.",
+        "FEASIBILITY": "모든 운동이 중간 강도이며 운동당 2세트 이하와 충분한 휴식으로 구성되어 수행 흐름이 현실적이다.",
+        "GROUNDEDNESS": "무결성 및 제약 충족 코드는 있으나 승인 후보 목록이 제공되지 않아 개별 운동의 후보 근거를 직접 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 시간 안에서 전신 주요 부위를 균형 있게 구성하고 사용자 제약을 충족한 계획이다.",
+        "PERSONALIZATION": "홈 장소, 15분 요청, 일반 체력 목표와 회복 한도가 계획의 강도·볼륨·구성에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-전신 본운동-마무리 순서와 저강도 구성이 일관된다.",
+        "EXPLANATION_QUALITY": "준수 결정 코드는 있으나 각 운동 선택을 사용자 조건과 연결한 설명은 제한적이다.",
+        "FEASIBILITY": "모든 운동이 저강도이며 세트·반복·휴식이 설정된 수행 한도에 맞는다.",
+        "GROUNDEDNESS": "무결성 검증과 제약 준수 코드가 있으며 계획 수치가 제공된 제한 범위와 일치한다.",
+        "OVERALL_QUALITY": "요청 시간과 장소 및 강도 제한을 충족하는 균형 잡힌 전신 계획이다.",
+        "PERSONALIZATION": "홈 환경, 일반 체력 목표, 20분 요청과 저강도 회복 한도를 모두 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "deterministic_passed": true,
+      "mean_score": 4.6667,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전신 부위 배분이 일관되게 구성되었다.",
+        "EXPLANATION_QUALITY": "결정 코드는 충족 여부를 보여주지만 각 운동 선택의 사용자 조건별 이유는 제한적으로 드러난다.",
+        "FEASIBILITY": "모든 항목이 중간 강도이며 세트·반복·휴식 구성이 설정된 한도 안에서 현실적이다.",
+        "GROUNDEDNESS": "무결성 검증과 필수 운동 포함 코드가 확인되며 계획 수치도 제공된 제한 범위와 일치한다.",
+        "OVERALL_QUALITY": "요청 시간과 장소 및 강도 제한을 충족하는 균형 잡힌 전신 운동 계획이다.",
+        "PERSONALIZATION": "일반 체력 목표, 홈 운동 장소, 20분 요청 시간과 회복 상한이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-COMPLEX-001",
+      "category": "complex",
+      "deterministic_passed": true,
+      "mean_score": 4.5,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-전신 본운동-마무리의 순서와 모든 운동의 강도 및 장소 조건이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 시간, 장소, 강도, 세트 및 휴식 조건을 뒷받침하지만 운동별 선택 이유는 직접 제시되지 않는다.",
+        "FEASIBILITY": "저강도~중강도 구성과 운동당 최대 3세트, 충분한 휴식 배치가 현실적이다.",
+        "GROUNDEDNESS": "제공된 제한 범위와 결정 코드에는 부합하지만 승인 후보 목록이 제공되지 않아 각 운동의 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "요청 시간에 가깝고 홈 환경과 설정된 수행 제한을 충족하는 균형 잡힌 계획이다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청, 일반 체력 목표와 강도·반복·세트·휴식 제한을 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-COMPLEX-002",
+      "category": "complex",
+      "deterministic_passed": false,
+      "mean_score": null,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": null,
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": null,
+      "skipped_reason": "DETERMINISTIC_FAILURE_PRECEDES_JUDGEMENT",
+      "verdict": "FAIL"
+    },
+    {
+      "case_id": "SQ-CONFLICT-001",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 전 항목의 저강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 실행 가능성·회복 상한·초안 유지 근거를 제시하지만 개별 운동 선택과의 연결은 제한적이다.",
+        "FEASIBILITY": "모든 운동이 저강도이며 세트당 10회, 90초 휴식, 최대 2세트 범위로 구성되었다.",
+        "GROUNDEDNESS": "제공된 데이터 내 운동과 수치를 사용했으나 승인 후보 목록 자체는 제시되지 않았다.",
+        "OVERALL_QUALITY": "사용자 목표와 제약을 충족하는 일관된 홈 근력 운동 계획이다.",
+        "PERSONALIZATION": "근력 목표, 홈 장소, 저강도 회복 상한과 20분 요청 시간이 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-CONFLICT-002",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 5.0,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 홈·저강도 조건이 전 구간에서 일관된다.",
+        "EXPLANATION_QUALITY": "시간, 장소, 제외 운동, 단계 순서 및 회복 기준을 뒷받침하는 결정 코드가 제공됐다.",
+        "FEASIBILITY": "모든 운동이 저강도이며 운동당 최대 2세트와 60초 휴식으로 구성됐다.",
+        "GROUNDEDNESS": "계획의 운동과 수치는 무결성 검증 및 각 결정 코드가 확인한 범위와 일치한다.",
+        "OVERALL_QUALITY": "제공된 사용자 조건과 결정적 검증 결과에 부합하는 완성도 높은 유지 계획이다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청 범위, 일반 체력 목표 및 회복 한도를 계획에 반영했다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 5,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-CONFLICT-003",
+      "category": "conflict",
+      "deterministic_passed": true,
+      "mean_score": 4.3333,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-본운동-마무리 순서와 홈 운동, 중간 강도 설정이 전반적으로 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드는 제공되지만 각 운동 선택이 목표와 조건에 연결되는 개별 설명은 없다.",
+        "FEASIBILITY": "중간 강도와 8회 2세트, 60초 휴식 구성은 수행 가능하지만 본운동 6종 연속 구성은 다소 길 수 있다.",
+        "GROUNDEDNESS": "모든 운동과 수치는 제공된 계획 데이터와 유효성 결정 코드의 범위 안에 있다.",
+        "OVERALL_QUALITY": "요청 조건을 충실히 반영한 균형 잡힌 홈 전신 운동 계획이나 운동 구성의 압축 여지는 있다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청, 일반 체력 목표와 회복 한도가 계획의 강도·볼륨·휴식에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-SAFETY-001",
+      "category": "safety_critical",
+      "deterministic_passed": false,
+      "mean_score": null,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": null,
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": null,
+      "skipped_reason": "DETERMINISTIC_FAILURE_PRECEDES_JUDGEMENT",
+      "verdict": "FAIL"
+    },
+    {
+      "case_id": "SQ-RAG-001",
+      "category": "rag_retrieval",
+      "deterministic_passed": true,
+      "mean_score": 4.1667,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-전신 본운동-마무리 순서와 강도 및 장소 설정이 일관된다.",
+        "EXPLANATION_QUALITY": "시간·장소·회복 관련 결정 코드는 명확하나 운동별 선택 이유는 직접 제시되지 않았다.",
+        "FEASIBILITY": "중간 강도와 세트·반복·휴식이 설정된 회복 한도 안에서 현실적으로 구성되었다.",
+        "GROUNDEDNESS": "운동 코드와 수치는 제시되었으나 승인 후보 목록이 없어 전체 출처를 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건에 잘 맞는 완결된 홈 전신 계획이나 운동 선택 근거의 명시성은 보완될 수 있다.",
+        "PERSONALIZATION": "20분 요청, 홈 장소, 일반 체력 목표와 회복 한도가 계획 전반에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-RAG-002",
+      "category": "rag_retrieval",
+      "deterministic_passed": true,
+      "mean_score": 4.1667,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-전신 본운동-마무리 순서와 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 제시되었으나 각 운동 선택의 사용자 조건별 이유는 구체적이지 않다.",
+        "FEASIBILITY": "중간 강도와 2세트 구성, 30~60초 휴식은 실제 수행 가능한 수준이다.",
+        "GROUNDEDNESS": "무결성 검증 코드와 제약 충족 코드가 있어 계획이 승인 범위 내로 확인된다.",
+        "OVERALL_QUALITY": "요청 조건을 충족하는 균형 잡힌 홈 전신 운동 계획이다.",
+        "PERSONALIZATION": "홈 장소, 일반 체력 목표, 요청 시간 및 회복 한도가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 3,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 5,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 4
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.5,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동부터 전신 본운동과 마무리까지 순서와 강도 제한이 일관된다.",
+        "EXPLANATION_QUALITY": "장소·시간·맨몸·회복 상한 관련 결정 코드는 있으나 운동별 선택 이유는 제한적이다.",
+        "FEASIBILITY": "맨몸 운동과 세트당 8회, 충분한 휴식 및 준비·마무리 구성이 현실적이다.",
+        "GROUNDEDNESS": "제공된 계획과 제한 범위에는 부합하지만 승인 후보 목록은 제시되지 않았다.",
+        "OVERALL_QUALITY": "요청 시간과 홈 환경에서 전신을 균형 있게 구성한 완성도 높은 계획이다.",
+        "PERSONALIZATION": "홈 장소, 20분 요청, 일반 체력 목표와 중간 강도 회복 상한이 계획 구성에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 5,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 5,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    },
+    {
+      "case_id": "SQ-FAILURE-002",
+      "category": "failure_case",
+      "deterministic_passed": true,
+      "mean_score": 4.1667,
+      "model_label": "OPENAI:gpt-5.6-terra",
+      "prompt_version": "service-quality-judge-prompt-v1",
+      "rationales": {
+        "CONSISTENCY": "준비운동-전신 본운동-정리운동의 순서와 중간 강도 배분이 일관된다.",
+        "EXPLANATION_QUALITY": "결정 코드가 시간, 장소, 장비, 난이도와 휴식 선택의 근거를 대부분 연결한다.",
+        "FEASIBILITY": "2세트 구성과 30~60초 휴식은 초보자 수행에 대체로 현실적이나 본운동 항목 수는 다소 많다.",
+        "GROUNDEDNESS": "제공된 결정 코드와 회복 한도에는 부합하지만 승인 후보 목록이 제시되지 않아 개별 항목 출처는 확인할 수 없다.",
+        "OVERALL_QUALITY": "사용자 조건을 폭넓게 반영한 홈 기반 전신 계획으로 제공 가능하나 구성 밀도는 조정 여지가 있다.",
+        "PERSONALIZATION": "홈 환경, 20분 요청, 초보자·낮은 볼륨·긴 휴식 선호와 회복 범위가 계획에 반영되었다."
+      },
+      "rubric_version": "service-quality-judge-rubric-v1",
+      "scores": {
+        "CONSISTENCY": 5,
+        "EXPLANATION_QUALITY": 4,
+        "FEASIBILITY": 4,
+        "GROUNDEDNESS": 3,
+        "OVERALL_QUALITY": 4,
+        "PERSONALIZATION": 5
+      },
+      "skipped_reason": null,
+      "verdict": "PASS"
+    }
+  ]
+}

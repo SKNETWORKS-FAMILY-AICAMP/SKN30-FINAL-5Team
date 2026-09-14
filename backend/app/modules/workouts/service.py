@@ -4,12 +4,19 @@ import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal, TypeVar, cast
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.domain.rules.calories import (
+    CalorieEstimate,
+    CompletedBlockMetInput,
+    allocate_completed_progress_seconds,
+    estimate_calories,
+)
 from backend.app.domain.rules.safety import (
     AdverseReactionCode,
     BodyAreaCode,
@@ -19,13 +26,17 @@ from backend.app.domain.rules.safety import (
 )
 from backend.app.domain.rules.workout_execution import (
     InvalidSessionTransitionError,
-    InvalidWorkoutSafetyEventError,
     NotCompletedReasonRequiredError,
     WorkoutBlockStatusCode,
     WorkoutCompletionEvidence,
+    WorkoutExecutionStateCode,
     WorkoutSessionStatusCode,
+    WorkoutStopReasonCode,
     classify_workout_safety_event,
+    derive_completion_code,
     mark_session_not_completed,
+    resume_execution,
+    stop_execution,
 )
 from backend.app.domain.rules.workout_execution import (
     finish_session as derive_finished_status,
@@ -39,6 +50,7 @@ from backend.app.modules.workouts.codes import (
     SESSION_ITEM_ENDPOINT_CODE,
     SESSION_NOT_COMPLETED_ENDPOINT_CODE,
     SESSION_START_ENDPOINT_CODE,
+    SESSION_STOP_ENDPOINT_CODE,
     TERMINAL_SESSION_STATUS_CODES,
     TIMER_EVENT_ENDPOINT_CODE,
 )
@@ -71,6 +83,8 @@ from backend.app.modules.workouts.schemas import (
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
+    WorkoutSessionStopRequest,
+    WorkoutSessionStopResponse,
     WorkoutSessionSummary,
     WorkoutTimerEventRequest,
     WorkoutTimerEventResponse,
@@ -111,10 +125,6 @@ class InvalidSafetyEventInputError(Exception):
     pass
 
 
-class FeedbackAlreadyExistsError(Exception):
-    pass
-
-
 class WorkoutLogNotFoundError(Exception):
     pass
 
@@ -137,6 +147,25 @@ _GUIDANCE: dict[str, str] = {
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _accepts_feedback(state: SessionState) -> bool:
+    """Whether the session has stopped in a way the user can be asked about.
+
+    Feedback used to require a terminal session, which made the resumable stop
+    unusable: a user who stops with a reason has plainly finished exercising for
+    now and has an opinion about it, but the session is still `IN_PROGRESS`
+    because `DOMAIN_RULES.md` 10 lets `STOPPED_RESUMABLE` go back to `RUNNING`.
+    Requiring a terminal status therefore forced the client to end the session to
+    collect an answer, which is exactly what took the resume action away.
+
+    A running session is still refused. The question is about how the session
+    went, so it only has an answer once the user has stopped.
+    """
+
+    if state.status_code in TERMINAL_SESSION_STATUS_CODES:
+        return True
+    return state.execution_state_code == "STOPPED_RESUMABLE"
 
 
 def _request_hash(resource: dict[str, object], request: BaseModel) -> str:
@@ -186,6 +215,64 @@ class WorkoutService:
         self._repository = repository
         self._clock = clock
         self._uuid_factory = uuid_factory
+
+    def _persist_completed_block_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        user_id: UUID,
+        session_id: UUID,
+        accumulated_progress_seconds: int,
+    ) -> CalorieEstimate:
+        source = self._repository.get_calorie_estimate_source(session, user_id, session_id)
+        if source is None:
+            raise LookupError("workout session disappeared before calorie estimation")
+        allocated_seconds = allocate_completed_progress_seconds(
+            total_progress_seconds=accumulated_progress_seconds,
+            planned_seconds=tuple(block.planned_seconds for block in source.completed_blocks),
+        )
+        try:
+            weight_kg = None if source.weight_kg is None else Decimal(str(source.weight_kg))
+        except (InvalidOperation, ValueError):
+            weight_kg = None
+        completed_blocks: list[CompletedBlockMetInput] = []
+        for block, allocated in zip(source.completed_blocks, allocated_seconds, strict=True):
+            try:
+                met_value = None if block.met_value is None else Decimal(str(block.met_value))
+                if met_value is not None and (not met_value.is_finite() or met_value <= 0):
+                    met_value = None
+            except (InvalidOperation, ValueError):
+                met_value = None
+            completed_blocks.append(
+                CompletedBlockMetInput(
+                    exercise_id=block.exercise_id,
+                    exercise_stable_code=block.exercise_stable_code,
+                    met_value=met_value,
+                    planned_seconds=block.planned_seconds,
+                    allocated_progress_seconds=allocated,
+                    catalog_version_code=block.catalog_version_code,
+                    met_source_code=block.met_source_code,
+                    met_source_activity_code=block.met_source_activity_code,
+                    met_mapping_method_code=block.met_mapping_method_code,
+                    met_review_status_code=block.met_review_status_code,
+                    met_policy_version=block.met_policy_version,
+                )
+            )
+        estimate = estimate_calories(
+            weight_kg=weight_kg,
+            blocks=completed_blocks,
+        )
+        if estimate.policy_version is None or estimate.input_snapshot is None:
+            raise AssertionError("calorie estimate provenance must always be present")
+        self._repository.save_calorie_estimate(
+            session,
+            session_id=session_id,
+            estimated_calories_burned=estimate.estimated_calories_burned,
+            source_code=estimate.source_code,
+            policy_version=estimate.policy_version,
+            input_snapshot=estimate.input_snapshot,
+        )
+        return estimate
 
     def list_workout_logs(
         self,
@@ -241,6 +328,7 @@ class WorkoutService:
         feedback = None
         if record.feedback is not None:
             feedback = WorkoutFeedbackSummary.model_validate(record.feedback, from_attributes=True)
+        ended = record.status_code in TERMINAL_SESSION_STATUS_CODES
         return WorkoutSessionDetailResponse(
             session_id=record.session_id,
             local_date=record.local_date,
@@ -249,6 +337,19 @@ class WorkoutService:
             total_item_count=len(record.items),
             requested_duration_minutes=record.requested_duration_minutes,
             items=items,
+            completed_plan_item_ids=[
+                item.plan_item_id for item in record.items if item.status_code == "COMPLETED"
+            ],
+            # An ended session has no next block, so pointing at one would invite a client
+            # to resume something the server considers finished.
+            current_plan_item_id=(
+                None
+                if ended
+                else next(
+                    (item.plan_item_id for item in record.items if item.status_code != "COMPLETED"),
+                    None,
+                )
+            ),
             feedback=feedback,
             not_completed_reason_code=record.not_completed_reason_code,
             started_at=record.started_at,
@@ -328,10 +429,21 @@ class WorkoutService:
 
             workout_session_id: UUID | None = None
             if source.option_code == "FINAL_ROUTINE":
+                # A veto that fired is not the same as a veto that was ignored.
+                # REVISE is the recorded outcome of a veto that was honoured by
+                # replacing the excluded movements, and it is the answer a user
+                # who reported discomfort is meant to receive. The terminal
+                # outcomes carry BLOCKED or FAILED and are refused by the status
+                # check above, so the enforceable invariant here is the one
+                # ADR-0015 states: the plan must not contain what safety
+                # excluded. That is checked directly, against the published plan.
+                veto_honoured = not (
+                    set(source.safety_excluded_exercise_ids) & set(source.plan_exercise_ids)
+                )
                 valid_final = (
                     source.decision_safety_status_code in {"PASS", "REVISE"}
                     and source.safety_status_code in {"PASS", "REVISE"}
-                    and source.safety_vetoed is False
+                    and veto_honoured
                     and source.selected_candidate_id is not None
                     and source.option_plan_candidate_id == source.selected_candidate_id
                     and source.safety_candidate_id == source.selected_candidate_id
@@ -372,7 +484,11 @@ class WorkoutService:
                 ),
                 workout_session=None
                 if workout_session_id is None
-                else WorkoutSessionSummary(session_id=workout_session_id, status_code="PLANNED"),
+                else WorkoutSessionSummary(
+                    session_id=workout_session_id,
+                    status_code="PLANNED",
+                    target_duration_seconds=source.target_duration_seconds,
+                ),
                 selected_at=now,
                 pressure_notifications_allowed=source.option_action_code != "REST",
             )
@@ -425,6 +541,12 @@ class WorkoutService:
                     ),
                     None,
                 ),
+                execution_state_code="RUNNING",
+                target_duration_seconds=state.target_duration_seconds or 0,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
+                is_resumable=False,
             )
             now = self._clock()
             self._save_response(
@@ -516,7 +638,7 @@ class WorkoutService:
             )
             if prior is not None:
                 return prior
-            self._required_in_progress(session, user_id, session_id)
+            state = self._required_in_progress(session, user_id, session_id)
             now = self._clock()
             event_id = self._uuid_factory()
             self._repository.create_timer_event(
@@ -528,6 +650,39 @@ class WorkoutService:
                 client_recorded_at=request.client_recorded_at,
                 now=now,
             )
+            if request.event_code == "PAUSE":
+                if (state.execution_state_code or "RUNNING") not in {"RUNNING", "RESTING"}:
+                    raise InvalidSessionStateError
+                state = self._repository.transition_execution_state(
+                    session,
+                    session_id=session_id,
+                    execution_state_code="PAUSED",
+                    occurred_at=request.occurred_at,
+                    is_resumable=False,
+                    stop_reason_code=None,
+                )
+            elif request.event_code == "RESUME":
+                if (
+                    state.execution_state_code == "STOPPED_RESUMABLE"
+                    and state.local_date is not None
+                    and request.occurred_at.date() != state.local_date
+                ):
+                    raise InvalidSessionStateError
+                try:
+                    execution_state = resume_execution(
+                        WorkoutExecutionStateCode(state.execution_state_code or "RUNNING"),
+                        is_resumable=state.is_resumable,
+                    )
+                except InvalidSessionTransitionError as exc:
+                    raise InvalidSessionStateError from exc
+                state = self._repository.transition_execution_state(
+                    session,
+                    session_id=session_id,
+                    execution_state_code=execution_state.value,
+                    occurred_at=request.occurred_at,
+                    is_resumable=False,
+                    stop_reason_code=None,
+                )
             response = WorkoutTimerEventResponse(
                 event_id=event_id,
                 session_id=session_id,
@@ -536,6 +691,12 @@ class WorkoutService:
                 client_recorded_at=request.client_recorded_at,
                 created_at=now,
                 session_status_code="IN_PROGRESS",
+                execution_state_code=cast(
+                    Literal["RUNNING", "PAUSED"], state.execution_state_code or "RUNNING"
+                ),
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
             )
             self._save_response(
                 session,
@@ -623,51 +784,55 @@ class WorkoutService:
             if prior is not None:
                 return prior
             state = self._required_in_progress(session, user_id, session_id)
-            context = self._safety_context(request.discomforts, request.adverse_reaction_codes)
-            try:
-                decision = classify_workout_safety_event(
-                    WorkoutSessionStatusCode(state.status_code), context
-                )
-            except InvalidWorkoutSafetyEventError as exc:
-                raise InvalidSafetyEventInputError from exc
+            evidence = self._completion_evidence(state, 0)
+            if evidence.completed_block_count == evidence.total_block_count:
+                raise InvalidSessionStateError
             now = self._clock()
             event_id = self._uuid_factory()
-            action_code = (
-                None
-                if decision.resulting_action_code is None
-                else decision.resulting_action_code.value
-            )
+            completion_code = derive_completion_code(evidence).value
+            # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+            # and this flow deliberately does not ask for one; the reviewed stop
+            # guidance already tells the user to seek emergency help if they have
+            # chest pain, fainting or similar. The check-in Red Flag path is where
+            # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+            result_code = "SESSION_STOPPED"
             self._repository.create_safety_event(
                 session,
                 event_id=event_id,
                 session_id=session_id,
-                occurred_at=request.occurred_at,
-                instruction_code=decision.instruction_code.value,
-                resulting_action_code=action_code,
-                session_status_code=decision.session_status_code.value,
-                guidance_code=decision.guidance_code.value,
-                reason_code=decision.reason_code.value,
-                rule_version=decision.safety_event_rule_version,
-                discomforts=tuple(
-                    (item.body_area_code.value, item.severity_code.value)
-                    for item in request.discomforts
-                ),
-                adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                occurred_at=now,
+                result_code=result_code,
+                completion_code=completion_code,
+                rule_version="workout-safety-event-v2",
                 now=now,
+            )
+            state = self._repository.transition_execution_state(
+                session,
+                session_id=session_id,
+                execution_state_code="STOPPED_SAFETY",
+                occurred_at=now,
+                is_resumable=False,
+                stop_reason_code=request.stop_reason_code,
+                completion_code=completion_code,
+                ended_at=now,
+            )
+            self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
             )
             response = WorkoutSafetyEventResponse(
                 event_id=event_id,
-                instruction_code=decision.instruction_code.value,
-                resulting_action_code=cast(
-                    Literal["REST", "STOP_AND_SEEK_HELP"] | None, action_code
+                result_code=cast(Literal["SESSION_STOPPED", "STOP_AND_SEEK_HELP"], result_code),
+                execution_state_code="STOPPED_SAFETY",
+                completion_code=cast(Literal["PARTIAL", "NOT_COMPLETED"], completion_code),
+                is_resumable=False,
+                guidance=(
+                    _GUIDANCE["SERIOUS_ADVERSE_REACTION_STOP"]
+                    if result_code == "STOP_AND_SEEK_HELP"
+                    else _GUIDANCE["SEVERE_OR_ACUTE_STOP"]
                 ),
-                session_status_code=cast(
-                    Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"],
-                    decision.session_status_code.value,
-                ),
-                guidance_code=decision.guidance_code.value,
-                guidance=_GUIDANCE[decision.guidance_code.value],
-                pressure_notifications_allowed=action_code is None,
             )
             self._save_response(
                 session,
@@ -677,6 +842,109 @@ class WorkoutService:
                 request_hash=request_hash,
                 response=response,
                 now=now,
+            )
+        return response
+
+    def stop_session(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutSessionStopRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutSessionStopResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_STOP_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutSessionStopResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_in_progress(session, user_id, session_id)
+            try:
+                execution_state, is_resumable = stop_execution(
+                    WorkoutExecutionStateCode(state.execution_state_code or "RUNNING"),
+                    WorkoutStopReasonCode(request.stop_reason_code),
+                )
+            except InvalidSessionTransitionError as exc:
+                raise InvalidSessionStateError from exc
+            completion_code = (
+                derive_completion_code(self._completion_evidence(state, 0)).value
+                if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY
+                else None
+            )
+            if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
+                evidence = self._completion_evidence(state, 0)
+                if evidence.completed_block_count == evidence.total_block_count:
+                    raise InvalidSessionStateError
+                # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+                # and this flow deliberately does not ask for one; the reviewed stop
+                # guidance already tells the user to seek emergency help if they have
+                # chest pain, fainting or similar. The check-in Red Flag path is where
+                # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+                result_code = "SESSION_STOPPED"
+                self._repository.create_safety_event(
+                    session,
+                    event_id=self._uuid_factory(),
+                    session_id=session_id,
+                    occurred_at=request.stopped_at,
+                    result_code=result_code,
+                    completion_code=cast(str, completion_code),
+                    rule_version="workout-safety-event-v2",
+                    now=self._clock(),
+                )
+            state = self._repository.transition_execution_state(
+                session,
+                session_id=session_id,
+                execution_state_code=execution_state.value,
+                occurred_at=request.stopped_at,
+                is_resumable=is_resumable,
+                stop_reason_code=request.stop_reason_code,
+                completion_code=completion_code,
+                ended_at=(request.stopped_at if not is_resumable else None),
+            )
+            if request.not_completed_reason_code is not None:
+                # Recorded on the stop rather than on the close, because a session
+                # that is never resumed is never closed by anyone -- this is the
+                # last moment the user is present to say why.
+                self._repository.upsert_skip_feedback(
+                    session,
+                    session_id=session_id,
+                    reason_code=request.not_completed_reason_code.value,
+                    now=self._clock(),
+                )
+            if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
+                self._persist_completed_block_calorie_estimate(
+                    session,
+                    user_id=user_id,
+                    session_id=session_id,
+                    accumulated_progress_seconds=state.accumulated_progress_seconds,
+                )
+            response = WorkoutSessionStopResponse(
+                session_id=session_id,
+                completion_code=cast(Literal["PARTIAL", "NOT_COMPLETED"] | None, completion_code),
+                execution_state_code=cast(
+                    Literal["STOPPED_RESUMABLE", "STOPPED_SAFETY"], execution_state.value
+                ),
+                stop_reason_code=request.stop_reason_code,
+                is_resumable=is_resumable,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
+            )
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_STOP_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=self._clock(),
             )
         return response
 
@@ -710,12 +978,21 @@ class WorkoutService:
                 raise NotCompletedReasonRequiredServiceError from exc
             except InvalidSessionTransitionError as exc:
                 raise InvalidSessionStateError from exc
-            self._repository.finish_session(
+            state = self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
-                status_code=status.value,
+                execution_state_code="COMPLETED",
+                occurred_at=request.finished_at,
+                is_resumable=False,
+                stop_reason_code=None,
+                completion_code=status.value,
                 ended_at=request.finished_at,
-                actual_elapsed_seconds=request.actual_elapsed_seconds,
+            )
+            estimate = self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
             )
             response = WorkoutSessionFinishResponse(
                 session_id=session_id,
@@ -723,8 +1000,13 @@ class WorkoutService:
                 ended_at=request.finished_at,
                 completed_item_count=evidence.completed_block_count,
                 total_item_count=evidence.total_block_count,
-                actual_elapsed_seconds=request.actual_elapsed_seconds,
-                estimated_calories_burned=state.estimated_calories_burned,
+                actual_elapsed_seconds=state.accumulated_progress_seconds,
+                estimated_calories_burned=estimate.estimated_calories_burned,
+                calorie_source_code=cast(
+                    Literal["MET_ESTIMATE", "UNAVAILABLE"], estimate.source_code
+                ),
+                completion_code=cast(Literal["COMPLETED", "PARTIAL"], status.value),
+                execution_state_code="COMPLETED",
             )
             now = self._clock()
             self._save_response(
@@ -768,14 +1050,23 @@ class WorkoutService:
             except InvalidSessionTransitionError as exc:
                 raise InvalidSessionStateError from exc
             now = self._clock()
-            self._repository.finish_session(
+            state = self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
-                status_code=status.value,
+                execution_state_code="COMPLETED",
+                occurred_at=request.ended_at,
+                is_resumable=False,
+                stop_reason_code=None,
+                completion_code=status.value,
                 ended_at=request.ended_at,
-                actual_elapsed_seconds=None,
             )
-            self._repository.create_skip_feedback(
+            self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+            )
+            self._repository.upsert_skip_feedback(
                 session,
                 session_id=session_id,
                 reason_code=request.reason_code.value,
@@ -789,6 +1080,8 @@ class WorkoutService:
                 completed_item_count=0,
                 total_item_count=evidence.total_block_count,
                 penalty_applied=False,
+                completion_code="NOT_COMPLETED",
+                execution_state_code="COMPLETED",
             )
             self._save_response(
                 session,
@@ -822,12 +1115,10 @@ class WorkoutService:
             if prior is not None:
                 return prior
             state = self._required_state(session, user_id, session_id)
-            if state.status_code not in TERMINAL_SESSION_STATUS_CODES:
+            if not _accepts_feedback(state):
                 raise InvalidSessionStateError
-            if self._repository.feedback_exists(session, session_id):
-                raise FeedbackAlreadyExistsError
             now = self._clock()
-            self._repository.create_feedback(
+            self._repository.upsert_feedback(
                 session,
                 session_id=session_id,
                 difficulty_code=request.difficulty_code,
@@ -839,6 +1130,9 @@ class WorkoutService:
                     for item in request.discomforts
                 ),
                 adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                difficulty_reason_codes=tuple(
+                    sorted(code.value for code in request.difficulty_reason_codes)
+                ),
                 now=now,
             )
             guidance_code: str | None = None
@@ -855,7 +1149,13 @@ class WorkoutService:
             response = WorkoutFeedbackResponse(
                 session_id=session_id,
                 session_status_code=cast(
-                    Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"],
+                    Literal[
+                        "IN_PROGRESS",
+                        "COMPLETED",
+                        "PARTIAL",
+                        "NOT_COMPLETED",
+                        "STOPPED_FOR_SAFETY",
+                    ],
                     state.status_code,
                 ),
                 created_at=now,
@@ -937,7 +1237,6 @@ class WorkoutService:
 
 __all__ = [
     "DecisionAlreadySelectedError",
-    "FeedbackAlreadyExistsError",
     "IdempotencyKeyReusedError",
     "InvalidSessionStateError",
     "InvalidSafetyEventInputError",

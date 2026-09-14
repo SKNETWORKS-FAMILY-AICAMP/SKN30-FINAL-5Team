@@ -1,0 +1,169 @@
+{
+  "failure_evaluation": {
+    "execution_mode": "scripted fault injection; no external calls",
+    "node_error_rate": 0.0,
+    "parsing_error_denominator": 19,
+    "parsing_error_note": "Controlled-fault invocation rate, not an estimate of production incidence.",
+    "parsing_error_numerator": 2,
+    "parsing_error_rate": 0.1053,
+    "safe_termination_count": 10,
+    "safe_termination_rate": 1.0,
+    "scenario_count": 10,
+    "scenarios": [
+      {
+        "case_id": "SQ-RAG-002",
+        "critical_failures": 0,
+        "failure_codes": [],
+        "has_plan": true,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "retriever_no_vector_result",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false
+      },
+      {
+        "case_id": "SQ-SIMPLE-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_TIMEOUT"
+        ],
+        "has_plan": true,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "llm_timeout",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true
+      },
+      {
+        "case_id": "SQ-SIMPLE-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "LLM_AGENT_SCHEMA_INVALID"
+        ],
+        "has_plan": true,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "structured_output_parsing_error",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true
+      },
+      {
+        "case_id": "SQ-SIMPLE-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_UNAVAILABLE"
+        ],
+        "has_plan": true,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "agent_exception",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true
+      },
+      {
+        "case_id": "SQ-SIMPLE-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_UNAVAILABLE"
+        ],
+        "has_plan": true,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "external_llm_api_failure",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true
+      },
+      {
+        "case_id": "SQ-INVALID-002",
+        "critical_failures": 0,
+        "failure_codes": [
+          "LLM_AGENT_SCHEMA_INVALID",
+          "V3_FALLBACK_PLAN_UNAVAILABLE"
+        ],
+        "has_plan": false,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "invalid_runtime_input",
+        "status_code": "FAILED",
+        "used_fallback": true
+      },
+      {
+        "case_id": "SQ-MISSING-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "REQUIRED_INPUT_MISSING_DURATION"
+        ],
+        "has_plan": false,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "missing_or_invalid_input",
+        "status_code": "REQUIRED_INPUT_MISSING_DURATION",
+        "used_fallback": false
+      },
+      {
+        "case_id": "SQ-MISSING-002",
+        "critical_failures": 0,
+        "failure_codes": [
+          "REQUIRED_INPUT_MISSING_GOAL"
+        ],
+        "has_plan": false,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "missing_or_invalid_input",
+        "status_code": "REQUIRED_INPUT_MISSING_GOAL",
+        "used_fallback": false
+      },
+      {
+        "case_id": "SQ-INVALID-001",
+        "critical_failures": 0,
+        "failure_codes": [
+          "REQUIRED_INPUT_MISSING_LOCATION"
+        ],
+        "has_plan": false,
+        "repair_attempts": 0,
+        "safe_termination": true,
+        "scenario": "missing_or_invalid_input",
+        "status_code": "REQUIRED_INPUT_MISSING_LOCATION",
+        "used_fallback": false
+      },
+      {
+        "case_id": null,
+        "critical_failures": 0,
+        "failure_codes": [],
+        "has_plan": false,
+        "repair_attempts": 1,
+        "safe_termination": true,
+        "scenario": "bounded_graph_repair_cycle",
+        "status_code": "BOUNDED_TO_ONE_REPAIR",
+        "used_fallback": false
+      }
+    ],
+    "unhandled_node_error_count": 0
+  },
+  "performance": {
+    "fallback_rate": 0.2143,
+    "latency_ms": {
+      "max": 39000,
+      "min": 4344,
+      "p50": 28047,
+      "p95": 31281
+    },
+    "llm_calls": {
+      "average_per_run": 3.8571,
+      "graph_total": 54,
+      "judge_calls_excluded": 12
+    },
+    "model_label": "OPENAI:gpt-5.6-terra",
+    "repair_rate": 0.0,
+    "run_count": 14,
+    "source": "stored real-provider evaluation",
+    "token_usage": {
+      "average_per_run": 26096.2,
+      "input_total": 317291,
+      "output_total": 48056,
+      "total": 365347
+    },
+    "workflow_completion_rate": 0.8571
+  },
+  "phase": "PHASE 9 performance and failure evaluation"
+}

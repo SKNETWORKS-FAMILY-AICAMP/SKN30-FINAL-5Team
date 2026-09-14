@@ -1,6 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export const imageAssets = {
+  splashMascot:
+    require('./mascot/monkey/sheet_01/monkey_17.png') as ImageSourcePropType,
   splashIsland:
     require('./splash/splash-island-v2-hires.png') as ImageSourcePropType,
   questionMark: require('./splash/question-mark.png') as ImageSourcePropType,
@@ -10,10 +12,13 @@ export const imageAssets = {
   arrowDown: require('./map/arrow-down.png') as ImageSourcePropType,
   mascotComplete:
     require('./mascot/mascot-complete.png') as ImageSourcePropType,
+  mascotFeedback:
+    require('./mascot/monkey/feedback_asset/kkikki_ddabong.png') as ImageSourcePropType,
   progressMascot:
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
   banana: require('./mascot/monkey/banana/banana.png') as ImageSourcePropType,
+  helkkiPass: require('./pass/helkki-pass.png') as ImageSourcePropType,
   bananaCatchBackground:
     require('./game_background/kkiisland_banana_game.png') as ImageSourcePropType,
   bananaCatchGrass:
@@ -24,8 +29,12 @@ export const imageAssets = {
     require('./mascot/monkey/sheet_02/monkey_06.png') as ImageSourcePropType,
   weeklyProgressIncomplete:
     require('./mascot/monkey/sheet_01/monkey_24.png') as ImageSourcePropType,
+  weeklyProgressCompletedWorkout:
+    require('./mascot/monkey/home_workout/completed_workout.png') as ImageSourcePropType,
   mascotWarmupWalk:
-    require('./mascot/monkey/sheet_01/monkey_run.gif') as ImageSourcePropType,
+    require('./mascot/monkey/sheet_01/monkey_run_02.gif') as ImageSourcePropType,
+  kikkiRunnerMascot:
+    require('./mascot/monkey/sheet_01/monkey_run_03.gif') as ImageSourcePropType,
   houseCampingMorningBackground:
     require('./house/camping/background/morning_camp.png') as ImageSourcePropType,
   houseCampingDinnerBackground:
@@ -42,6 +51,13 @@ export const imageAssets = {
     require('./house/camping/background/thumbnails/kkikki_indoor.jpg') as ImageSourcePropType,
   houseSnowingOnsenBackgroundThumbnail:
     require('./house/camping/background/thumbnails/snowing_onsen.jpg') as ImageSourcePropType,
+  houseDecorateButton:
+    require('./house/zip_ggumigi/house.png') as ImageSourcePropType,
+  houseCushion: require('./house/things/comfy.png') as ImageSourcePropType,
+  houseLamp: require('./house/things/stand.png') as ImageSourcePropType,
+  housePlant: require('./house/things/hwaboon.png') as ImageSourcePropType,
+  houseDumbbell: require('./house/things/weight.png') as ImageSourcePropType,
+  houseYogaMat: require('./house/things/yoga_matt.png') as ImageSourcePropType,
   houseMascotMonkey01:
     require('./mascot/monkey/sheet_01/monkey_01.png') as ImageSourcePropType,
   houseMascotCollectingBananasEmpty:
@@ -63,6 +79,27 @@ export const imageAssets = {
   houseMascotBananaSheet02Monkey22:
     require('./mascot/monkey/sheet_02/banana_monkey_22.png') as ImageSourcePropType,
 } as const;
+
+/**
+ * Ordered evolution artwork for 끼끼 합치기.
+ *
+ * Concept sheets and generation references in the same folder are deliberately
+ * not registered as runtime assets. Keeping this list ordered makes the image
+ * index identical to the physics tier index.
+ */
+export const kikkiMergeStageSources: readonly ImageSourcePropType[] = [
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_01.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_02.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_03.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_04.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_05.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_06.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_07.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_08.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_09.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_10.png') as ImageSourcePropType,
+  require('./mascot/monkey/kkikki/kkikki_drops/kkikki_stage_11.png') as ImageSourcePropType,
+];
 
 /**
  * Every selectable non-banana monkey pose under `mascot/monkey`.

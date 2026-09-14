@@ -30,7 +30,11 @@ class DecisionPlanItem(BaseModel):
     tier_code: str
     sets: int
     reps: int | None
+    # The item total across every set.
     work_seconds: int
+    # One set's work. Optional so a payload stored before this field existed still
+    # validates; new plans always carry it.
+    work_seconds_per_set: int | None = None
     rest_seconds: int
     transition_seconds: int
     estimated_item_seconds: int
@@ -41,16 +45,74 @@ class DecisionPlanItem(BaseModel):
 
 class DecisionPlan(BaseModel):
     plan_id: UUID
+    # How many times the user has edited this plan. Zero means untouched, and it is the
+    # token the edit endpoints check, so a client that reloads the plan can keep editing.
+    plan_revision: int = 0
     action_code: str
     training_type_code: str
     body_focus_code: str | None
+    routine_name: str | None = None
+    routine_name_reason_codes: list[str] | None = None
+    routine_naming_rule_version: str | None = None
     requested_duration_minutes: int
     estimated_duration_seconds: int
+    expected_duration_min_seconds: int | None = None
+    expected_duration_max_seconds: int | None = None
+    duration_estimation_policy_version: str | None = None
     estimated_calories_burned: float | None
     setup_seconds: int
     warmup_seconds: int
     cooldown_seconds: int
     items: list[DecisionPlanItem]
+
+
+class PlanItemSetRepetitionRequest(BaseModel):
+    """One item's volume, replaced by the user's own numbers.
+
+    The location is deliberately absent, and `extra="forbid"` rejects a client that
+    sends one: a set-count edit is not where the approved location changes.
+
+    The bounds are input sanity, not a training or medical threshold. Nothing in the
+    reviewed data approves a per-item ceiling for a user edit, so the only thing being
+    asserted is that the request is a plausible one; `DOMAIN_RULES.md` 11.2's volume
+    ceiling for user edits is still an open question.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_plan_id: UUID
+    expected_plan_revision: int = Field(ge=0)
+    sets: int = Field(ge=1)
+    # Required for a repetition-based item and rejected for a duration-based one; the
+    # service decides which, because only the stored plan knows the item's timing mode.
+    reps: int | None = Field(default=None, ge=1)
+    # The other half of the same choice, for an item measured in time rather than
+    # repetitions. Rejected for a repetition-based item, whose per-set work is derived
+    # from `reps` and the catalog basis. Omitting it on a duration-based item keeps the
+    # catalog basis, so a sets-only edit still works and older clients are unaffected.
+    work_seconds_per_set: int | None = Field(default=None, ge=1)
+
+
+class PlanItemOrderRequest(BaseModel):
+    """The order the user wants, as the full list of the items they may move.
+
+    Before the session starts that is every item. Once blocks have been completed it is
+    the incomplete ones only: finished blocks keep the positions they were performed in.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_plan_id: UUID
+    expected_plan_revision: int = Field(ge=0)
+    ordered_plan_item_ids: list[UUID] = Field(min_length=1)
+
+
+class PlanRevisionResponse(BaseModel):
+    """The plan as it now stands, plus the token the next edit has to present."""
+
+    decision_id: UUID
+    plan_revision: int
+    final_plan: DecisionPlan
 
 
 class DecisionOptionResponse(BaseModel):
@@ -120,4 +182,12 @@ class DecisionResponse(BaseModel):
     created_at: datetime
 
 
-__all__ = ["DecisionCreateRequest", "DecisionRegenerationRequest", "DecisionResponse"]
+__all__ = [
+    "DecisionCreateRequest",
+    "DecisionPlan",
+    "DecisionRegenerationRequest",
+    "DecisionResponse",
+    "PlanItemOrderRequest",
+    "PlanItemSetRepetitionRequest",
+    "PlanRevisionResponse",
+]

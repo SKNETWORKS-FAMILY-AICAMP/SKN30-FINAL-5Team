@@ -15,6 +15,7 @@ from backend.app.modules.checkins.service import (
     ProfileTimezoneMissingError,
     StaleContextError,
 )
+from backend.app.modules.decisions.daily_adjustment import DailyAdjustmentLimitReachedError
 
 NOW = datetime(2026, 8, 14, 3, 0, tzinfo=UTC)
 LOCAL_DATE = date(2026, 8, 14)
@@ -30,6 +31,8 @@ class FakeDailyContextRepository:
         self.contexts: dict[tuple[UUID, date], dict[str, Any]] = {}
         self.idempotency: dict[tuple[UUID, UUID], IdempotencyRecord] = {}
         self.timezone_name = timezone_name
+        self.persistent_pains: dict[UUID, tuple[tuple[str, int], ...]] = {}
+        self.successful_regenerations = 0
 
     def acquire_mutation_lock(self, session: FakeSession, user_id: UUID, local_date: date) -> None:
         del session, user_id, local_date
@@ -37,6 +40,26 @@ class FakeDailyContextRepository:
     def get_user_timezone(self, session: FakeSession, user_id: UUID) -> str | None:
         del session, user_id
         return self.timezone_name
+
+    def get_persistent_pain_defaults(
+        self, session: FakeSession, user_id: UUID
+    ) -> tuple[tuple[str, int], ...]:
+        del session
+        return self.persistent_pains.get(user_id, ())
+
+    def count_daily_adjustments(self, session: FakeSession, user_id: UUID, local_date: date) -> int:
+        del session
+        context = self.contexts.get((user_id, local_date))
+        return max((context or {}).get("context_version", 1) - 1, 0) + (
+            self.successful_regenerations
+        )
+
+    def get_context_version(
+        self, session: FakeSession, user_id: UUID, local_date: date
+    ) -> int | None:
+        del session
+        context = self.contexts.get((user_id, local_date))
+        return None if context is None else int(context["context_version"])
 
     def get_idempotency_record(
         self, session: FakeSession, user_id: UUID, idempotency_key: UUID
@@ -90,11 +113,24 @@ class FakeDailyContextRepository:
             "duration_adjustment_source_code": values.duration_adjustment_source_code,
             "location_code": values.location_code,
             "sleep_minutes": values.sleep_minutes,
+            "sleep_source_code": values.sleep_source_code,
+            "available_time_minutes": values.available_time_minutes,
+            "pain_present": values.pain_present,
+            "red_flag_present": values.red_flag_present,
             "fasting_state_code": values.fasting_state_code,
             "hydration_state_code": values.hydration_state_code,
             "discomforts": [
                 {"body_area_code": body, "severity_code": severity}
                 for body, severity in values.discomforts
+            ],
+            "pains": [
+                {
+                    "body_area_code": body,
+                    "intensity_score": intensity,
+                    "severity_code": severity,
+                    "policy_version": policy_version,
+                }
+                for body, intensity, severity, policy_version in values.pains
             ],
             "adverse_reaction_codes": list(values.adverse_reaction_codes),
             "available_slots": (
@@ -136,6 +172,54 @@ def request(
     return DailyContextUpsertRequest.model_validate(payload)
 
 
+def test_persistent_pains_are_exposed_only_as_editable_checkin_defaults() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+    repository.persistent_pains[user_id] = (("KNEE", 4), ("SHOULDER", 2))
+
+    defaults = service.defaults(FakeSession(), user_id, LOCAL_DATE)
+
+    assert defaults.local_date == LOCAL_DATE
+    assert [(pain.body_area_code.value, pain.intensity_score) for pain in defaults.pains] == [
+        ("KNEE", 4),
+        ("SHOULDER", 2),
+    ]
+    assert [location.value for location in defaults.selectable_location_codes] == ["HOME", "GYM"]
+
+
+@pytest.mark.parametrize("minutes", (10, 30, 60, 61, 90))
+def test_daily_checkin_accepts_the_full_10_to_90_minute_range(minutes: int) -> None:
+    request = DailyContextUpsertRequest(
+        fatigue_level_code="LOW",
+        available_time_minutes=minutes,
+        location_code="HOME",
+    )
+
+    assert request.requested_duration_minutes == minutes
+
+
+@pytest.mark.parametrize("location_code", ("HOME", "GYM", "OUTDOOR"))
+def test_daily_checkin_keeps_all_persisted_location_codes_compatible(location_code: str) -> None:
+    request = DailyContextUpsertRequest(
+        fatigue_level_code="LOW",
+        available_time_minutes=30,
+        location_code=location_code,
+    )
+
+    assert request.location_code.value == location_code
+
+
+@pytest.mark.parametrize("minutes", (9, 91))
+def test_daily_checkin_rejects_duration_outside_10_to_90_minutes(minutes: int) -> None:
+    with pytest.raises(ValueError):
+        DailyContextUpsertRequest(
+            fatigue_level_code="LOW",
+            available_time_minutes=minutes,
+            location_code="HOME",
+        )
+
+
 def slot(start_hour: int, end_hour: int) -> dict[str, str]:
     """A same-day KST window for LOCAL_DATE."""
 
@@ -168,6 +252,35 @@ def test_manual_create_get_and_versioned_full_replacement() -> None:
     assert service.get(FakeSession(), user_id, LOCAL_DATE) == second
 
 
+def test_nrs_pain_and_safety_inputs_round_trip_with_the_policy_version() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    payload = DailyContextUpsertRequest.model_validate(
+        {
+            "fatigue_level_code": "HIGH",
+            "available_time_minutes": 30,
+            "location_code": "HOME",
+            "sleep_minutes": 330,
+            "sleep_source_code": "MANUAL",
+            "pain_present": True,
+            "red_flag_present": True,
+            "pains": [{"body_area_code": "KNEE", "intensity_score": 6}],
+            "adverse_reaction_codes": [],
+        }
+    )
+
+    response = service.replace(FakeSession(), uuid4(), LOCAL_DATE, payload, uuid4(), None)
+
+    assert response.requested_duration_minutes == 30
+    assert response.available_time_minutes == 30
+    assert response.sleep_source_code.value == "MANUAL"
+    assert response.pain_present is True
+    assert response.red_flag_present is True
+    assert response.pains[0].intensity_score == 6
+    assert response.pains[0].severity_code.value == "MODERATE"
+    assert response.pains[0].policy_version == "pain-intensity-action-v2"
+
+
 def test_stale_or_missing_version_cannot_replace_existing_context() -> None:
     repository = FakeDailyContextRepository()
     service = DailyContextService(repository, clock=lambda: NOW)
@@ -178,6 +291,22 @@ def test_stale_or_missing_version_cannot_replace_existing_context() -> None:
         service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), None)
     with pytest.raises(StaleContextError):
         service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), 9)
+
+
+def test_checkin_edit_and_regeneration_share_a_two_adjustment_daily_budget() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+    service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), None)
+    repository.successful_regenerations = 1
+
+    second = service.replace(
+        FakeSession(), user_id, LOCAL_DATE, request(fatigue="HIGH"), uuid4(), 1
+    )
+    assert second.context_version == 2
+
+    with pytest.raises(DailyAdjustmentLimitReachedError):
+        service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), 2)
 
 
 def test_idempotent_retry_does_not_increment_and_changed_payload_conflicts() -> None:

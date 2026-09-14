@@ -1,10 +1,4 @@
 from backend.app.db.models.account_deletion import AccountDeletionAudit, AccountDeletionJob
-from backend.app.db.models.calendar import (
-    CalendarConnection,
-    CalendarEventLink,
-    CalendarOAuthRequest,
-    CalendarRateLimitCounter,
-)
 from backend.app.db.models.catalog import (
     BodyArea,
     BodyFocus,
@@ -28,6 +22,7 @@ from backend.app.db.models.checkin import (
     DailyContextAdverseReaction,
     DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
+    DailyContextPain,
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
@@ -42,17 +37,25 @@ from backend.app.db.models.decision import (
     PlanItem,
     SafetyReview,
 )
-from backend.app.db.models.identity import User, UserIdentity
+from backend.app.db.models.identity import (
+    SocialOAuthAuthorizationRequest,
+    SocialOAuthRateLimitWindow,
+    User,
+    UserIdentity,
+)
+from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserEquipment,
+    UserPersistentPain,
     UserPreferredExerciseType,
     UserProfile,
+    UserTermsAgreement,
 )
+from backend.app.db.models.reward import BananaTransaction, BananaWallet
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.v3_decision import (
     DecisionConstraintEnvelopeRecord,
@@ -69,6 +72,7 @@ from backend.app.db.models.workout import (
     WorkoutAdditionalActivity,
     WorkoutFeedback,
     WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDifficultyReason,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
     WorkoutSafetyEventAdverseReaction,
@@ -82,12 +86,10 @@ from backend.app.db.models.workout import (
 __all__ = [
     "AccountDeletionAudit",
     "AccountDeletionJob",
-    "CalendarConnection",
-    "CalendarEventLink",
-    "CalendarOAuthRequest",
-    "CalendarRateLimitCounter",
     "BodyArea",
     "BodyFocus",
+    "BananaTransaction",
+    "BananaWallet",
     "AgentProposalRevisionRecord",
     "AgentProposalRecord",
     "AgentReviewEventRecord",
@@ -106,6 +108,7 @@ __all__ = [
     "DailyContextAdverseReaction",
     "DailyContextAvailabilitySlot",
     "DailyContextDiscomfort",
+    "DailyContextPain",
     "Equipment",
     "Exercise",
     "ExerciseAlternative",
@@ -117,6 +120,7 @@ __all__ = [
     "ExercisePrescriptionProfile",
     "ExerciseSafetyRule",
     "Location",
+    "InAppNotification",
     "MovementPattern",
     "PlanCandidate",
     "PlanIntegrityValidationRecord",
@@ -126,23 +130,27 @@ __all__ = [
     "RoutineItem",
     "SafetyReview",
     "ScheduledWorkout",
+    "SocialOAuthAuthorizationRequest",
+    "SocialOAuthRateLimitWindow",
     "MutationIdempotencyRecord",
     "TrainingType",
     "User",
     "UserAttentionArea",
-    "UserAvailableLocation",
     "UserConsent",
     "UserConsentEvent",
     "UserEquipment",
     "UserIdentity",
     "UserPreferredExerciseType",
+    "UserPersistentPain",
     "UserProfile",
+    "UserTermsAgreement",
     "UserWeek",
     "VectorIndexRegistry",
     "WeeklyPlanRevision",
     "WorkoutAdditionalActivity",
     "WorkoutFeedback",
     "WorkoutFeedbackAdverseReaction",
+    "WorkoutFeedbackDifficultyReason",
     "WorkoutFeedbackDiscomfort",
     "WorkoutSafetyEvent",
     "WorkoutSafetyEventAdverseReaction",

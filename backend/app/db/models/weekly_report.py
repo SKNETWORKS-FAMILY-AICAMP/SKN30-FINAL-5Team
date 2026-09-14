@@ -119,7 +119,11 @@ class WeeklyReport(Base):
     completed_count: Mapped[int] = mapped_column(Integer, nullable=False)
     partial_count: Mapped[int] = mapped_column(Integer, nullable=False)
     not_completed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Legacy count from the single-status era, still written for read compatibility.
     stopped_for_safety: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Sessions whose execution state ended at STOPPED_SAFETY, under the split axes P1-C
+    # introduced. Separate from the official completion counts above.
+    safety_stopped_session_count: Mapped[int] = mapped_column(Integer, nullable=False)
     primary_miss_reason_code: Mapped[str | None] = mapped_column(String(48), nullable=True)
     completion_rate: Mapped[float] = mapped_column(Float, nullable=False)
     persistence_rate: Mapped[float] = mapped_column(Float, nullable=False)

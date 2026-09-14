@@ -260,7 +260,9 @@ def test_pool_hash_is_stable_and_excludes_created_at() -> None:
     )
 
     assert first.pool_hash == second.pool_hash
-    assert first.pool_hash == "59e1ee4c0fee025f6cce469cf864acb0785d88d4191199b98b725bb016f0589b"
+    # Changes with the pool record schema by design; this pins that the hash is
+    # content-addressed and stable, so a bump here must be a deliberate one.
+    assert first.pool_hash == "fa889ab590ca92405ebdeb888e87c27ad05d5ec74da99bc82c6d23ea8ccc76a0"
 
 
 @pytest.mark.parametrize(

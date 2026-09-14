@@ -100,7 +100,10 @@ export function SessionProvider({
       return null;
     }
     try {
-      return createFirebaseAuthAdapter(env.firebase);
+      return createFirebaseAuthAdapter(env.firebase, {
+        apiBaseUrl: env.apiBaseUrl,
+        socialOAuthRedirectUris: env.socialOAuthRedirectUris,
+      });
     } catch {
       return null;
     }

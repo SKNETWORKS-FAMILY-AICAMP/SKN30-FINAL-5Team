@@ -21,11 +21,22 @@ class DecisionContext:
     primary_goal_code: str
     experience_level_code: str
     equipment_codes: tuple[str, ...]
+    # Deprecated compatibility slot. Profile attention areas are Check-in UI prefill
+    # only and must never affect a decision or be persisted in its input snapshot.
     attention_area_codes: tuple[str, ...]
     profile_preferred_location_code: str | None = None
     recent_workout_status_codes: tuple[str, ...] = ()
     candidate_required_equipment_codes: tuple[str, ...] | None = None
     candidate_supported_location_codes: tuple[str, ...] | None = None
+    pains: tuple[tuple[str, int, str, str], ...] = ()
+    red_flag_present: bool = False
+    # The most recent completed session's difficulty feedback, or None when the user has
+    # not answered yet. `DOMAIN_RULES.md` 6.1 reads only the latest one: the ladder moves
+    # a single axis and evaluates it through the next feedback, so older rows would apply
+    # an adjustment whose effect has already been measured.
+    latest_difficulty_code: str | None = None
+    latest_difficulty_reason_codes: tuple[str, ...] = ()
+    recent_adherence_reason_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -37,6 +48,17 @@ class DecisionContext:
             self,
             "recent_workout_status_codes",
             tuple(self.recent_workout_status_codes),
+        )
+        # Sorted so the same feedback hashes identically regardless of row order.
+        object.__setattr__(
+            self,
+            "latest_difficulty_reason_codes",
+            tuple(sorted(set(self.latest_difficulty_reason_codes))),
+        )
+        object.__setattr__(
+            self,
+            "recent_adherence_reason_codes",
+            tuple(sorted(set(self.recent_adherence_reason_codes))),
         )
         for field_name in (
             "candidate_required_equipment_codes",
@@ -58,12 +80,27 @@ class DecisionContext:
             "sleep_minutes": self.sleep_minutes,
             "fasting_state_code": self.fasting_state_code,
             "hydration_state_code": self.hydration_state_code,
+            "red_flag_present": self.red_flag_present,
+            "pains": [
+                {
+                    "body_area_code": area,
+                    "intensity_score": intensity,
+                    "severity_code": severity,
+                    "policy_version": policy_version,
+                }
+                for area, intensity, severity, policy_version in self.pains
+            ],
             "discomforts": [
                 {"body_area_code": area, "severity_code": severity}
                 for area, severity in self.discomforts
             ],
             "adverse_reaction_codes": list(self.adverse_reaction_codes),
             "recent_workout_status_codes": list(self.recent_workout_status_codes),
+            "recent_adherence_reason_codes": list(self.recent_adherence_reason_codes),
+            "latest_difficulty_feedback": {
+                "difficulty_code": self.latest_difficulty_code,
+                "reason_codes": list(self.latest_difficulty_reason_codes),
+            },
             "candidate_constraints": {
                 "required_equipment_codes": (
                     None
@@ -81,7 +118,6 @@ class DecisionContext:
                 "experience_level_code": self.experience_level_code,
                 "default_requested_duration_minutes": self.profile_duration_minutes,
                 "equipment_codes": list(self.equipment_codes),
-                "attention_area_codes": list(self.attention_area_codes),
                 "preferred_location_code": self.profile_preferred_location_code,
             },
         }

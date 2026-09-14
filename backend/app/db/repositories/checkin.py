@@ -3,7 +3,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.checkin import (
@@ -11,8 +11,14 @@ from backend.app.db.models.checkin import (
     DailyContextAdverseReaction,
     DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
+    DailyContextPain,
 )
-from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
+from backend.app.db.models.decision import DecisionRun
+from backend.app.db.models.profile import (
+    MutationIdempotencyRecord,
+    UserPersistentPain,
+    UserProfile,
+)
 from backend.app.domain.rules.external_context import CalendarAvailabilitySourceCode
 from backend.app.modules.checkins.codes import (
     DAILY_CONTEXT_ENDPOINT_CODE,
@@ -29,6 +35,52 @@ class DailyContextRepository:
 
     def get_user_timezone(self, session: Session, user_id: UUID) -> str | None:
         return session.scalar(select(UserProfile.timezone).where(UserProfile.user_id == user_id))
+
+    def get_persistent_pain_defaults(
+        self, session: Session, user_id: UUID
+    ) -> tuple[tuple[str, int], ...]:
+        rows = session.execute(
+            select(UserPersistentPain.body_area_code, UserPersistentPain.intensity_score)
+            .where(UserPersistentPain.user_id == user_id)
+            .order_by(UserPersistentPain.body_area_code)
+        )
+        return tuple(
+            (str(body_area_code), int(intensity_score)) for body_area_code, intensity_score in rows
+        )
+
+    def count_daily_adjustments(self, session: Session, user_id: UUID, local_date: date) -> int:
+        """Read the day-wide budget while ``acquire_mutation_lock`` is held.
+
+        Context version one is the initial check-in. Later versions and every successful
+        regenerated decision each consume one adjustment.
+        """
+
+        context_version = session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == local_date,
+            )
+        )
+        regenerations = session.scalar(
+            select(func.count())
+            .select_from(DecisionRun)
+            .where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == local_date,
+                DecisionRun.status_code == "COMPLETED",
+                DecisionRun.regeneration_sequence.is_not(None),
+                DecisionRun.regeneration_sequence > 0,
+            )
+        )
+        return max(int(context_version or 1) - 1, 0) + int(regenerations or 0)
+
+    def get_context_version(self, session: Session, user_id: UUID, local_date: date) -> int | None:
+        return session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == local_date,
+            )
+        )
 
     def get_idempotency_record(
         self, session: Session, user_id: UUID, idempotency_key: UUID
@@ -105,6 +157,10 @@ class DailyContextRepository:
                 duration_adjustment_source_code=values.duration_adjustment_source_code,
                 location_code=values.location_code,
                 sleep_minutes=values.sleep_minutes,
+                sleep_source_code=values.sleep_source_code,
+                available_time_minutes=values.available_time_minutes,
+                pain_present=values.pain_present,
+                red_flag_present=values.red_flag_present,
                 fasting_state_code=values.fasting_state_code,
                 hydration_state_code=values.hydration_state_code,
                 availability_source_code=values.availability_source_code,
@@ -119,6 +175,10 @@ class DailyContextRepository:
             row.duration_adjustment_source_code = values.duration_adjustment_source_code
             row.location_code = values.location_code
             row.sleep_minutes = values.sleep_minutes
+            row.sleep_source_code = values.sleep_source_code
+            row.available_time_minutes = values.available_time_minutes
+            row.pain_present = values.pain_present
+            row.red_flag_present = values.red_flag_present
             row.fasting_state_code = values.fasting_state_code
             row.hydration_state_code = values.hydration_state_code
             row.availability_source_code = values.availability_source_code
@@ -128,6 +188,9 @@ class DailyContextRepository:
                 delete(DailyContextDiscomfort).where(
                     DailyContextDiscomfort.daily_context_id == row.id
                 )
+            )
+            session.execute(
+                delete(DailyContextPain).where(DailyContextPain.daily_context_id == row.id)
             )
             session.execute(
                 delete(DailyContextAdverseReaction).where(
@@ -142,13 +205,15 @@ class DailyContextRepository:
 
         session.add_all(
             [
-                DailyContextDiscomfort(
+                DailyContextPain(
                     id=uuid4(),
                     daily_context_id=row.id,
                     body_area_code=body,
-                    severity_code=severity,
+                    intensity_score=intensity_score,
+                    severity_code=severity_code,
+                    policy_version=policy_version,
                 )
-                for body, severity in values.discomforts
+                for body, intensity_score, severity_code, policy_version in values.pains
             ]
             + [
                 DailyContextAdverseReaction(daily_context_id=row.id, reaction_code=code)
@@ -170,12 +235,24 @@ class DailyContextRepository:
 
     @staticmethod
     def _payload(session: Session, row: DailyContext) -> dict[str, Any]:
-        discomforts = session.execute(
+        pains = session.execute(
             select(
-                DailyContextDiscomfort.body_area_code,
-                DailyContextDiscomfort.severity_code,
-            ).where(DailyContextDiscomfort.daily_context_id == row.id)
+                DailyContextPain.body_area_code,
+                DailyContextPain.intensity_score,
+                DailyContextPain.severity_code,
+                DailyContextPain.policy_version,
+            ).where(DailyContextPain.daily_context_id == row.id)
         ).all()
+        legacy_discomforts = (
+            session.execute(
+                select(
+                    DailyContextDiscomfort.body_area_code,
+                    DailyContextDiscomfort.severity_code,
+                ).where(DailyContextDiscomfort.daily_context_id == row.id)
+            ).all()
+            if not pains
+            else ()
+        )
         reactions = session.scalars(
             select(DailyContextAdverseReaction.reaction_code).where(
                 DailyContextAdverseReaction.daily_context_id == row.id
@@ -204,11 +281,29 @@ class DailyContextRepository:
             "duration_adjustment_source_code": row.duration_adjustment_source_code,
             "location_code": row.location_code,
             "sleep_minutes": row.sleep_minutes,
+            "sleep_source_code": row.sleep_source_code,
+            "available_time_minutes": row.available_time_minutes,
+            "pain_present": row.pain_present or bool(pains) or bool(legacy_discomforts),
+            "red_flag_present": row.red_flag_present,
             "fasting_state_code": row.fasting_state_code,
             "hydration_state_code": row.hydration_state_code,
+            "pains": [
+                {
+                    "body_area_code": body,
+                    "intensity_score": intensity_score,
+                    "severity_code": severity_code,
+                    "policy_version": policy_version,
+                }
+                for body, intensity_score, severity_code, policy_version in sorted(pains)
+            ],
             "discomforts": [
-                {"body_area_code": body, "severity_code": severity}
-                for body, severity in sorted(discomforts)
+                {"body_area_code": body, "severity_code": severity_code}
+                for body, _, severity_code, _ in sorted(pains)
+            ]
+            if pains
+            else [
+                {"body_area_code": body, "severity_code": severity_code}
+                for body, severity_code in sorted(legacy_discomforts)
             ],
             "adverse_reaction_codes": sorted(reactions),
             "available_slots": available_slots,

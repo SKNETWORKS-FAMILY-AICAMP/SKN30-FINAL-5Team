@@ -18,6 +18,14 @@ from backend.app.domain.agents.v3_contracts import (
     _hash_value,
 )
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
+from backend.app.domain.rules.plan_shape import (
+    MAX_PHASE_EXERCISE_TYPES,
+    MAX_PLAN_EXERCISE_TYPES,
+    PLAN_PHASE_ORDER,
+    families_over_budget,
+    has_consecutive_main_repetition,
+    phase_rank,
+)
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 INTEGRITY_VALIDATION_SCHEMA_VERSION: Final[Literal["plan-integrity-validation-v1"]] = (
@@ -36,6 +44,13 @@ class IntegrityViolationCode(StrEnum):
     LOCATION_NOT_ALLOWED = "LOCATION_NOT_ALLOWED"
     EQUIPMENT_NOT_AVAILABLE = "EQUIPMENT_NOT_AVAILABLE"
     RECOVERY_CEILING_EXCEEDED = "RECOVERY_CEILING_EXCEEDED"
+    FITT_RANGE_UNAVAILABLE = "FITT_RANGE_UNAVAILABLE"
+    FITT_RANGE_EXCEEDED = "FITT_RANGE_EXCEEDED"
+    PLAN_PHASE_COVERAGE_INVALID = "PLAN_PHASE_COVERAGE_INVALID"
+    PLAN_EXERCISE_VARIETY_EXCEEDED = "PLAN_EXERCISE_VARIETY_EXCEEDED"
+    PLAN_PHASE_REPETITION_INVALID = "PLAN_PHASE_REPETITION_INVALID"
+    PLAN_MAIN_REPEAT_CONSECUTIVE = "PLAN_MAIN_REPEAT_CONSECUTIVE"
+    PLAN_EXERCISE_FAMILY_REPEATED = "PLAN_EXERCISE_FAMILY_REPEATED"
     CATALOG_RECORD_MISMATCH = "CATALOG_RECORD_MISMATCH"
     STOP_AND_SEEK_HELP = "STOP_AND_SEEK_HELP"
     PLAN_GENERATION_FORBIDDEN = "PLAN_GENERATION_FORBIDDEN"
@@ -48,17 +63,64 @@ class IntegrityViolationCode(StrEnum):
 
 
 _VIOLATION_ORDER = tuple(IntegrityViolationCode)
-_CONDITIONALLY_REPAIRABLE = frozenset(
+# A repair is only worth routing to when the Coordinator has somewhere to go,
+# and the two ways of having somewhere to go are not the same (ADR-0022).
+#
+# Replacing an exercise Safety removed needs an exercise Safety approved in its
+# place -- the pool at large is not an answer to "what may this user do
+# instead". Rearranging a plan needs no such blessing: the pool is already the
+# approved candidate set, because PostgreSQL decides eligibility and the
+# envelope's exclusions are applied before the snapshot is built.
+_SUBSTITUTION_REPAIRABLE = frozenset(
+    {
+        IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED,
+    }
+)
+
+# Shape and dosage violations are the Coordinator's to correct within the pool
+# it was already given: the pool reserves candidates for every phase, so one
+# repair round can restore the shape without weakening any safety bound. The
+# repaired plan is re-validated by this same function at `repair_attempt=1`, so
+# nothing here admits a plan that would otherwise have been refused -- when
+# repair does not fix it, REPAIR_ATTEMPT_EXHAUSTED sends the request to the
+# deterministic fallback, which builds the same shape from the same pool.
+_POOL_REPAIRABLE = frozenset(
     {
         IntegrityViolationCode.REQUESTED_DURATION_MISMATCH,
         IntegrityViolationCode.PRESCRIPTION_SCHEMA_INVALID,
         IntegrityViolationCode.MANDATORY_EXERCISE_MISSING,
-        IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED,
         IntegrityViolationCode.LOCATION_NOT_ALLOWED,
         IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE,
         IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED,
+        IntegrityViolationCode.FITT_RANGE_EXCEEDED,
+        IntegrityViolationCode.FITT_RANGE_UNAVAILABLE,
+        IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID,
+        IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED,
+        IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID,
+        IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE,
+        IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED,
     }
 )
+
+
+def _is_repairable(
+    code: IntegrityViolationCode,
+    *,
+    repair_attempt: int,
+    has_approved_alternative: bool,
+    pool_can_supply_repair: bool,
+) -> bool:
+    """Whether one repair round could plausibly clear this violation.
+
+    Never a safety judgement: a repaired plan is re-validated in full, so this
+    only decides whether spending the round is worth it.
+    """
+
+    if repair_attempt != 0:
+        return False
+    if code in _SUBSTITUTION_REPAIRABLE:
+        return has_approved_alternative
+    return code in _POOL_REPAIRABLE and pool_can_supply_repair
 
 
 class IntegrityValidationStatusCode(StrEnum):
@@ -152,11 +214,29 @@ class IntegrityValidationResult(BaseModel):
 
 def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope) -> bool:
     ceiling = envelope.recovery_ceiling
+    sets_by_exercise: dict[UUID, int] = {}
     for compiled in compiled_plan.exercises:
         item = compiled.prescription
+        sets_by_exercise[item.exercise_id] = sets_by_exercise.get(item.exercise_id, 0) + item.sets
         if (
             ceiling.allowed_intensity_codes
             and item.intensity_code not in ceiling.allowed_intensity_codes
+        ):
+            return True
+        per_exercise_ceiling = next(
+            (
+                value
+                for value in ceiling.per_exercise_volume_ceilings
+                if value.exercise_id == item.exercise_id
+            ),
+            None,
+        )
+        if per_exercise_ceiling is not None and (
+            item.sets > per_exercise_ceiling.maximum_sets_per_exercise
+            or (
+                item.repetitions_per_set is not None
+                and item.repetitions_per_set > per_exercise_ceiling.maximum_repetitions_per_set
+            )
         ):
             return True
         if ceiling.allowed_load_codes and item.load_code not in ceiling.allowed_load_codes:
@@ -164,7 +244,6 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
         if any(
             actual is not None and maximum is not None and actual > maximum
             for actual, maximum in (
-                (item.sets, ceiling.maximum_sets_per_exercise),
                 (item.repetitions_per_set, ceiling.maximum_repetitions_per_set),
                 (item.work_seconds_per_set, ceiling.maximum_work_seconds_per_set),
             )
@@ -175,7 +254,42 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
             and item.rest_seconds_between_sets < ceiling.minimum_rest_seconds_between_sets
         ):
             return True
+    if ceiling.maximum_sets_per_exercise is not None and any(
+        sets > ceiling.maximum_sets_per_exercise for sets in sets_by_exercise.values()
+    ):
+        return True
     return False
+
+
+def _fitt_violation_codes(compiled_plan: CompiledPlan) -> set[IntegrityViolationCode]:
+    """Check the reviewed FITT range for the exercises one actually covers.
+
+    No reviewed range covers every catalog entry. Where none covers an exercise
+    the Recovery ceiling checked by `_recovery_exceeded` is the operative bound,
+    so an absent range is not a violation of anything -- reporting it as one
+    would reject every plan while bounding no volume at all.
+    """
+
+    codes: set[IntegrityViolationCode] = set()
+    for compiled in compiled_plan.exercises:
+        prescription = compiled.prescription
+        record = compiled.catalog_record
+        if record.timing_mode_code != "REPS":
+            continue
+        volume = record.approved_fitt_volume()
+        if volume is None:
+            continue
+        if prescription.repetitions_per_set is None:
+            # An approved range exists and the prescription omitted the value it
+            # bounds. That is the Coordinator's to correct, not missing data.
+            codes.add(IntegrityViolationCode.FITT_RANGE_UNAVAILABLE)
+            continue
+        if not (
+            volume.min_sets <= prescription.sets <= volume.max_sets
+            and volume.min_reps <= prescription.repetitions_per_set <= volume.max_reps
+        ):
+            codes.add(IntegrityViolationCode.FITT_RANGE_EXCEEDED)
+    return codes
 
 
 def validate_plan_integrity(
@@ -237,6 +351,38 @@ def validate_plan_integrity(
             codes.add(IntegrityViolationCode.EXERCISE_OUTSIDE_POOL)
         if set(ids) & set(envelope.excluded_exercise_ids):
             codes.add(IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED)
+        # Session shape. The prompts ask for a warmup and a cooldown, but asking
+        # is not enforcing: an LLM that answered with twelve MAIN blocks used to
+        # reach the user unchallenged. Enforce it here, downstream of the
+        # coordinator, where every other plan bound is already asserted.
+        phases = tuple(item.prescription.phase_code for item in compiled_plan.exercises)
+        ranks = [phase_rank(phase) for phase in phases]
+        if set(phases) != set(PLAN_PHASE_ORDER) or ranks != sorted(ranks):
+            codes.add(IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID)
+        if len(set(ids)) > MAX_PLAN_EXERCISE_TYPES:
+            codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
+        # Near-identical variants share a catalog family code, so a plan naming
+        # three good mornings is padding the session rather than varying it.
+        # Deterministic selection already refuses this; assert it here so a plan
+        # that came from the LLM cannot reach the user with it either.
+        if families_over_budget(
+            (item.prescription.exercise_id, record.family_code)
+            for item in compiled_plan.exercises
+            if (record := pool_records.get(item.prescription.exercise_id)) is not None
+        ):
+            codes.add(IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED)
+        for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items():
+            phase_ids = tuple(
+                item.prescription.exercise_id
+                for item in compiled_plan.exercises
+                if item.prescription.phase_code == phase_code
+            )
+            if len(set(phase_ids)) > cap:
+                codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
+            if len(phase_ids) != len(set(phase_ids)):
+                codes.add(IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID)
+        if has_consecutive_main_repetition(tuple(zip(ids, phases, strict=True))):
+            codes.add(IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE)
         for item in compiled_plan.exercises:
             prescription = item.prescription
             canonical = pool_records.get(prescription.exercise_id)
@@ -252,6 +398,12 @@ def validate_plan_integrity(
                 or prescription.location_code not in canonical.location_codes
             ):
                 codes.add(IntegrityViolationCode.LOCATION_NOT_ALLOWED)
+            # A phase is a reviewed property of the exercise, so a plan may not
+            # call a loaded compound lift a cooldown. Records that predate the
+            # phase projection carry no phase_codes and are left to the
+            # plan-level coverage check above.
+            if canonical.phase_codes and prescription.phase_code not in canonical.phase_codes:
+                codes.add(IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID)
             # Equipment is not a gate. The 2026-08-27 approval dropped it from
             # onboarding, so a user has no UserEquipment rows and the envelope
             # allowlist is empty by design. Comparing against it rejected every
@@ -264,6 +416,7 @@ def validate_plan_integrity(
                 codes.add(IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE)
         if _recovery_exceeded(compiled_plan, envelope):
             codes.add(IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED)
+        codes.update(_fitt_violation_codes(compiled_plan))
 
     if repair_attempt == 1 and codes:
         codes.add(IntegrityViolationCode.REPAIR_ATTEMPT_EXHAUSTED)
@@ -274,14 +427,18 @@ def validate_plan_integrity(
         and safe_alternative_ids.issubset(pool_ids)
         and safe_alternative_ids.isdisjoint(envelope.excluded_exercise_ids)
     )
+    # The pool is the approved candidate set, so a rearranging repair has
+    # somewhere to go as soon as the pool holds anything Safety did not exclude.
+    pool_can_supply_repair = bool(pool_ids - set(envelope.excluded_exercise_ids))
     ordered_codes = tuple(code for code in _VIOLATION_ORDER if code in codes)
     violations = tuple(
         IntegrityViolation(
             code=code,
-            repairable=(
-                repair_attempt == 0
-                and has_approved_alternative
-                and code in _CONDITIONALLY_REPAIRABLE
+            repairable=_is_repairable(
+                code,
+                repair_attempt=repair_attempt,
+                has_approved_alternative=has_approved_alternative,
+                pool_can_supply_repair=pool_can_supply_repair,
             ),
         )
         for code in ordered_codes

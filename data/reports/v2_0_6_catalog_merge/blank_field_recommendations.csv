@@ -1,0 +1,26 @@
+﻿column_name,empty_count,recommendation_code,recommended_action,evidence_source
+default_rest_seconds,167,HUMAN_REVIEW_REQUIRED,Fill only from reviewed dosage policy; do not copy by category.,explicit dosage review evidence
+default_seconds_per_rep,202,HUMAN_REVIEW_REQUIRED,Fill only from reviewed dosage policy; do not calculate from timing or difficulty.,explicit dosage review evidence
+default_transition_seconds,167,HUMAN_REVIEW_REQUIRED,Fill only from reviewed transition policy; no blanket default.,explicit dosage review evidence
+default_work_seconds,205,HUMAN_REVIEW_REQUIRED,Fill only from reviewed exercise dosage policy or explicit source value; no default substitution.,explicit dosage review evidence
+difficulty_code,167,HUMAN_REVIEW_REQUIRED,Require explicit difficulty review; never use rank or infer from equipment/body focus.,difficulty review evidence; rank prohibited
+equipment_codes,1,EXACT_SOURCE_MAPPING,"For the single blank row, map the exact raw equipment label through the controlled vocabulary mapper and retain unresolved values blank.",data/raw/gym_visual/exercises.json exact source_identity
+family_code,167,KEEP_BLANK_UNTIL_FAMILY_REVIEW,Representative/family confirmation is excluded; do not derive from exercise name or movement category alone.,separate family review artifact required
+form_cues_review_status,167,REVIEW_REQUIRED,Mark existing imported cues as REVIEW_REQUIRED until content review evidence exists.,content review evidence
+form_cues_source,167,EXACT_SOURCE_PROVENANCE,Record the exact raw source identity/path for existing form cues; do not rewrite cue content in this step.,data/raw/gym_visual/exercises.json exact source_identity
+general_pool_included,167,SOURCE_REVIEW_REQUIRED,Identify a direct source mapping and preserve blank values until reviewed; no inference or defaulting.,field-specific source evidence
+instruction_content_version,167,GENERATOR_METADATA,Set only when the content generator/version is explicitly applied and audited.,content naturalization audit
+instruction_summary_ko,167,HUMAN_CONTENT_REVIEW_REQUIRED,Create a reviewed user-facing summary from exact source steps; do not treat raw Korean text as approved copy.,data/raw/gym_visual/exercises.json instruction_steps.ko
+location_codes,167,HUMAN_REVIEW_REQUIRED,Fill only when source or explicit location review supports HOME/GYM/OUTDOOR; do not infer from equipment.,explicit location evidence
+primary_body_area_codes,167,SOURCE_MAPPING_REVIEW_REQUIRED,Map raw body_part/muscle evidence to controlled codes with explicit primary selection; do not copy body_focus_code.,data/raw/gym_visual/exercises.json exact source_identity
+primary_movement_pattern_code,167,SOURCE_REVIEW_REQUIRED,Identify a direct source mapping and preserve blank values until reviewed; no inference or defaulting.,field-specific source evidence
+record_type,167,KEEP_BLANK_UNTIL_REPRESENTATIVE_REVIEW,Do not decide representative/variant record type in this task.,separate representative review
+recovery_eligible,167,HUMAN_REVIEW_REQUIRED,Require explicit recovery eligibility review; do not infer from mobility/body focus.,recovery review evidence
+representative_stable_code,240,KEEP_BLANK,Representative selection is excluded from this task.,separate representative review
+review_status_code,167,REVIEW_GATE,Set REVIEW_REQUIRED when the row has been assembled but remains unreviewed; never promote to DOMAIN_APPROVED automatically.,review gate evidence
+secondary_body_area_codes,168,SOURCE_MAPPING_REVIEW_REQUIRED,Map only explicitly supported secondary muscles to controlled codes; do not infer from primary or body focus.,data/raw/gym_visual/exercises.json exact source_identity
+safety_relevant_body_area_codes,240,KEEP_BLANK,Excluded from this task; fill only after a direct source value and separate safety review.,no direct source mapping accepted in this task
+timing_mode_code,167,HUMAN_REVIEW_REQUIRED,Confirm REPS vs DURATION from reviewed execution/dosage evidence; do not infer from MET or name.,explicit dosage review evidence
+met_value,238,KEEP_BLANK_UNLESS_DIRECT_COMPENDIUM_MATCH,"Use only direct activity evidence from the designated Compendium; no estimate, category transfer, or intensity inference.",data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl
+met_source_code,238,KEEP_BLANK_WITH_MET,Populate only together with a directly matched met_value and exact source_id.,designated Compendium source_id
+met_source_activity_code,238,KEEP_BLANK_WITH_MET,Populate only together with a directly matched met_value and exact activity_code.,designated Compendium activity_code

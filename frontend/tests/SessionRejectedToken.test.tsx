@@ -37,6 +37,8 @@ function signedInAuth(signOutUser: () => Promise<void>): AuthAdapter {
       };
     },
     signIn: jest.fn(async () => undefined),
+    signInWithGoogle: jest.fn(async () => undefined),
+    signInWithKakao: jest.fn(async () => undefined),
     signUp: jest.fn(async () => undefined),
     signOutUser: jest.fn(signOutUser),
     getIdToken: jest.fn(async () => 'token'),

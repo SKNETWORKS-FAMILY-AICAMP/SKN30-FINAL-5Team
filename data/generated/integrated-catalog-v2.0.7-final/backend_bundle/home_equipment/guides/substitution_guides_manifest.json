@@ -1,0 +1,12 @@
+{
+  "bundle_version": "home-equipment-variants-v1-final-2026-09-04",
+  "data_path": "guides/substitution_guides.jsonl",
+  "data_sha256": "369924bd4f6d5f3c16ca59b314f7b94f8a6e89c0723e3685511c86a58e51eac0",
+  "dataset_version": "home-equipment-substitution-v1",
+  "generated_at": "2026-09-04T00:00:00+09:00",
+  "generator_version": "home-equipment-variants-backend-bundle-1.0.0",
+  "importer_entry_path": "guides/substitution_guides_manifest.json",
+  "record_count": 34,
+  "review_status_code": "DOMAIN_APPROVED",
+  "schema_version": "home-equipment-importer-v1"
+}

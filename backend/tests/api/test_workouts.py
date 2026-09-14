@@ -411,15 +411,13 @@ def test_finish_not_completed_safety_and_feedback_contracts() -> None:
         safety = safety_client.post(
             f"/api/v1/workout-sessions/{safety_session_id}/safety-events",
             headers=_key(),
-            json={
-                "occurred_at": NOW.isoformat(),
-                "discomforts": [],
-                "adverse_reaction_codes": ["CHEST_DISCOMFORT"],
-            },
+            json={"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE"},
         )
     assert safety.status_code == 201
-    assert safety.json()["instruction_code"] == "STOP_AND_SEEK_HELP"
-    assert safety.json()["pressure_notifications_allowed"] is False
+    # No symptom detail is collected, so this path cannot classify an emergency; the
+    # reviewed stop guidance covers seeking help.
+    assert safety.json()["result_code"] == "SESSION_STOPPED"
+    assert safety.json()["execution_state_code"] == "STOPPED_SAFETY"
 
 
 def test_zero_block_finish_requires_explicit_not_completed_reason() -> None:

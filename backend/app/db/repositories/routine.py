@@ -9,19 +9,20 @@ from sqlalchemy.orm import Session, selectinload
 from backend.app.db.models.catalog import (
     CatalogVersion,
     Exercise,
-    ExerciseEquipment,
     ExerciseGoalTagLink,
-    ExerciseLocation,
     ExercisePrescriptionProfile,
 )
+from backend.app.db.models.decision import PlanCandidate
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.workout import WorkoutSession
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
+from backend.app.modules.catalog.codes import SELECTABLE_LOCATION_CODES
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
     RoutineStatusCode,
@@ -101,13 +102,10 @@ class RoutineRepository:
         allowed_difficulties = allowed_exercise_difficulty_codes(profile.experience_level_code)
         if not allowed_difficulties:
             return None
-        locations = tuple(
-            session.scalars(
-                select(UserAvailableLocation.location_code).where(
-                    UserAvailableLocation.user_id == user_id
-                )
-            ).all()
-        ) or (profile.preferred_location_code,)
+        # ADR-0017 removed the profile location, and the base routine has never
+        # gated candidates on it. The context still reports which locations the
+        # product offers so a reader is not left guessing what the empty tuple meant.
+        locations = tuple(code.value for code in SELECTABLE_LOCATION_CODES)
         equipment = tuple(
             session.scalars(
                 select(UserEquipment.equipment_code).where(UserEquipment.user_id == user_id)
@@ -131,23 +129,6 @@ class RoutineRepository:
                 ExerciseGoalTagLink.review_status_code == "DOMAIN_APPROVED",
             )
         ).all()
-        exercise_ids = {exercise.id for _, exercise, _ in rows}
-        location_map: dict[UUID, set[str]] = {exercise_id: set() for exercise_id in exercise_ids}
-        equipment_map: dict[UUID, set[str]] = {exercise_id: set() for exercise_id in exercise_ids}
-        if exercise_ids:
-            for exercise_id, location_code in session.execute(
-                select(ExerciseLocation.exercise_id, ExerciseLocation.location_code).where(
-                    ExerciseLocation.exercise_id.in_(exercise_ids)
-                )
-            ):
-                location_map[exercise_id].add(location_code)
-            for exercise_id, equipment_code in session.execute(
-                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code).where(
-                    ExerciseEquipment.exercise_id.in_(exercise_ids)
-                )
-            ):
-                equipment_map[exercise_id].add(equipment_code)
-        location_set = set(locations)
         candidates = tuple(
             RoutineCandidate(
                 exercise_id=exercise.id,
@@ -166,10 +147,11 @@ class RoutineRepository:
                 intensity_code=prescription.intensity_code,
             )
             for prescription, exercise, goal_link in rows
-            # Equipment is no longer a gate: the 2026-08-27 decision drops it
-            # from onboarding, so suitability alone selects candidates and the
-            # variant lookup tells the user how to work around missing kit.
-            if location_map[exercise.id] & location_set
+            # Neither equipment nor location gates the base routine. Equipment left
+            # onboarding on 2026-08-27; ADR-0017 does the same for location because the
+            # base routine is a weekly template and the day's location only arrives with
+            # the check-in. The daily Safety-approved Pool applies that constraint, and
+            # the variant lookup tells the user how to work around missing kit.
         )
         return RoutineCreationContext(
             profile_duration_minutes=profile.default_requested_duration_minutes,
@@ -194,6 +176,30 @@ class RoutineRepository:
             session.scalar(select(Routine.id).where(Routine.user_id == user_id).limit(1))
             is not None
         )
+
+    def get_recent_performed_body_focus_codes(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> tuple[str, ...]:
+        """Return seven local days of actual COMPLETED/PARTIAL body-focus history."""
+
+        profile = session.get(UserProfile, user_id)
+        if profile is None:
+            return ()
+        ended_local_date = func.date(func.timezone(profile.timezone, WorkoutSession.ended_at))
+        values = session.scalars(
+            select(PlanCandidate.body_focus_code)
+            .join(WorkoutSession, WorkoutSession.plan_candidate_id == PlanCandidate.id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.status_code.in_(("COMPLETED", "PARTIAL")),
+                WorkoutSession.ended_at.is_not(None),
+                PlanCandidate.body_focus_code.is_not(None),
+                ended_local_date >= local_date - timedelta(days=6),
+                ended_local_date <= local_date,
+            )
+            .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
+        ).all()
+        return tuple(value for value in values if value is not None)
 
     def create_routine(
         self,
@@ -289,6 +295,24 @@ class RoutineRepository:
                     "title": day.title,
                     "training_type_code": day.training_type_code,
                     "body_focus_code": day.body_focus_code,
+                    "routine_name": (
+                        plan_name := build_plan_name(
+                            action_code="KEEP",
+                            main_body_focus_codes=(
+                                exercises[item.exercise_id].body_focus_code
+                                for item in day.items
+                                if item.phase_code == "MAIN"
+                            ),
+                            main_movement_pattern_codes=(),
+                            main_training_type_codes=(
+                                exercises[item.exercise_id].training_type_code
+                                for item in day.items
+                                if item.phase_code == "MAIN"
+                            ),
+                        )
+                    ).value,
+                    "routine_name_reason_codes": list(plan_name.reason_codes),
+                    "routine_naming_rule_version": plan_name.rule_version,
                     "requested_duration_minutes": day.requested_duration_minutes,
                     "estimated_duration_seconds": day.estimated_duration_seconds,
                     "estimated_calories_burned": day.estimated_calories_burned,
@@ -326,18 +350,19 @@ class RoutineRepository:
         )
         return None if routine is None else self._response_payload(session, routine)
 
-    def archive_routines_with_other_duration(
+    def archive_routines_incompatible_with_profile(
         self,
         session: Session,
         user_id: UUID,
         *,
+        primary_goal_code: str,
         requested_duration_minutes: int,
     ) -> int:
-        """Archive this user's active routines built to a different duration.
+        """Archive active routines that no longer match the user's profile.
 
-        Scoped to the caller's own user id and to routines whose stored target
-        no longer matches, so a profile edit that does not move the duration
-        archives nothing.
+        The routine goal and every day duration are immutable evidence of the
+        profile inputs used to build that version. Archiving preserves that
+        history while allowing Home to provision a new compatible version.
         """
 
         stale_ids = session.scalars(
@@ -346,7 +371,10 @@ class RoutineRepository:
             .where(
                 Routine.user_id == user_id,
                 Routine.status_code == "ACTIVE",
-                RoutineDay.requested_duration_minutes != requested_duration_minutes,
+                (
+                    (Routine.goal_code != primary_goal_code)
+                    | (RoutineDay.requested_duration_minutes != requested_duration_minutes)
+                ),
             )
             .distinct()
         ).all()

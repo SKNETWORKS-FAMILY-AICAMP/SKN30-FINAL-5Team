@@ -1,0 +1,39 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.6-final",
+  "files": [
+    {
+      "bytes": 170906,
+      "path": "media_assets.jsonl",
+      "records": 237,
+      "sha256": "f4bb0e7141e6ed38ae2cd05eda9e071f8ed76887dcf7e70503d3926e88b037e3"
+    }
+  ],
+  "generator_version": "v2-0-6-normalized-backend-projection-1.0.0",
+  "media_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "media-set-v2.0.6"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.6-final",
+    "input_artifacts": [
+      {
+        "bytes": 74084,
+        "path": "data/validation/review_results/gymvisual_media_reviewed.csv",
+        "role": "GYMVISUAL_MEDIA_REVIEW",
+        "sha256": "1621f87faf54e6945e665e5616153c20bd9b674dd522dd03133805ec7c94c2da"
+      }
+    ],
+    "matching_rule": "exact normalized source_identity to data/media/videos filename",
+    "source_catalog_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27"
+  },
+  "summary": {
+    "media_asset_records": 237
+  }
+}

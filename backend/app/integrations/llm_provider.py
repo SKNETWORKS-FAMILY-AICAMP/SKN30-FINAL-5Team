@@ -117,6 +117,7 @@ class OpenAiNarrationProvider:
     transport: JsonHttpTransport = UrllibJsonTransport()
 
     def narrate(self, prompt: NarrationPrompt) -> NarrationCompletion:
+        sentence_properties = {slot_code: {"type": "string"} for slot_code in prompt.slot_codes}
         body: dict[str, Any] = {
             "model": self.model_code,
             "max_output_tokens": self.max_output_tokens,
@@ -130,7 +131,26 @@ class OpenAiNarrationProvider:
                 ensure_ascii=False,
                 sort_keys=True,
             ),
-            "text": {"format": {"type": "json_object"}},
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "narration_sentences",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "sentences": {
+                                "type": "object",
+                                "properties": sentence_properties,
+                                "required": list(prompt.slot_codes),
+                                "additionalProperties": False,
+                            }
+                        },
+                        "required": ["sentences"],
+                        "additionalProperties": False,
+                    },
+                }
+            },
         }
         payload = self.transport.post_json(
             url=f"{self.base_url}{_RESPONSES_PATH}",

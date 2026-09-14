@@ -6,218 +6,292 @@
  * plays no part in routine decisions — it is presentation only.
  */
 
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState, type RefObject } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import {
   bodyAreaLabel,
+  bodyFocusLabel,
   equipmentLabel,
+  experienceLevelLabel,
   trainingTypeLabel,
 } from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
-import { useAsyncAction, useAsyncData } from '../../api/useAsync';
-import { Button, Card, InlineFeedback } from '../../components/primitives';
+import { useAsyncData } from '../../api/useAsync';
+import { Card } from '../../components/primitives';
 import {
   EmptyState,
   ErrorState,
   LoadingState,
-  ScreenHeading,
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { colors, radii, spacing } from '../../components/theme';
-import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
+import {
+  ExerciseDetailSheet,
+  type ExerciseGuideContext,
+} from '../workout/ExerciseDetailSheet';
 
-const TRAINING_TYPE_FILTERS = [
-  { code: undefined, label: '전체' },
-  { code: 'STRENGTH', label: '근력' },
-  { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '스트레칭' },
+const BODY_FOCUS_FILTER_CODES = [
+  'CHEST',
+  'BACK',
+  'SHOULDERS',
+  'BICEPS',
+  'TRICEPS',
+  'FOREARMS',
+  'GLUTES',
+  'QUADRICEPS',
+  'HAMSTRINGS',
+  'CALVES',
+  'ADDUCTORS',
+  'CORE',
+  'CARDIO',
+  'MOBILITY',
 ] as const;
 
-const DIFFICULTY_FILTERS = [
+const BODY_FOCUS_FILTERS = [
   { code: undefined, label: '전체' },
-  { code: 'BEGINNER', label: '입문' },
-  { code: 'INTERMEDIATE', label: '중급' },
+  ...BODY_FOCUS_FILTER_CODES.map((code) => ({
+    code,
+    label: bodyFocusLabel(code),
+  })),
 ] as const;
 
-const DIFFICULTY_LABELS: Record<string, string> = {
-  BEGINNER: '입문',
-  INTERMEDIATE: '중급',
-};
-
-const difficultyLabel = (code: string) => DIFFICULTY_LABELS[code] ?? code;
+const difficultyLabel = (code: string) => experienceLevelLabel(code);
 
 export function ExerciseCatalogScreen({
   api,
+  exerciseGuideContext,
   onBack,
 }: {
   api: Pick<Api, 'listExercises' | 'getExercise'>;
+  exerciseGuideContext?: ExerciseGuideContext;
   onBack: () => void;
 }) {
-  const [trainingType, setTrainingType] = useState<string | undefined>();
-  const [difficulty, setDifficulty] = useState<string | undefined>();
-  const [extraItems, setExtraItems] = useState<ExerciseListItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [bodyFocus, setBodyFocus] = useState<string | undefined>();
   const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
     null,
   );
+  const listScrollRef = useRef<ScrollView>(null);
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
-    (signal) =>
-      api.listExercises(
-        { trainingTypeCode: trainingType, difficultyCode: difficulty },
-        signal,
-      ),
-    // Changing a filter restarts from the first page.
-    [api, trainingType, difficulty],
+    (signal) => loadEntireCatalog(api, signal),
+    [api],
   );
 
-  const loadMore = useAsyncAction(async (cursor: string) => {
-    const page = await api.listExercises({
-      trainingTypeCode: trainingType,
-      difficultyCode: difficulty,
-      cursor,
-    });
-    setExtraItems((current) => [...current, ...page.items]);
-    return page;
-  });
-  const [nextCursor, setNextCursor] = useState<string | null | undefined>();
-
-  const selectTrainingType = useCallback((code: string | undefined) => {
-    setTrainingType(code);
-    setExtraItems([]);
-    setNextCursor(undefined);
-  }, []);
-  const selectDifficulty = useCallback((code: string | undefined) => {
-    setDifficulty(code);
-    setExtraItems([]);
-    setNextCursor(undefined);
-  }, []);
-
-  if (openExercise !== null) {
-    return (
-      <ScreenShell>
-        <ScreenHeading title={openExercise.name} />
-        <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
-        <Button
-          label="목록으로"
-          tone="secondary"
-          onPress={() => setOpenExercise(null)}
-        />
-      </ScreenShell>
-    );
-  }
+  const selectBodyFocus = useCallback(
+    (code: string | undefined) => {
+      if (code === bodyFocus) return;
+      listScrollRef.current?.scrollTo({ y: 0, animated: false });
+      setBodyFocus(code);
+    },
+    [bodyFocus],
+  );
 
   return (
-    <ScreenShell>
-      <ScreenHeading
-        title="운동 카탈로그"
-        subtitle="검수를 통과한 운동만 보여드려요"
-      />
+    <>
+      <ScreenShell scroll={false} contentStyle={styles.screenContent}>
+        <CatalogHeader onBack={onBack} />
 
-      <View style={styles.filterGroup}>
-        <FilterRow
-          options={TRAINING_TYPE_FILTERS}
-          selected={trainingType}
-          onSelect={selectTrainingType}
-        />
-        <FilterRow
-          options={DIFFICULTY_FILTERS}
-          selected={difficulty}
-          onSelect={selectDifficulty}
-        />
+        <View style={styles.catalogControls}>
+          <View style={styles.searchField}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              style={styles.searchIcon}
+            >
+              <View style={styles.searchIconCircle} />
+              <View style={styles.searchIconHandle} />
+            </View>
+            <TextInput
+              accessibilityLabel="운동명 검색"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setSearchQuery}
+              placeholder="운동명으로 검색"
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={searchQuery}
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable
+                accessibilityLabel="검색어 지우기"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setSearchQuery('')}
+                style={styles.searchClearButton}
+              >
+                <Text style={styles.searchClearText}>×</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <FilterRow
+            groupLabel="운동 부위"
+            options={BODY_FOCUS_FILTERS}
+            selected={bodyFocus}
+            onSelect={selectBodyFocus}
+          />
+        </View>
+
+        {state.status === 'loading' ? (
+          <LoadingState label="운동 목록을 불러오는 중이에요" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={state.message} onRetry={reload} />
+        ) : (
+          <CatalogList
+            items={filterCatalogItems(state.data.items, searchQuery, bodyFocus)}
+            searchActive={searchQuery.trim().length > 0}
+            scrollRef={listScrollRef}
+            onOpen={setOpenExercise}
+          />
+        )}
+      </ScreenShell>
+
+      {openExercise !== null ? (
+        <Modal
+          animationType="none"
+          onRequestClose={() => setOpenExercise(null)}
+          presentationStyle="fullScreen"
+          testID="exercise-catalog-detail-modal"
+          visible
+        >
+          <ScreenShell>
+            <CatalogHeader
+              backAccessibilityLabel="목록으로"
+              onBack={() => setOpenExercise(null)}
+              title={openExercise.name}
+            />
+            <ExerciseDetailSheet
+              api={api}
+              exerciseId={openExercise.id}
+              guideContext={exerciseGuideContext}
+            />
+          </ScreenShell>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+function CatalogHeader({
+  backAccessibilityLabel = '돌아가기',
+  onBack,
+  title = '운동 리스트',
+}: {
+  backAccessibilityLabel?: string;
+  onBack: () => void;
+  title?: string;
+}) {
+  return (
+    <View style={styles.catalogHeader} testID="exercise-catalog-list-header">
+      <Pressable
+        accessibilityLabel={backAccessibilityLabel}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onBack}
+        style={styles.backButton}
+      >
+        <View style={styles.backChevron} testID="exercise-catalog-back-icon" />
+      </Pressable>
+      <View style={styles.headerCopy} testID="exercise-catalog-header-copy">
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          {title}
+        </Text>
       </View>
-
-      {state.status === 'loading' ? (
-        <LoadingState label="운동 목록을 불러오는 중이에요" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={state.message} onRetry={reload} />
-      ) : (
-        <CatalogList
-          firstPage={state.data}
-          extraItems={extraItems}
-          nextCursor={
-            nextCursor === undefined ? state.data.next_cursor : nextCursor
-          }
-          loadingMore={loadMore.pending}
-          loadMoreError={loadMore.error}
-          onOpen={setOpenExercise}
-          onLoadMore={(cursor) =>
-            void loadMore.run(cursor).then((page) => {
-              if (page) {
-                setNextCursor(page.next_cursor);
-              }
-            })
-          }
-        />
-      )}
-
-      <Button label="돌아가기" tone="secondary" onPress={onBack} />
-    </ScreenShell>
+      <View
+        pointerEvents="none"
+        style={styles.headerSideSpacer}
+        testID="exercise-catalog-header-spacer"
+      />
+    </View>
   );
 }
 
 function FilterRow<Code extends string | undefined>({
+  groupLabel,
   options,
   selected,
   onSelect,
 }: {
+  groupLabel: string;
   options: readonly { code: Code; label: string }[];
   selected: string | undefined;
   onSelect: (code: Code) => void;
 }) {
   return (
-    <View style={styles.filterRow}>
-      {options.map(({ code, label }) => {
-        const active = selected === code;
-        return (
-          <Pressable
-            key={label}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onSelect(code)}
-            style={[styles.filterChip, active && styles.filterChipActive]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                active && styles.filterChipTextActive,
-              ]}
+    <View style={styles.filterSection}>
+      <Text style={styles.filterGroupLabel}>{groupLabel}</Text>
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.filterRow}
+        showsHorizontalScrollIndicator={false}
+      >
+        {options.map(({ code, label }) => {
+          const active = selected === code;
+          return (
+            <Pressable
+              key={label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => onSelect(code)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
             >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  active && styles.filterChipTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 function CatalogList({
-  firstPage,
-  extraItems,
-  nextCursor,
-  loadingMore,
-  loadMoreError,
+  items,
+  searchActive,
+  scrollRef,
   onOpen,
-  onLoadMore,
 }: {
-  firstPage: ExerciseListResponse;
-  extraItems: ExerciseListItem[];
-  nextCursor: string | null;
-  loadingMore: boolean;
-  loadMoreError: string | null;
+  items: ExerciseListItem[];
+  searchActive: boolean;
+  scrollRef: RefObject<ScrollView | null>;
   onOpen: (exercise: ExerciseListItem) => void;
-  onLoadMore: (cursor: string) => void;
 }) {
-  const items = [...firstPage.items, ...extraItems];
-
   if (items.length === 0) {
-    return <EmptyState message="조건에 맞는 운동이 아직 없어요." />;
+    return (
+      <EmptyState
+        message={
+          searchActive
+            ? '검색한 운동명을 찾지 못했어요.'
+            : '이 부위의 운동이 아직 없어요.'
+        }
+      />
+    );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.list}>
+    <ScrollView
+      ref={scrollRef}
+      style={styles.catalogScroll}
+      contentContainerStyle={styles.list}
+      testID="exercise-catalog-list-scroll"
+    >
       {items.map((item) => (
         <Pressable
           key={item.id}
@@ -226,54 +300,212 @@ function CatalogList({
           onPress={() => onOpen(item)}
         >
           <Card style={styles.itemCard}>
-            <View style={styles.itemHeader}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemBadge}>
-                {difficultyLabel(item.difficulty_code)}
-              </Text>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text
+              style={styles.itemSummary}
+              testID={`exercise-body-focus-${item.id}`}
+            >
+              {catalogSummaryLabel(item)}
+            </Text>
+            <View style={styles.itemFooter}>
+              {item.required_equipment_codes.length > 0 ? (
+                <Text style={styles.itemEquipment}>
+                  {item.required_equipment_codes.map(equipmentLabel).join(', ')}
+                </Text>
+              ) : null}
+              <View style={styles.itemBadge}>
+                <Text style={styles.itemBadgeText}>
+                  {difficultyLabel(item.difficulty_code)}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.itemMeta}>
-              {trainingTypeLabel(item.training_type_code)}
-              {' · '}
-              {item.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
-            </Text>
-            <Text style={styles.itemEquipment}>
-              {item.required_equipment_codes.map(equipmentLabel).join(', ') ||
-                '장비 없음'}
-            </Text>
           </Card>
         </Pressable>
       ))}
-
-      {loadMoreError ? (
-        <InlineFeedback tone="error" message={loadMoreError} />
-      ) : null}
-      {nextCursor !== null ? (
-        <Button
-          label={loadingMore ? '불러오는 중…' : '더 보기'}
-          tone="secondary"
-          disabled={loadingMore}
-          onPress={() => onLoadMore(nextCursor)}
-        />
-      ) : null}
-      <Text style={styles.catalogVersion}>
-        카탈로그 버전 {firstPage.catalog_version}
-      </Text>
     </ScrollView>
   );
 }
 
+async function loadEntireCatalog(
+  api: Pick<Api, 'listExercises'>,
+  signal?: AbortSignal,
+): Promise<ExerciseListResponse> {
+  const items: ExerciseListItem[] = [];
+  let cursor: string | null | undefined;
+  let catalogVersion = '';
+  const seenCursors = new Set<string>();
+
+  do {
+    const page = await api.listExercises(
+      { cursor: cursor ?? undefined, limit: 100 },
+      signal,
+    );
+    if (catalogVersion === '') catalogVersion = page.catalog_version;
+    items.push(...page.items);
+    cursor = page.next_cursor;
+    if (cursor !== null) {
+      if (seenCursors.has(cursor)) break;
+      seenCursors.add(cursor);
+    }
+  } while (cursor !== null);
+
+  return { items, next_cursor: null, catalog_version: catalogVersion };
+}
+
+function filterCatalogItems(
+  items: ExerciseListItem[],
+  searchQuery: string,
+  bodyFocus: string | undefined,
+): ExerciseListItem[] {
+  const query = searchQuery.trim().toLocaleLowerCase('ko-KR');
+  return items.filter(
+    (item) =>
+      (bodyFocus === undefined || item.body_focus_code === bodyFocus) &&
+      (query.length === 0 ||
+        item.name.toLocaleLowerCase('ko-KR').includes(query)),
+  );
+}
+
+function catalogFocusLabel(item: ExerciseListItem): string {
+  if (item.body_focus_code) {
+    return bodyFocusLabel(item.body_focus_code);
+  }
+  const legacyAreas = item.primary_body_area_codes
+    .map(bodyAreaLabel)
+    .join(', ');
+  return legacyAreas || '정보 없음';
+}
+
+function catalogSummaryLabel(item: ExerciseListItem): string {
+  const trainingType = trainingTypeLabel(item.training_type_code);
+  if (item.body_focus_code === item.training_type_code) {
+    return trainingType;
+  }
+  return `${trainingType} · ${catalogFocusLabel(item)}`;
+}
+
 const styles = StyleSheet.create({
-  filterGroup: {
+  screenContent: {
+    paddingBottom: spacing.lg,
+  },
+  catalogHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+  },
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.textSub,
+    transform: [{ rotate: '45deg' }],
+  },
+  headerCopy: {
+    minWidth: 0,
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  headerSideSpacer: {
+    width: 44,
+    height: 44,
+  },
+  catalogControls: {
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  searchField: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+  },
+  searchIcon: {
+    width: 18,
+    height: 18,
+  },
+  searchIconCircle: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    width: 12,
+    height: 12,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    borderRadius: 6,
+  },
+  searchIconHandle: {
+    position: 'absolute',
+    right: 1,
+    bottom: 2,
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.textMuted,
+    transform: [{ rotate: '45deg' }],
+  },
+  searchInput: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  searchClearButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+  },
+  searchClearText: {
+    marginTop: -2,
+    color: colors.textMuted,
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  filterSection: {
+    gap: spacing.xs,
   },
   filterRow: {
-    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
+    paddingRight: spacing.sm,
+  },
+  filterGroupLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.border,
@@ -291,42 +523,51 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: colors.surface,
   },
+  catalogScroll: {
+    flex: 1,
+  },
   list: {
     gap: spacing.sm,
     paddingBottom: spacing.lg,
   },
   itemCard: {
-    gap: spacing.xs,
+    gap: 4,
+    padding: 14,
   },
-  itemHeader: {
+  itemName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  itemSummary: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  itemFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  itemName: {
+  itemEquipment: {
+    minWidth: 0,
     flex: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
+    color: colors.textSub,
+    fontSize: 12,
   },
   itemBadge: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
+    marginLeft: 'auto',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
   },
-  itemMeta: {
+  itemBadgeText: {
     color: colors.textSub,
-    fontSize: 13,
-  },
-  itemEquipment: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  catalogVersion: {
-    color: colors.textMuted,
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: spacing.sm,
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 });

@@ -10,6 +10,7 @@ from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     CoordinatorInput,
     PlanSpec,
+    ProposalReference,
     SpecialistAgentProposal,
 )
 from backend.app.integrations.llm_agents.canonicalization import canonical_plan_values
@@ -21,6 +22,46 @@ from backend.app.integrations.llm_agents.models import (
 from backend.app.integrations.llm_agents.payload import coordinator_payload
 from backend.app.integrations.llm_agents.prompts import ROLE_PROMPTS, messages_for
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
+
+_SERVER_OWNED_PLAN_FIELDS = (
+    "schema_version",
+    "envelope_hash",
+    "pool_hash",
+    "requested_duration_minutes",
+    "estimated_duration_seconds",
+    "proposal_references",
+    "repair_attempt",
+    "plan_hash",
+)
+
+
+def _canonical_plan_from_model(
+    values: dict[str, object], *, coordinator_input: CoordinatorInput
+) -> PlanSpec:
+    """Attach immutable orchestration identity to the Coordinator's choices."""
+
+    canonical = canonical_plan_values(values)
+    canonical.update(
+        envelope_hash=coordinator_input.constraint_envelope.envelope_hash,
+        pool_hash=coordinator_input.exercise_pool.pool_hash,
+        requested_duration_minutes=(
+            coordinator_input.constraint_envelope.requested_duration_minutes
+        ),
+        # PlanSpec records the requested-duration claim. Compilation replaces
+        # it with the catalog-measured duration before integrity validation.
+        estimated_duration_seconds=(
+            coordinator_input.constraint_envelope.requested_duration_minutes * 60
+        ),
+        proposal_references=tuple(
+            ProposalReference(
+                agent_type_code=proposal.agent_type_code,
+                proposal_hash=proposal.proposal_hash,
+            )
+            for proposal in coordinator_input.proposals
+        ),
+        repair_attempt=coordinator_input.repair_attempt,
+    )
+    return PlanSpec.create(**canonical)
 
 
 class LangChainCoordinatorAdapter:
@@ -145,8 +186,10 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: PlanSpec.create(**canonical_plan_values(values)),
-            server_owned_fields=("plan_hash",),
+            canonical_factory=lambda values: _canonical_plan_from_model(
+                values, coordinator_input=coordinator_input
+            ),
+            server_owned_fields=_SERVER_OWNED_PLAN_FIELDS,
         )
 
     async def _build_and_ainvoke(
@@ -193,8 +236,10 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: PlanSpec.create(**canonical_plan_values(values)),
-            server_owned_fields=("plan_hash",),
+            canonical_factory=lambda values: _canonical_plan_from_model(
+                values, coordinator_input=coordinator_input
+            ),
+            server_owned_fields=_SERVER_OWNED_PLAN_FIELDS,
         )
 
 

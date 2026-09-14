@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import type { Api } from '../../api/endpoints';
 import { isApiError } from '../../api/errors';
@@ -17,71 +18,55 @@ import {
   bodyAreaLabel,
   DEFAULT_BODY_AREA_OPTIONS,
   EXTENDED_BODY_AREA_OPTIONS,
+  orderBodyAreaCodes,
 } from '../../api/labels';
-import type { SexCode } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
 import {
   Button,
   Card,
   InlineFeedback,
+  StepCounter,
   TextField,
 } from '../../components/primitives';
+import {
+  PAIN_INTENSITY_MAX,
+  PAIN_INTENSITY_MIN,
+  PainIntensitySlider,
+} from '../../components/profile/PainIntensitySlider';
+import { PainScaleInfoHeading } from '../../components/profile/PainScaleInfo';
 import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
-  ONBOARDING_DURATION,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
-  ONBOARDING_LOCATION_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
 } from './onboardingOptions';
 import { BirthDateField, latestEligibleBirthdateIso } from './BirthDateField';
-
-const SEX_OPTIONS = [
-  { code: 'FEMALE', label: '여성' },
-  { code: 'MALE', label: '남성' },
-] as const satisfies readonly { code: SexCode; label: string }[];
-
-const PAIN_INTENSITY_MIN = 1;
-const PAIN_INTENSITY_MAX = 10;
-const COACHING_STYLE_OPTIONS = [
-  {
-    code: 'SUPPORTIVE',
-    label: '든든하게',
-    description: '적당한 응원과 함께 차근차근 안내해요.',
-  },
-  {
-    code: 'CONCISE',
-    label: '간결하게',
-    description: '핵심 정보와 기록을 짧고 명확하게 안내해요.',
-  },
-  {
-    code: 'ENERGETIC',
-    label: '활기차게',
-    description: '밝고 힘찬 말투로 운동 흐름을 안내해요.',
-  },
-] as const;
+import { PolicyDetails } from './PolicyDetails';
+import type { PolicyDocumentId } from '../../policy_docs/documents';
 
 const CONSENT_OPTIONS = {
+  service_terms: {
+    label: '서비스 이용약관 동의',
+    description: '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
+  },
+  privacy_policy: {
+    label: '개인정보처리방침 확인',
+    description: '개인정보를 어떤 목적으로 처리하고 보관하는지 확인해요.',
+  },
   general_personal_data: {
     label: '개인정보 수집 및 이용',
-    description:
-      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
+    description: '입력한 정보를 운동 계획을 만드는 데 활용해요.',
   },
   sensitive_data: {
     label: '건강 관련 민감정보 처리',
-    description: '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
-  },
-  wearable_integration: {
-    label: '웨어러블 연동',
-    description: '워치 데이터를 참고하여 운동을 생성해요',
-  },
-  marketing: {
-    label: '마케팅 정보 수신',
-    description: '새 기능과 이벤트 소식을 보내요.',
+    description: '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
   },
 } as const;
+
+/** Terms, privacy policy, general personal data, sensitive data. */
+const REQUIRED_CONSENT_COUNT = 4;
 
 export const ONBOARDING_STEPS = [
   {
@@ -91,15 +76,15 @@ export const ONBOARDING_STEPS = [
     required: true,
   },
   {
-    key: 'sex',
-    title: '성별을 선택해주세요',
+    key: 'eligibility',
+    title: '안전한 운동을 위해 확인해주세요',
     intro: '',
     required: true,
   },
   {
     key: 'body',
-    title: '키와 체중을 입력해주세요',
-    intro: '',
+    title: '현재 체중을 입력해주세요',
+    intro: '체중은 예상 소모 칼로리 계산에만 사용해요.',
     required: true,
   },
   {
@@ -115,34 +100,16 @@ export const ONBOARDING_STEPS = [
     required: true,
   },
   {
-    key: 'coachingStyle',
-    title: '어떤 방식으로 안내해드릴까요?',
-    intro: '선택하지 않으면 기본 안내 방식으로 시작해요.',
-    required: false,
-  },
-  {
-    key: 'location',
-    title: '어디에서 운동해요?',
-    intro: '여러 장소를 선택할 수 있어요.',
-    required: true,
-  },
-  {
-    key: 'duration',
-    title: '한 번에 몇 분 운동하고 싶나요?',
-    intro: '기본 루틴의 운동 시간으로 사용해요.',
-    required: true,
-  },
-  {
     key: 'frequency',
-    title: '일주일에 몇 번 운동하고 싶나요?',
-    intro: '희망하는 주간 운동 횟수를 선택해주세요.',
+    title: '일주일에 몇 번 운동할까요?',
+    intro: '선택한 횟수에 맞춰 운동 계획을 만들어드려요.',
     required: true,
   },
   {
     key: 'attention',
     title: '평소에 통증 부위가 있나요?',
-    intro: '',
-    required: true,
+    intro: '선택한 정보는 매일 컨디션 확인의 초기값으로만 사용해요.',
+    required: false,
   },
   {
     key: 'consent',
@@ -153,7 +120,7 @@ export const ONBOARDING_STEPS = [
 ] as const;
 
 type Props = {
-  api: Pick<Api, 'submitOnboarding'>;
+  api: Pick<Api, 'getOnboardingRequirements' | 'submitOnboarding'>;
   onCompleted: () => void;
   onSignOut: () => void;
   initialStep?: number;
@@ -181,8 +148,9 @@ function OnboardingScreenContent({
   const [step, setStep] = useState(initialStep);
   const [nickname, setNickname] = useState('');
   const [birthdate, setBirthdate] = useState(latestEligibleBirthdateIso);
-  const [sexCode, setSexCode] = useState<SexCode | null>(null);
-  const [heightCm, setHeightCm] = useState('');
+  const [medicalExerciseRestriction, setMedicalExerciseRestriction] = useState<
+    boolean | null
+  >(null);
   const [weightKg, setWeightKg] = useState('');
   const [primaryGoalCode, setPrimaryGoalCode] = useState<
     (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null
@@ -190,14 +158,6 @@ function OnboardingScreenContent({
   const [experienceLevelCode, setExperienceLevelCode] = useState<
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code']
   >(ONBOARDING_EXPERIENCE_OPTIONS[0].code);
-  const [coachingStyleCode, setCoachingStyleCode] = useState<
-    (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null
-  >(null);
-  const [locations, setLocations] = useState<string[]>([]);
-  const [preferredLocationCode, setPreferredLocationCode] = useState<
-    string | null
-  >(null);
-  const [duration, setDuration] = useState(30);
   const [weeklyCount, setWeeklyCount] = useState(3);
   const [hasAttentionAreas, setHasAttentionAreas] = useState<boolean | null>(
     null,
@@ -210,8 +170,8 @@ function OnboardingScreenContent({
   >({});
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
-  const [wearableConsent, setWearableConsent] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [termsConsent, setTermsConsent] = useState(false);
+  const [privacyPolicyConsent, setPrivacyPolicyConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const timezone = useMemo(() => {
     try {
@@ -223,41 +183,37 @@ function OnboardingScreenContent({
 
   const submit = useAsyncAction(async () => {
     if (
-      sexCode === null ||
+      medicalExerciseRestriction !== false ||
       primaryGoalCode === null ||
-      experienceLevelCode === null ||
-      preferredLocationCode === null ||
-      !locations.includes(preferredLocationCode) ||
-      hasAttentionAreas === null ||
       (hasAttentionAreas && attentionAreas.length === 0)
     ) {
       return;
     }
     try {
+      const requirements = await api.getOnboardingRequirements();
       await api.submitOnboarding({
         nickname: nickname.trim(),
         date_of_birth: birthdate.trim(),
-        sex_code: sexCode,
-        height_cm: Number(heightCm),
+        medical_exercise_restriction: medicalExerciseRestriction,
         weight_kg: Number(weightKg),
         primary_goal_code: primaryGoalCode,
         experience_level_code: experienceLevelCode,
         timezone,
-        preferred_location_code: preferredLocationCode,
-        available_location_codes: locations,
-        default_requested_duration_minutes: duration,
-        desired_weekly_workout_count: weeklyCount,
-        attention_area_codes: hasAttentionAreas ? attentionAreas : [],
-        preferred_exercise_type_codes: [],
-        ...(coachingStyleCode === null
-          ? {}
-          : { coaching_style_code: coachingStyleCode }),
+        weekly_target_sessions: weeklyCount,
+        terms_version: requirements.terms_version,
+        persistent_pains:
+          hasAttentionAreas === true
+            ? attentionAreas.map((code) => ({
+                body_area_code: code,
+                intensity_score:
+                  painIntensityScores[code] ?? PAIN_INTENSITY_MIN,
+              }))
+            : [],
         consents: {
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
-          wearable_integration: wearableConsent,
-          calendar_integration: false,
-          marketing: marketingConsent,
+          wearable_integration: false,
+          marketing: false,
         },
       });
     } catch (error) {
@@ -273,28 +229,29 @@ function OnboardingScreenContent({
 
   const valid = isStepValid(current.key, {
     birthdate,
-    coachingStyleCode,
     experienceLevelCode,
     generalConsent,
     hasAttentionAreas,
-    heightCm,
-    locations,
+    medicalExerciseRestriction,
     nickname,
     attentionAreas,
     painIntensityScores,
-    preferredLocationCode,
     primaryGoalCode,
+    privacyPolicyConsent,
     sensitiveConsent,
-    sexCode,
+    termsConsent,
     weightKg,
   });
   const blockedByAge =
     isApiError(submit.lastError) &&
-    submit.lastError.code === 'AGE_REQUIREMENT_NOT_MET';
-  const missingRequiredConsentLabels = [
-    !generalConsent ? CONSENT_OPTIONS.general_personal_data.label : null,
-    !sensitiveConsent ? CONSENT_OPTIONS.sensitive_data.label : null,
-  ].filter((label) => label !== null);
+    ['AGE_REQUIREMENT_NOT_MET', 'OUT_OF_SCOPE_AGE'].includes(
+      submit.lastError.code,
+    );
+  const missingRequiredConsentCount =
+    Number(!termsConsent) +
+    Number(!privacyPolicyConsent) +
+    Number(!generalConsent) +
+    Number(!sensitiveConsent);
 
   const changeStep = (next: number) => {
     const bounded = clampStep(next);
@@ -316,7 +273,7 @@ function OnboardingScreenContent({
           ...currentValues,
           [code]: PAIN_INTENSITY_MIN,
         }));
-        return [...values, code];
+        return orderBodyAreaCodes([...values, code]);
       }
       setPainIntensityScores((currentValues) => {
         const next = { ...currentValues };
@@ -324,16 +281,6 @@ function OnboardingScreenContent({
         return next;
       });
       return values.filter((item) => item !== code);
-    });
-    submit.clearError();
-  };
-
-  const toggleLocation = (code: string) => {
-    const next = toggle(locations, code);
-    setLocations(next);
-    setPreferredLocationCode((current) => {
-      if (current !== null && next.includes(current)) return current;
-      return next[0] ?? null;
     });
     submit.clearError();
   };
@@ -365,49 +312,55 @@ function OnboardingScreenContent({
             />
           </Card>
         );
-      case 'sex':
+      case 'eligibility':
         return (
-          <ChoiceCard>
-            {SEX_OPTIONS.map((option) => (
+          <View style={styles.consentGroups}>
+            <ChoiceCard>
+              <Text style={styles.hint}>
+                현재 질환·임신 등으로 의료진에게 운동 제한·주의 안내를 받은
+                상태인가요?
+              </Text>
               <Chip
-                key={option.code}
                 grow
-                label={option.label}
-                selected={sexCode === option.code}
-                onPress={() => setSexCode(option.code)}
+                label="아니요"
+                selected={medicalExerciseRestriction === false}
+                onPress={() => {
+                  setMedicalExerciseRestriction(false);
+                  submit.clearError();
+                }}
               />
-            ))}
-          </ChoiceCard>
+              <Chip
+                grow
+                label="예"
+                selected={medicalExerciseRestriction === true}
+                onPress={() => {
+                  setMedicalExerciseRestriction(true);
+                  submit.clearError();
+                }}
+              />
+            </ChoiceCard>
+            {medicalExerciseRestriction === true ? (
+              <InlineFeedback
+                message="현재 상태에 맞는 개별 운동 관리는 의료진 또는 자격을 갖춘 전문가와 상의해주세요."
+                tone="warning"
+              />
+            ) : null}
+          </View>
         );
       case 'body':
         return (
           <Card style={styles.cardGroup}>
-            <View style={styles.bodyRow}>
-              <TextField
-                accessibilityLabel="키"
-                containerStyle={styles.bodyField}
-                inputMode="decimal"
-                onChangeText={(value) => setHeightCm(onlyDecimal(value))}
-                placeholder="170"
-                style={styles.input}
-                trailing={<Text style={styles.suffix}>cm</Text>}
-                value={heightCm}
-              />
-              <TextField
-                accessibilityLabel="체중"
-                containerStyle={styles.bodyField}
-                inputMode="decimal"
-                onChangeText={(value) => setWeightKg(onlyDecimal(value))}
-                placeholder="65"
-                style={styles.input}
-                trailing={<Text style={styles.suffix}>kg</Text>}
-                value={weightKg}
-              />
-            </View>
+            <TextField
+              accessibilityLabel="체중"
+              inputMode="decimal"
+              onChangeText={(value) => setWeightKg(onlyDecimal(value))}
+              placeholder="65"
+              style={styles.input}
+              trailing={<Text style={styles.suffix}>kg</Text>}
+              value={weightKg}
+            />
             <Text style={styles.hint}>
-              키 {PROFILE_BODY_LIMITS.heightCm.min}–
-              {PROFILE_BODY_LIMITS.heightCm.max}cm · 체중{' '}
-              {PROFILE_BODY_LIMITS.weightKg.min}–
+              입력 범위 {PROFILE_BODY_LIMITS.weightKg.min}–
               {PROFILE_BODY_LIMITS.weightKg.max}kg
             </Text>
           </Card>
@@ -445,73 +398,6 @@ function OnboardingScreenContent({
               />
             ))}
           </ChoiceCard>
-        );
-      case 'coachingStyle':
-        return (
-          <ChoiceCard>
-            {COACHING_STYLE_OPTIONS.map((item) => (
-              <DescriptionOption
-                key={item.code}
-                description={item.description}
-                label={item.label}
-                selected={coachingStyleCode === item.code}
-                onPress={() => {
-                  setCoachingStyleCode(item.code);
-                  submit.clearError();
-                }}
-              />
-            ))}
-          </ChoiceCard>
-        );
-      case 'location':
-        return (
-          <ChoiceCard>
-            {ONBOARDING_LOCATION_OPTIONS.map((item) => (
-              <Chip
-                key={item.code}
-                grow
-                label={item.label}
-                selected={locations.includes(item.code)}
-                onPress={() => toggleLocation(item.code)}
-              />
-            ))}
-            {locations.length > 0 ? (
-              <View style={styles.preferredLocationSection}>
-                <Text style={styles.painSectionTitle}>주로 운동할 장소</Text>
-                <Text style={styles.hint}>
-                  선택한 장소 중 운동 계획에 우선 적용할 곳을 골라주세요.
-                </Text>
-                {ONBOARDING_LOCATION_OPTIONS.filter((item) =>
-                  locations.includes(item.code),
-                ).map((item) => (
-                  <DescriptionOption
-                    accessibilityLabel={`대표 운동 장소: ${item.label}`}
-                    description="운동 계획을 만들 때 우선 적용해요."
-                    key={item.code}
-                    label={item.label}
-                    selected={preferredLocationCode === item.code}
-                    onPress={() => {
-                      setPreferredLocationCode(item.code);
-                      submit.clearError();
-                    }}
-                  />
-                ))}
-              </View>
-            ) : null}
-          </ChoiceCard>
-        );
-      case 'duration':
-        return (
-          <StepCounter
-            decreaseLabel="운동 시간 10분 줄이기"
-            increaseLabel="운동 시간 10분 늘리기"
-            max={ONBOARDING_DURATION.max}
-            min={ONBOARDING_DURATION.min}
-            suffix="분"
-            value={duration}
-            onChange={setDuration}
-            step={ONBOARDING_DURATION.step}
-          />
         );
       case 'frequency':
         return (
@@ -552,7 +438,14 @@ function OnboardingScreenContent({
             {hasAttentionAreas === true ? (
               <View style={styles.painDetails}>
                 <View style={styles.painSection}>
-                  <Text style={styles.painSectionTitle}>통증 부위</Text>
+                  <PainScaleInfoHeading
+                    testIDPrefix="onboarding"
+                    title="통증 부위"
+                    titleStyle={styles.painSectionTitle}
+                  />
+                  <Text style={styles.hint}>
+                    해당하는 부위를 모두 선택해주세요.
+                  </Text>
                   <View
                     style={styles.optionGrid}
                     testID="onboarding-attention-area-grid"
@@ -566,18 +459,6 @@ function OnboardingScreenContent({
                         onPress={() => toggleAttentionArea(item.code)}
                       />
                     ))}
-                    <Chip
-                      fullWidth
-                      label={
-                        showExtendedAttentionAreas
-                          ? '다른 부위 접기'
-                          : '다른 부위 더 보기'
-                      }
-                      selected={showExtendedAttentionAreas}
-                      onPress={() =>
-                        setShowExtendedAttentionAreas((visible) => !visible)
-                      }
-                    />
                     {showExtendedAttentionAreas
                       ? EXTENDED_BODY_AREA_OPTIONS.map((item) => (
                           <Chip
@@ -590,6 +471,49 @@ function OnboardingScreenContent({
                         ))
                       : null}
                   </View>
+                  <Pressable
+                    accessibilityLabel={
+                      showExtendedAttentionAreas
+                        ? '다른 부위 접기'
+                        : '다른 부위 보기'
+                    }
+                    accessibilityRole="button"
+                    onPress={() =>
+                      setShowExtendedAttentionAreas((visible) => !visible)
+                    }
+                    style={styles.extendedAreaToggle}
+                    testID="onboarding-extended-area-toggle"
+                  >
+                    <Text style={styles.extendedAreaToggleLabel}>
+                      {showExtendedAttentionAreas ? '접기' : '다른 부위 보기'}
+                    </Text>
+                    <View style={styles.extendedAreaToggleIcon}>
+                      <View
+                        style={
+                          showExtendedAttentionAreas
+                            ? styles.extendedAreaToggleCaretUp
+                            : undefined
+                        }
+                        testID="onboarding-extended-area-caret"
+                      >
+                        <Svg
+                          aria-hidden
+                          fill="none"
+                          height={14}
+                          viewBox="0 0 24 24"
+                          width={14}
+                        >
+                          <Path
+                            d="M6 9l6 6 6-6"
+                            stroke={colors.textMuted}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.4}
+                          />
+                        </Svg>
+                      </View>
+                    </View>
+                  </Pressable>
                 </View>
                 <View
                   style={styles.painSliderList}
@@ -613,6 +537,7 @@ function OnboardingScreenContent({
                             }));
                             submit.clearError();
                           }}
+                          testIDPrefix="onboarding"
                           value={score}
                         />
                       </View>
@@ -629,6 +554,23 @@ function OnboardingScreenContent({
             <Card style={styles.cardGroup}>
               <Text style={styles.fieldLabel}>필수 동의</Text>
               <ConsentRow
+                documentId="service_terms"
+                checked={termsConsent}
+                description={CONSENT_OPTIONS.service_terms.description}
+                label={CONSENT_OPTIONS.service_terms.label}
+                required
+                onPress={() => setTermsConsent((value) => !value)}
+              />
+              <ConsentRow
+                documentId="privacy_policy"
+                checked={privacyPolicyConsent}
+                description={CONSENT_OPTIONS.privacy_policy.description}
+                label={CONSENT_OPTIONS.privacy_policy.label}
+                required
+                onPress={() => setPrivacyPolicyConsent((value) => !value)}
+              />
+              <ConsentRow
+                documentId="general_personal_data"
                 checked={generalConsent}
                 description={CONSENT_OPTIONS.general_personal_data.description}
                 label={CONSENT_OPTIONS.general_personal_data.label}
@@ -636,30 +578,12 @@ function OnboardingScreenContent({
                 onPress={() => setGeneralConsent((value) => !value)}
               />
               <ConsentRow
+                documentId="sensitive_data"
                 checked={sensitiveConsent}
                 description={CONSENT_OPTIONS.sensitive_data.description}
                 label={CONSENT_OPTIONS.sensitive_data.label}
                 required
                 onPress={() => setSensitiveConsent((value) => !value)}
-              />
-            </Card>
-            <Card style={styles.cardGroup}>
-              <Text style={styles.fieldLabel}>
-                선택 동의 · 나중에 마이페이지에서 언제든 바꿀 수 있어요
-              </Text>
-              <ConsentRow
-                checked={wearableConsent}
-                description={CONSENT_OPTIONS.wearable_integration.description}
-                label={CONSENT_OPTIONS.wearable_integration.label}
-                required={false}
-                onPress={() => setWearableConsent((value) => !value)}
-              />
-              <ConsentRow
-                checked={marketingConsent}
-                description={CONSENT_OPTIONS.marketing.description}
-                label={CONSENT_OPTIONS.marketing.label}
-                required={false}
-                onPress={() => setMarketingConsent((value) => !value)}
               />
             </Card>
           </View>
@@ -722,13 +646,7 @@ function OnboardingScreenContent({
             >
               {current.title}
             </Text>
-            <Text
-              style={
-                current.required ? styles.requiredBadge : styles.optionalBadge
-              }
-            >
-              {current.required ? '필수' : '선택'}
-            </Text>
+            <RequirementBadge compact required={current.required} />
           </View>
           {current.intro ? (
             <Text style={styles.stepIntro}>{current.intro}</Text>
@@ -737,17 +655,24 @@ function OnboardingScreenContent({
         {renderStep()}
         {blockedByAge ? (
           <InlineFeedback
-            message="만 14세 미만은 이용할 수 없습니다."
+            message="만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다."
             tone="error"
           />
         ) : submit.error ? (
           <InlineFeedback message={submit.error} tone="error" />
-        ) : current.key === 'consent' &&
-          missingRequiredConsentLabels.length > 0 ? (
-          <InlineFeedback
-            message={`남은 필수 동의: ${missingRequiredConsentLabels.join(', ')}\n안전한 루틴을 만들려면 이 동의가 필요해요.`}
-            tone="warning"
-          />
+        ) : current.key === 'consent' && missingRequiredConsentCount > 0 ? (
+          <View style={styles.consentReminder}>
+            <Text style={styles.consentReminderTitle}>
+              {missingRequiredConsentCount === REQUIRED_CONSENT_COUNT
+                ? '필수 동의 항목을 확인해주세요.'
+                : `필수 동의 항목이 ${missingRequiredConsentCount}개 남았어요.`}
+            </Text>
+            <Text style={styles.consentReminderDescription}>
+              {missingRequiredConsentCount === REQUIRED_CONSENT_COUNT
+                ? '운동 계획을 만들기 위해 필수 항목의 동의가 필요해요.'
+                : '계속하려면 필수 항목을 확인해주세요.'}
+            </Text>
+          </View>
         ) : null}
       </ScrollView>
 
@@ -763,9 +688,11 @@ function OnboardingScreenContent({
           disabled={!valid || submit.pending || blockedByAge}
           label={
             submit.pending
-              ? '저장 중...'
+              ? '온보딩 중...'
               : !valid
-                ? '입력이 필요해요'
+                ? current.key === 'consent'
+                  ? '필수 항목에 동의해주세요'
+                  : '입력이 필요해요'
                 : step === ONBOARDING_STEPS.length
                   ? '시작하기'
                   : '다음'
@@ -786,20 +713,18 @@ function OnboardingScreenContent({
 type FormState = {
   nickname: string;
   birthdate: string;
-  sexCode: SexCode | null;
-  heightCm: string;
+  medicalExerciseRestriction: boolean | null;
   weightKg: string;
   primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
   experienceLevelCode:
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
-  coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
-  locations: string[];
-  preferredLocationCode: string | null;
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
   painIntensityScores: Partial<Record<string, number>>;
   generalConsent: boolean;
+  privacyPolicyConsent: boolean;
   sensitiveConsent: boolean;
+  termsConsent: boolean;
 };
 
 function isStepValid(
@@ -813,211 +738,38 @@ function isStepValid(
         form.nickname.length <= 64 &&
         form.birthdate.length > 0
       );
-    case 'sex':
-      return form.sexCode !== null;
+    case 'eligibility':
+      return form.medicalExerciseRestriction === false;
     case 'body':
-      return (
-        isInRange(form.heightCm, PROFILE_BODY_LIMITS.heightCm) &&
-        isInRange(form.weightKg, PROFILE_BODY_LIMITS.weightKg)
-      );
+      return isInRange(form.weightKg, PROFILE_BODY_LIMITS.weightKg);
     case 'goal':
       return form.primaryGoalCode !== null;
     case 'experience':
       return form.experienceLevelCode !== null;
-    case 'coachingStyle':
-      return true;
-    case 'location':
-      return (
-        form.locations.length > 0 &&
-        form.preferredLocationCode !== null &&
-        form.locations.includes(form.preferredLocationCode)
-      );
     case 'attention':
       return (
-        form.hasAttentionAreas !== null &&
-        (!form.hasAttentionAreas ||
-          (form.attentionAreas.length > 0 &&
-            form.attentionAreas.every((code) => {
-              const score = form.painIntensityScores[code];
-              return (
-                Number.isInteger(score) &&
-                score !== undefined &&
-                score >= PAIN_INTENSITY_MIN &&
-                score <= PAIN_INTENSITY_MAX
-              );
-            })))
+        form.hasAttentionAreas !== true ||
+        (form.attentionAreas.length > 0 &&
+          form.attentionAreas.every((code) => {
+            const score = form.painIntensityScores[code];
+            return (
+              Number.isInteger(score) &&
+              score !== undefined &&
+              score >= PAIN_INTENSITY_MIN &&
+              score <= PAIN_INTENSITY_MAX
+            );
+          }))
       );
     case 'consent':
-      return form.generalConsent && form.sensitiveConsent;
+      return (
+        form.termsConsent &&
+        form.privacyPolicyConsent &&
+        form.generalConsent &&
+        form.sensitiveConsent
+      );
     default:
       return true;
   }
-}
-
-function StepCounter({
-  decreaseLabel,
-  increaseLabel,
-  max,
-  min,
-  onChange,
-  prefix = '',
-  step = 1,
-  suffix,
-  value,
-}: {
-  decreaseLabel: string;
-  increaseLabel: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  prefix?: string;
-  step?: number;
-  suffix: string;
-  value: number;
-}) {
-  const canDecrease = value > min;
-  const canIncrease = value < max;
-  return (
-    <Card style={styles.counterCard}>
-      <Pressable
-        accessibilityLabel={decreaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canDecrease }}
-        disabled={!canDecrease}
-        onPress={() => onChange(Math.max(min, value - step))}
-        style={[
-          styles.counterButton,
-          !canDecrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <View pointerEvents="none" style={styles.counterIcon}>
-          <View style={styles.counterIconBar} />
-        </View>
-      </Pressable>
-      <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
-        {prefix}
-        {value}
-        {suffix}
-      </Text>
-      <Pressable
-        accessibilityLabel={increaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canIncrease }}
-        disabled={!canIncrease}
-        onPress={() => onChange(Math.min(max, value + step))}
-        style={[
-          styles.counterButton,
-          !canIncrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <View pointerEvents="none" style={styles.counterIcon}>
-          <View style={styles.counterIconBar} />
-          <View
-            style={[styles.counterIconBar, styles.counterIconBarVertical]}
-          />
-        </View>
-      </Pressable>
-    </Card>
-  );
-}
-
-function PainIntensitySlider({
-  bodyArea,
-  onChange,
-  value,
-}: {
-  bodyArea: string;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const boundedValue = Math.min(
-    PAIN_INTENSITY_MAX,
-    Math.max(PAIN_INTENSITY_MIN, Math.round(value)),
-  );
-  const progress =
-    (boundedValue - PAIN_INTENSITY_MIN) /
-    (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN);
-  const label = `${bodyArea} 통증 정도`;
-
-  const updateFromTrack = (locationX: number) => {
-    if (trackWidth <= 0) return;
-    const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
-    onChange(
-      Math.round(
-        PAIN_INTENSITY_MIN + ratio * (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN),
-      ),
-    );
-  };
-
-  const adjust = (direction: -1 | 1) => {
-    onChange(
-      Math.min(
-        PAIN_INTENSITY_MAX,
-        Math.max(PAIN_INTENSITY_MIN, boundedValue + direction),
-      ),
-    );
-  };
-
-  return (
-    <View style={styles.painIntensityControl}>
-      <View style={styles.painIntensityHeading}>
-        <Text numberOfLines={1} style={styles.painIntensityLabel}>
-          {label}
-        </Text>
-        <Text
-          accessibilityLiveRegion="polite"
-          style={styles.painIntensityValue}
-          testID={`onboarding-pain-intensity-value-${bodyArea}`}
-        >
-          {boundedValue}
-        </Text>
-      </View>
-      <View
-        accessible
-        accessibilityActions={[
-          { name: 'increment', label: `${label} 1 높이기` },
-          { name: 'decrement', label: `${label} 1 낮추기` },
-        ]}
-        accessibilityLabel={label}
-        accessibilityRole="adjustable"
-        accessibilityValue={{
-          max: PAIN_INTENSITY_MAX,
-          min: PAIN_INTENSITY_MIN,
-          now: boundedValue,
-          text: `10점 중 ${boundedValue}점`,
-        }}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'increment') adjust(1);
-          else if (event.nativeEvent.actionName === 'decrement') adjust(-1);
-        }}
-        onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
-        onMoveShouldSetResponder={() => true}
-        onResponderGrant={(event) =>
-          updateFromTrack(event.nativeEvent.locationX)
-        }
-        onResponderMove={(event) =>
-          updateFromTrack(event.nativeEvent.locationX)
-        }
-        onStartShouldSetResponder={() => true}
-        style={styles.painSliderTouchTarget}
-        testID={`onboarding-pain-intensity-slider-${bodyArea}`}
-      >
-        <View pointerEvents="none" style={styles.painSliderTrack}>
-          <View
-            style={[styles.painSliderFill, { width: `${progress * 100}%` }]}
-          />
-          <View
-            style={[styles.painSliderThumb, { left: `${progress * 100}%` }]}
-          />
-        </View>
-      </View>
-      <View style={styles.painSliderRangeLabels}>
-        <Text style={styles.painSliderRangeLabel}>1</Text>
-        <Text style={styles.painSliderRangeLabel}>10</Text>
-      </View>
-    </View>
-  );
 }
 
 function ChoiceCard({ children }: { children: React.ReactNode }) {
@@ -1117,48 +869,72 @@ function DescriptionOption({
 
 function ConsentRow({
   checked,
+  documentId,
   description,
   label,
   onPress,
   required,
 }: {
   checked: boolean;
+  documentId: PolicyDocumentId;
   description: string;
   label: string;
   onPress: () => void;
   required: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityHint={description}
-      accessibilityLabel={label}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onPress}
-      style={[styles.consentRow, checked && styles.consentRowSelected]}
+    <View
+      style={[styles.consentBox, checked && styles.consentRowSelected]}
+      testID={`consent-box-${documentId}`}
     >
-      <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
-        <Text style={[styles.checkmark, !checked && styles.checkmarkHidden]}>
-          ✓
-        </Text>
-      </View>
-      <View style={styles.consentContent}>
-        <View style={styles.consentLabelRow}>
-          <Text style={styles.consentText}>{label}</Text>
-          <Text style={required ? styles.requiredBadge : styles.optionalBadge}>
-            {required ? '필수' : '선택'}
+      <Pressable
+        accessibilityHint={description}
+        accessibilityLabel={label}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        onPress={onPress}
+        style={styles.consentRow}
+      >
+        <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
+          <Text style={[styles.checkmark, !checked && styles.checkmarkHidden]}>
+            ✓
           </Text>
         </View>
-        <Text style={styles.hint}>{description}</Text>
-      </View>
-    </Pressable>
+        <View style={styles.consentContent}>
+          <View style={styles.consentLabelRow}>
+            <Text style={styles.consentText}>{label}</Text>
+            <RequirementBadge required={required} />
+          </View>
+          <Text style={styles.hint}>{description}</Text>
+        </View>
+      </Pressable>
+      <PolicyDetails documentId={documentId} />
+    </View>
   );
 }
 
-function toggle<T>(values: T[], value: T): T[] {
-  return values.includes(value)
-    ? values.filter((item) => item !== value)
-    : [...values, value];
+function RequirementBadge({
+  compact = false,
+  required,
+}: {
+  compact?: boolean;
+  required: boolean;
+}) {
+  return (
+    <Text
+      style={[
+        styles.requirementBadge,
+        compact
+          ? styles.requirementBadgeCompact
+          : styles.requirementBadgeInline,
+        required
+          ? styles.requirementBadgeRequired
+          : styles.requirementBadgeOptional,
+      ]}
+    >
+      {required ? '필수' : '선택'}
+    </Text>
+  );
 }
 
 function onlyDecimal(value: string) {
@@ -1183,6 +959,7 @@ function onboardingErrorStep(error: unknown): number | null {
   if (
     [
       'AGE_REQUIREMENT_NOT_MET',
+      'OUT_OF_SCOPE_AGE',
       'INVALID_DATE_OF_BIRTH',
       'INVALID_TIMEZONE',
     ].includes(error.code)
@@ -1192,22 +969,24 @@ function onboardingErrorStep(error: unknown): number | null {
   if (error.code === 'REQUIRED_CONSENT_MISSING') {
     return stepNumber('consent');
   }
+  if (error.code === 'OUT_OF_SCOPE_MEDICAL_MANAGEMENT') {
+    return stepNumber('eligibility');
+  }
+  if (error.code === 'TERMS_VERSION_MISMATCH') {
+    return stepNumber('consent');
+  }
 
   const fieldToStep: Record<string, (typeof ONBOARDING_STEPS)[number]['key']> =
     {
       nickname: 'basic',
       date_of_birth: 'basic',
-      sex_code: 'sex',
-      height_cm: 'body',
+      medical_exercise_restriction: 'eligibility',
       weight_kg: 'body',
       primary_goal_code: 'goal',
       experience_level_code: 'experience',
-      coaching_style_code: 'coachingStyle',
-      preferred_location_code: 'location',
-      available_location_codes: 'location',
-      default_requested_duration_minutes: 'duration',
-      desired_weekly_workout_count: 'frequency',
-      attention_area_codes: 'attention',
+      weekly_target_sessions: 'frequency',
+      persistent_pains: 'attention',
+      terms_version: 'consent',
       consents: 'consent',
     };
   for (const detail of error.details) {
@@ -1272,7 +1051,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   stepHeading: { gap: 6 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   stepTitle: {
     flexShrink: 1,
     color: colors.text,
@@ -1281,25 +1060,32 @@ const styles = StyleSheet.create({
     lineHeight: 29,
   },
   stepIntro: { color: colors.textMuted, fontSize: 13, lineHeight: 20 },
-  requiredBadge: {
+  requirementBadge: {
     flexShrink: 0,
-    borderRadius: 6,
+    overflow: 'hidden',
+    borderRadius: 5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  requirementBadgeCompact: {
+    fontSize: 9,
+    lineHeight: 12,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  requirementBadgeInline: {
+    fontSize: 10,
+    lineHeight: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  requirementBadgeRequired: {
     backgroundColor: colors.fieldError,
     color: colors.surface,
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
   },
-  optionalBadge: {
-    flexShrink: 0,
-    borderRadius: 6,
+  requirementBadgeOptional: {
     backgroundColor: '#EFEBE3',
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
   },
   cardGroup: { gap: 14 },
   input: { backgroundColor: colors.canvas },
@@ -1310,47 +1096,6 @@ const styles = StyleSheet.create({
   hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   choiceCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   preferredLocationSection: { width: '100%', gap: spacing.sm },
-  counterCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  counterButton: {
-    width: 56,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-  },
-  counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
-  counterIcon: {
-    position: 'relative',
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterIconBar: {
-    position: 'absolute',
-    width: 20,
-    height: 2.5,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  counterIconBarVertical: {
-    transform: [{ rotate: '90deg' }],
-  },
-  counterValue: {
-    minWidth: 100,
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
   chip: {
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -1359,7 +1104,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
   },
-  chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipGrow: {
+    minWidth: 72,
+    flexBasis: 0,
+    flexGrow: 1,
+    alignItems: 'center',
+  },
   chipFlow: {
     minHeight: 48,
     flexGrow: 1,
@@ -1431,88 +1181,75 @@ const styles = StyleSheet.create({
     columnGap: spacing.sm,
     rowGap: spacing.sm,
   },
+  extendedAreaToggle: {
+    minHeight: 36,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  extendedAreaToggleLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  extendedAreaToggleIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  extendedAreaToggleCaretUp: {
+    transform: [{ rotate: '180deg' }],
+  },
   painSliderList: { gap: spacing.sm },
   painSliderCard: {
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: radii.control,
-    backgroundColor: '#FBEAE7',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  painIntensityControl: { gap: spacing.xs },
-  painIntensityHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  painIntensityLabel: {
-    minWidth: 0,
-    flex: 1,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  painIntensityValue: {
-    minWidth: 38,
-    flexShrink: 0,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    color: '#8E3226',
-    fontSize: 18,
-    fontWeight: '400',
-    lineHeight: 24,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
-  },
-  painSliderTouchTarget: {
-    height: 40,
-    justifyContent: 'center',
-  },
-  painSliderTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(162, 63, 42, 0.12)',
-  },
-  painSliderFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: 'rgba(162, 63, 42, 0.42)',
-  },
-  painSliderThumb: {
-    position: 'absolute',
-    top: -8,
-    width: 24,
-    height: 24,
-    marginLeft: -12,
-    borderWidth: 3,
-    borderColor: colors.surface,
-    borderRadius: 12,
-    backgroundColor: 'rgba(142, 50, 38, 0.72)',
-  },
-  painSliderRangeLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  painSliderRangeLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '400',
+    borderColor: '#E8C3B8',
+    borderRadius: 14,
+    backgroundColor: '#FFFDFC',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   consentGroups: { gap: 14 },
-  consentRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
+  consentReminder: {
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.feedback,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  consentReminderTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  consentReminderDescription: {
+    color: colors.textSub,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  consentBox: {
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.control,
     backgroundColor: colors.canvas,
     padding: 14,
+    paddingBottom: 2,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
   },
   consentRowSelected: { borderColor: colors.primary },
   checkbox: {
@@ -1534,12 +1271,11 @@ const styles = StyleSheet.create({
   consentContent: { minWidth: 0, flex: 1, gap: 4 },
   consentLabelRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   consentText: {
-    flex: 1,
+    flexShrink: 1,
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',

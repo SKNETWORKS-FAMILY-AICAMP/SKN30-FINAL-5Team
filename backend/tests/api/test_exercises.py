@@ -19,6 +19,7 @@ from backend.app.modules.catalog.service import (
     ExerciseVariantRecord,
     ExerciseVariantSetUnavailableError,
     ExerciseVariantsRecord,
+    HouseholdEquipmentGuideRecord,
 )
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
@@ -100,6 +101,7 @@ def _record(index: int) -> ExerciseListRecord:
         exercise_name=f"운동 {index + 1}",
         training_type_code="STRENGTH" if index % 2 == 0 else "MOBILITY",
         difficulty_code="BEGINNER" if index % 2 == 0 else "INTERMEDIATE",
+        body_focus_code="CHEST" if index % 2 == 0 else "MOBILITY",
         primary_body_area_codes=("HIP", "KNEE") if index % 2 == 0 else ("SHOULDER",),
         required_equipment_codes=("BODYWEIGHT", "DUMBBELL") if index % 3 == 0 else ("BODYWEIGHT",),
     )
@@ -156,6 +158,7 @@ def test_exercise_list_returns_contract_and_uses_default_limit() -> None:
         "name": "운동 1",
         "training_type_code": "STRENGTH",
         "difficulty_code": "BEGINNER",
+        "body_focus_code": "CHEST",
         "primary_body_area_codes": ["HIP", "KNEE"],
         "required_equipment_codes": ["BODYWEIGHT", "DUMBBELL"],
         "media_asset_key": None,
@@ -278,8 +281,99 @@ def test_exercise_detail_route_remains_available() -> None:
     assert response.status_code == 200
     assert response.json()["exercise_id"] == str(exercise_id)
     assert response.json()["exercise_name"] == "기존 상세 운동"
+    assert response.json()["instruction_steps"] == ["기존 상세 설명"]
+    assert response.json()["cautions"] == ["천천히 수행합니다."]
     assert response.json()["media_asset_key"] is None
     assert response.json()["media_url"] is None
+    assert response.json()["body_focus_code"] is None
+    assert response.json()["gym_equipment_starting_guides"] is None
+
+
+def test_exercise_detail_returns_persisted_household_equipment_guide() -> None:
+    repository = FakeExerciseRepository(())
+    exercise_id = uuid4()
+    repository.details[exercise_id] = ExerciseDetailRecord(
+        exercise_id=exercise_id,
+        exercise_name="guide exercise",
+        training_type_code="STRENGTH",
+        primary_body_area_codes=("CHEST",),
+        instruction_summary="instruction",
+        form_cues=("cue",),
+        instruction_content_version="instruction-v1",
+        household_equipment_guides=(
+            HouseholdEquipmentGuideRecord(
+                equipment_code="DUMBBELL",
+                proposal_ko="Use a filled bottle.",
+                examples_ko=("water bottle",),
+                cautions_ko=("Keep a secure grip.",),
+            ),
+        ),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{exercise_id}")
+
+    assert response.status_code == 200
+    assert response.json()["household_equipment_guides"] == [
+        {
+            "equipment_code": "DUMBBELL",
+            "proposal_ko": "Use a filled bottle.",
+            "examples_ko": ["water bottle"],
+            "cautions_ko": ["Keep a secure grip."],
+        }
+    ]
+    assert response.json()["cautions"] == ["cue", "Keep a secure grip."]
+
+
+def test_exercise_detail_reads_guide_from_validated_bundle() -> None:
+    repository = FakeExerciseRepository(())
+    exercise_id = uuid4()
+    repository.details[exercise_id] = ExerciseDetailRecord(
+        exercise_id=exercise_id,
+        exercise_name="bundle guide exercise",
+        training_type_code="STRENGTH",
+        primary_body_area_codes=("ELBOW",),
+        instruction_summary="instruction",
+        form_cues=("cue",),
+        instruction_content_version="instruction-v1",
+        exercise_stable_code="dumbbell_alternate_biceps_curl",
+        required_equipment_codes=("DUMBBELL",),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{exercise_id}")
+
+    assert response.status_code == 200
+    guides = response.json()["household_equipment_guides"]
+    assert guides is not None
+    assert guides[0]["equipment_code"] == "DUMBBELL"
+    assert guides[0]["examples_ko"]
+    assert guides[0]["cautions_ko"]
+
+
+def test_exercise_detail_reads_matching_gym_starting_guide_from_integrated_bundle() -> None:
+    repository = FakeExerciseRepository(())
+    exercise_id = uuid4()
+    repository.details[exercise_id] = ExerciseDetailRecord(
+        exercise_id=exercise_id,
+        exercise_name="gym guide exercise",
+        training_type_code="STRENGTH",
+        primary_body_area_codes=("KNEE",),
+        instruction_summary="instruction",
+        form_cues=("cue",),
+        instruction_content_version="instruction-v1",
+        exercise_stable_code="barbell_bench_squat",
+        required_equipment_codes=("BARBELL",),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{exercise_id}")
+
+    assert response.status_code == 200
+    guides = response.json()["gym_equipment_starting_guides"]
+    assert guides is not None
+    assert guides[0]["equipment_code"] == "BARBELL"
+    assert guides[0]["proposal_ko"]
 
 
 def test_exercise_detail_returns_url_only_for_exact_registry_approved_media() -> None:
@@ -440,6 +534,9 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
 
     with _client(repository) as client:
         response = client.get(f"/api/v1/exercises/{source_id}/variants")
+        home = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=HOME")
+        gym = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=GYM")
+        outdoor = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=OUTDOOR")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -454,6 +551,9 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
                 "form_cues": ["허리를 중립으로 유지합니다."],
                 "media_asset_key": None,
                 "goal_preservation_code": "GENERAL_FITNESS",
+                "missing_equipment_code": None,
+                "selection_rationale_ko": None,
+                "household_guide": None,
             },
             {
                 "exercise_id": str(second_id),
@@ -463,10 +563,63 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
                 "form_cues": ["반동을 사용하지 않습니다."],
                 "media_asset_key": "catalog-media/exercises/variant.webp",
                 "goal_preservation_code": "GENERAL_FITNESS",
+                "missing_equipment_code": None,
+                "selection_rationale_ko": None,
+                "household_guide": None,
             },
         ],
         "catalog_version": "catalog-production-v1",
         "alternative_set_version": "alternative-set-v2.0.1",
+    }
+    assert home.status_code == 200
+    assert home.json() == response.json()
+    assert gym.status_code == 200
+    assert gym.json()["items"] == []
+    assert outdoor.status_code == 200
+    assert outdoor.json()["items"] == []
+
+
+def test_equipment_variant_returns_missing_equipment_rationale_and_guide() -> None:
+    repository = FakeExerciseRepository(())
+    source_id = uuid4()
+    variant_id = uuid4()
+    repository.variants[source_id] = ExerciseVariantsRecord(
+        source_exercise_id=source_id,
+        catalog_version="catalog-production-v1",
+        source_required_equipment_codes=("DUMBBELL",),
+        alternative_set_version="home-equipment-variants-v1-final-2026-09-04",
+        items=(
+            ExerciseVariantRecord(
+                exercise_id=variant_id,
+                exercise_name="bodyweight alternative",
+                required_equipment_codes=("BODYWEIGHT",),
+                instruction_summary="instruction",
+                form_cues=("cue",),
+                goal_preservation_code="EQUIPMENT_VARIANT",
+                missing_equipment_code="DUMBBELL",
+                selection_rationale_ko="Missing dumbbell variant.",
+                household_guide=HouseholdEquipmentGuideRecord(
+                    equipment_code="DUMBBELL",
+                    proposal_ko="Use a filled bottle.",
+                    examples_ko=("water bottle",),
+                    cautions_ko=("Keep a secure grip.",),
+                ),
+            ),
+        ),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{source_id}/variants")
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["missing_equipment_code"] == "DUMBBELL"
+    assert item["selection_rationale_ko"] == "Missing dumbbell variant."
+    assert item["household_guide"] == {
+        "equipment_code": "DUMBBELL",
+        "proposal_ko": "Use a filled bottle.",
+        "examples_ko": ["water bottle"],
+        "cautions_ko": ["Keep a secure grip."],
     }
 
 

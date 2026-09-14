@@ -1,0 +1,29 @@
+{
+  "alternative_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "alternative-set-v2.0.5"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives.jsonl",
+      "records": 1150,
+      "sha256": "c875696a787ef39c608a02a4abf092d564689058cfcefa9d03a122ec862f3f1c"
+    }
+  ],
+  "generator_version": "v2-0-5-media-gap-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.5-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "alternative_records": 1150
+  }
+}

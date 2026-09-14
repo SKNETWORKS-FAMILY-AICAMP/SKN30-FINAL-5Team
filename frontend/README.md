@@ -21,6 +21,13 @@ npx expo start --web
 
 `http://localhost:8081/?preview=splash`
 
+개발용 전체 화면 목록은 `?preview=gallery`에서 확인합니다. 실제 앱의 초기
+설정·프로필 조회/복구 상태는 `?preview=app-status`, 끼끼의 집에서 여는 바나나
+미니게임은 `?preview=banana-catch`, 끼끼 달리기 프로토타입은
+`?preview=kikki-runner`, 알림 기능은 `?preview=notifications`로 바로 열 수
+있습니다. 알림 프리뷰는 실제 네트워크 요청 없이 red dot, 2.5초 토스트,
+알림함의 읽음·빈 목록·로딩·오류 상태와 끼끼의 집 이동을 확인합니다.
+
 품질 검증 명령:
 
 ```bash
@@ -47,6 +54,11 @@ npm run build:production
 
 - Home의 최종 운동 목록은 각 항목 앞의 세 줄 핸들로 순서를 바꾸며, 변경된
   `sequence`를 같은 세션의 모든 Home·Workout 순서 UI가 함께 사용
+- 순서 변경은 준비운동·본운동·마무리 각 phase 안에서만 가능하고, phase 경계를 넘는 이동은
+  서버에 보내기 전에 화면에서 되돌린다(ADR-0018 D5)
+- 세트·반복 수정도 순서 변경과 같은 당일 계획에 적용해 Home 카드와 Workout이 같은 처방을 읽는다.
+  두 편집 모두 서버 저장을 요청하며, 저장 route가 없는 동안에는 실행 중인 앱 안에서만 유지되고
+  서버가 거절하면 저장된 계획으로 되돌린다(API_CONTRACT 10.7 제안)
 - 최상단: 0초부터 증가하며 일시정지·재개할 수 있는 전체 경과 타이머
 - 중앙: 현재 운동에 맞는 마스코트 애니메이션
 - 하단: 운동명·세트·반복/권장 목표가 있는 순서형 블록

@@ -9,7 +9,7 @@ import {
 import { StyleSheet } from 'react-native';
 
 import { fontFamilies } from '../src/app/fonts';
-import type { AuthAdapter } from '../src/auth/firebase';
+import { AuthFailure, type AuthAdapter } from '../src/auth/firebase';
 import { AuthFlow } from '../src/features/auth/AuthFlow';
 import { LoginScreen } from '../src/features/auth/LoginScreen';
 import { SignUpScreen } from '../src/features/auth/SignUpScreen';
@@ -20,6 +20,8 @@ function authAdapter(overrides: Partial<AuthAdapter> = {}): AuthAdapter {
   return {
     observe: () => () => undefined,
     signIn: jest.fn(async () => undefined),
+    signInWithGoogle: jest.fn(async () => undefined),
+    signInWithKakao: jest.fn(async () => undefined),
     signUp: jest.fn(async () => undefined),
     signOutUser: jest.fn(async () => undefined),
     getIdToken: jest.fn(async () => null),
@@ -94,6 +96,15 @@ describe('auth visual prototypes', () => {
     );
 
     expect(screen.getByText('비밀번호가 서로 달라요.')).toBeOnTheScreen();
+    expect(screen.queryByText('1 / 2 · 계정')).toBeNull();
+    expect(
+      StyleSheet.flatten(screen.getByTestId('signup-back-button').props.style),
+    ).toMatchObject({
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 34,
+      height: 34,
+    });
     expect(
       screen.getByRole('button', { name: '필수 항목을 채워주세요' }),
     ).toBeDisabled();
@@ -173,8 +184,8 @@ describe('auth visual prototypes', () => {
     ).toBeOnTheScreen();
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(
-      screen.queryByRole('button', { name: 'Google로 계속하기' }),
-    ).toBeNull();
+      screen.getByRole('button', { name: 'Google로 계속하기' }),
+    ).toBeOnTheScreen();
 
     fireEvent.changeText(screen.getByLabelText('이메일'), 'user@example.com');
     fireEvent.changeText(screen.getByLabelText('비밀번호'), 'password1');
@@ -191,15 +202,57 @@ describe('auth visual prototypes', () => {
     ).toBeOnTheScreen();
   });
 
+  it('starts Google and Kakao from the production signed-out flow', async () => {
+    const signInWithGoogle = jest.fn(async () => undefined);
+    const signInWithKakao = jest.fn(async () => undefined);
+    render(
+      <AuthFlow auth={authAdapter({ signInWithGoogle, signInWithKakao })} />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Google로 계속하기' }));
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(screen.getByRole('button', { name: '카카오로 계속하기' }));
+    await waitFor(() => expect(signInWithKakao).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole('button', { name: /네이버/ }),
+    ).not.toBeOnTheScreen();
+  });
+
+  it.each([
+    ['취소', '카카오 로그인이 취소되었습니다.'],
+    [
+      '네트워크 오류',
+      '네트워크에 연결하지 못했습니다. 연결을 확인하고 다시 시도해주세요.',
+    ],
+    ['로그인 실패', '카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.'],
+  ])('shows a user-safe social %s state', async (_case, message) => {
+    const signInWithKakao = jest.fn(async () => {
+      throw new AuthFailure('social/test', message);
+    });
+    render(<AuthFlow auth={authAdapter({ signInWithKakao })} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '카카오로 계속하기' }));
+
+    expect(await screen.findByText(message)).toBeOnTheScreen();
+  });
+
   it('connects SignUp to the Firebase password policy and account creation', async () => {
     const signUp = jest.fn(async () => undefined);
     const checkPassword = jest.fn(async () => ({ ok: true }) as const);
-    const auth = authAdapter({ checkPassword, signUp });
+    const auth = authAdapter({
+      checkPassword,
+      describePasswordPolicy: jest.fn(
+        async () => '6자 이상 · 4096자 이하 · 숫자 포함',
+      ),
+      signUp,
+    });
     render(<SignUpScreen auth={auth} />);
 
     expect(
-      await screen.findByText('비밀번호 조건: 6자 이상'),
+      await screen.findByText('비밀번호 조건: 6자 이상 · 숫자 포함'),
     ).toBeOnTheScreen();
+    expect(screen.queryByText(/4096자 이하/)).not.toBeOnTheScreen();
     fireEvent.changeText(
       screen.getByLabelText('회원가입 이메일'),
       'new@example.com',
@@ -222,5 +275,20 @@ describe('auth visual prototypes', () => {
     await waitFor(() =>
       expect(signUp).toHaveBeenCalledWith('new@example.com', 'password1'),
     );
+  });
+
+  it('shows the baseline password policy while Firebase policy is loading', () => {
+    const auth = authAdapter({
+      describePasswordPolicy: jest.fn(
+        () => new Promise<string | null>(() => undefined),
+      ),
+    });
+
+    render(<SignUpScreen auth={auth} />);
+
+    expect(screen.getByText('비밀번호 조건: 6자 이상')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('Firebase 비밀번호 정책을 확인해요.'),
+    ).not.toBeOnTheScreen();
   });
 });

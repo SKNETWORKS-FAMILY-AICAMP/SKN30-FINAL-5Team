@@ -586,6 +586,317 @@ _APPROVALS = {
         approved_on="2026-08-18",
         approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
     ),
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.6-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.6-final",
+        manifest_sha256="a811aba17747b3f1a74207397aad4c672fbbf0ce4ce9b4da508ce65ceea9cefc",
+        record_count=237,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "review_basis": (
+                "PM directly reviewed exercise names, descriptions, beginner suitability, "
+                "and general-pool inclusion."
+            ),
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.6",
+        manifest_sha256="ff70f4bd9ee2ed8781fb72ddee43b1697e06eefb6cdbd039c7e6b68a0dce16e4",
+        record_count=2131,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "derived_from": "approved normalized primary and secondary body-area mappings",
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.6-stretch-strap-fallback",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.6-stretch-strap-fallback",
+        manifest_sha256="2a10913eb5c8e5532c7ed27a0af99abbdea8445cec19bf391d496559da5452c7",
+        record_count=1,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": (
+                "data/reports/v2_0_6_catalog/stretch_strap_fallback_approval_manifest.json"
+            ),
+            "policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.6",
+        manifest_sha256="659d95393db3482276db7d5c19ec859b01404685270b42f04bcecac31b395616",
+        record_count=2160,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "goal_tag_records": 711,
+            "prescription_records": 1449,
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.6",
+        manifest_sha256="938b17a54a449dd03dbdb58d18ee4593a479e2d86ab5376d1a2514d5b5f55e2d",
+        record_count=237,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "media_records": 237,
+            "rights_review_status": "APPROVED",
+        },
+    ),
+    # v2.0.7 is the approved v2.0.6 catalog and derived content retargeted as
+    # one release, with the separately approved six-field MET projection. The
+    # exact source-identity FITT mapping is agent context shipped alongside the
+    # integrated wrapper; it does not change the persisted catalog rows.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.7-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.7-final",
+        manifest_sha256="93847c5c8ffddac57a74b2ca7a80fa2ec036ec3d2687588526a2302b993a31dc",
+        record_count=237,
+        approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+        approved_on="2026-09-08",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": (
+                "data/reports/integrated_catalog_v2_0_7_final/promotion_candidate_validation.json"
+            ),
+            "met_approval_manifest_path": (
+                "data/reports/v2_0_6_met/met_review_approval_manifest.json"
+            ),
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.7",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.7",
+        manifest_sha256="bd471174683ce02f1beb7714a972ba49a25eb5ab02732910365a181da03dd644",
+        record_count=2131,
+        approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+        approved_on="2026-09-08",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "safety-rule-set-v2.0.6",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.7-stretch-strap-fallback",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.7-stretch-strap-fallback",
+        manifest_sha256="d59a69dd6ccaa162903a300993be01941f58e7fca0d175f944f3ec32868d0176",
+        record_count=1,
+        approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+        approved_on="2026-09-08",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "alternative-set-v2.0.6-stretch-strap-fallback",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.7",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.7",
+        manifest_sha256="2299cfdbdd23a6bf66ce90d9aca39e2c5d4bbc9c33a8b0ead49557cdecdb0904",
+        record_count=2175,
+        approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+        approved_on="2026-09-08",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "prescription-set-v2.0.6",
+            # 57 BEGINNER rows on 19 exercises the v2.0.6 difficulty re-review moved to
+            # INTERMEDIATE were dropped: the directional rule forbids them and the
+            # importer rejects the bundle otherwise. No prescription was re-authored.
+            "carried_over_unchanged": False,
+            "prescription_rows_removed_for_difficulty": 57,
+            # 72 BEGINNER rows on 24 exercises the same review moved down were
+            # derived from the transformation the reviewed corpus already applies
+            # and approved as a rule, not row by row.
+            "prescription_rows_derived_for_difficulty": 72,
+            "derivation_approval_record_code": (
+                "V2-0-7-BEGINNER-PRESCRIPTION-DERIVATION-2026-09-08-R01"
+            ),
+            "goal_tag_records": 711,
+            "prescription_records": 1464,
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.7",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.7",
+        manifest_sha256="34c6d4cbdde6daaebba85d6e3ba3f4449e9ef80e6dd0b1e66aceb62bb79442f1",
+        record_count=237,
+        approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+        approved_on="2026-09-08",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "media-set-v2.0.6",
+            "carried_over_unchanged": True,
+            "rights_review_status": "APPROVED",
+        },
+    ),
+    # v2.0.8 is the PM-approved catalog correction release. The source rows
+    # remain 237; only reviewed family, timing, FITT, and prescription values
+    # changed. Hashes and counts below are pinned to the generated candidate.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.8-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.8-final",
+        manifest_sha256="09ab8305a0a506e14ed452d8244dd481dbbc347441a99a742e4426bc0d85423b",
+        record_count=237,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": (
+                "data/reports/integrated_catalog_v2_0_8_final/promotion_candidate_validation.json"
+            ),
+            "scope": "family_timing_classification_fitt_prescription_corrections",
+            "beginner_candidate_policy": "unchanged",
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.8",
+        manifest_sha256="7e1a573593d03b1121d44f0d9b150a988d2cd422aefb26a0242574b9b81d9ed3",
+        record_count=2131,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "safety-rule-set-v2.0.7",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.8-stretch-strap-fallback",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.8-stretch-strap-fallback",
+        manifest_sha256="a37ca2d415b7ab270afaab3a711604469cfd12b56726973a37f04aed70cda449",
+        record_count=1,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "alternative-set-v2.0.7-stretch-strap-fallback",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.8",
+        manifest_sha256="07a6f4d0f8aea6ad75c4ee6da09b46da67c5753d935a36fe7ba9eb556be4a84d",
+        record_count=2175,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "prescription-set-v2.0.7",
+            "goal_tag_records": 711,
+            "prescription_records": 1464,
+            "low_load_high_rep_policy": {
+                "compound_default_reps": 12,
+                "isolation_default_reps": 15,
+            },
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.8",
+        manifest_sha256="4dbcfc63d59de676a9df0f330fb578c315447cccc316efa32bfe04e79c884812",
+        record_count=237,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "media-set-v2.0.7",
+            "carried_over_unchanged": True,
+            "rights_review_status": "APPROVED",
+        },
+    ),
 }
 
 
@@ -609,6 +920,23 @@ def get_catalog_approval(
     return get_derived_data_approval("CATALOG", version_code, manifest_sha256, record_count)
 
 
+def get_approved_metadata_count(
+    artifact_kind: ArtifactKind, version_code: str, field: str
+) -> int | None:
+    """Return one counted field from an approval's metadata.
+
+    A prescription approval covers two row kinds and records each separately, so
+    an activation gate that wants one of them would otherwise pin the literal.
+    Reading it here keeps the number in the approval record, the same reason
+    `get_approved_record_count` exists.
+    """
+    approval = _APPROVALS.get((artifact_kind, version_code))
+    if approval is None or approval.approval_metadata is None:
+        return None
+    value = approval.approval_metadata.get(field)
+    return value if isinstance(value, int) else None
+
+
 def get_approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int | None:
     """Return how many rows the approval covers, without needing the manifest hash.
 
@@ -622,6 +950,7 @@ def get_approved_record_count(artifact_kind: ArtifactKind, version_code: str) ->
 __all__ = [
     "ArtifactKind",
     "DerivedDataApproval",
+    "get_approved_metadata_count",
     "get_approved_record_count",
     "get_catalog_approval",
     "get_derived_data_approval",

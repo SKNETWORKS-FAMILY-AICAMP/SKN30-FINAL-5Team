@@ -1,10 +1,18 @@
 from enum import StrEnum
+from typing import Final
 
 CATALOG_CODE_SET_VERSION = "mvp-v1"
 CATALOG_V2_CODE_SET_VERSION = "catalog-v2"
 CATALOG_MANIFEST_SCHEMA_VERSION = "1.0"
 APPROVED_TAXONOMY_REGISTRY_SHA256 = (
     "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7"
+)
+# The Gymvisual v2.0.6/v2.0.7 lineage was reviewed against the current
+# normalized taxonomy registry. Keep this exact approval separate from the
+# legacy v2 importer hash above; accepting either hash generically would make
+# a catalog's code-set provenance ambiguous.
+APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256 = (
+    "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 )
 
 
@@ -54,6 +62,7 @@ class BodyFocusCode(StrEnum):
     QUADRICEPS = "QUADRICEPS"
     HAMSTRINGS = "HAMSTRINGS"
     CALVES = "CALVES"
+    ADDUCTORS = "ADDUCTORS"
     CORE = "CORE"
     FULL_BODY = "FULL_BODY"
     CARDIO = "CARDIO"
@@ -72,6 +81,7 @@ V2_BODY_FOCUS_CODES = frozenset(
         BodyFocusCode.QUADRICEPS,
         BodyFocusCode.HAMSTRINGS,
         BodyFocusCode.CALVES,
+        BodyFocusCode.ADDUCTORS,
         BodyFocusCode.CORE,
         BodyFocusCode.FULL_BODY,
         BodyFocusCode.CARDIO,
@@ -176,6 +186,19 @@ class LocationCode(StrEnum):
     OUTDOOR = "OUTDOOR"
 
 
+# Locations the product actually offers. ADR-0017 moved the workout location to the
+# Daily Check-in, so no profile value narrows this set any more, and the 2026-09-07
+# G7 decision keeps `OUTDOOR` as a stored value without offering it. Anything that
+# used to read a location off the profile reads this instead.
+SELECTABLE_LOCATION_CODES: Final[tuple[LocationCode, ...]] = (
+    LocationCode.HOME,
+    LocationCode.GYM,
+)
+# The location assumed when a caller supplies none. It is a display and default-
+# selection value only; it never narrows an approved pool.
+DEFAULT_LOCATION_CODE: Final[LocationCode] = LocationCode.HOME
+
+
 class BodyAreaCode(StrEnum):
     NECK = "NECK"
     SHOULDER = "SHOULDER"
@@ -243,6 +266,7 @@ APPROVED_DISPLAY_NAMES_KO: dict[type[StrEnum], dict[StrEnum, str]] = {
         BodyFocusCode.QUADRICEPS: "대퇴사두근",
         BodyFocusCode.HAMSTRINGS: "햄스트링",
         BodyFocusCode.CALVES: "종아리",
+        BodyFocusCode.ADDUCTORS: "내전근",
         BodyFocusCode.CORE: "코어",
         BodyFocusCode.FULL_BODY: "전신",
         BodyFocusCode.CARDIO: "유산소",

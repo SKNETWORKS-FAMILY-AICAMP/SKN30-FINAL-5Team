@@ -1,5 +1,6 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import and_, func, insert, inspect, or_, select
@@ -88,6 +89,7 @@ class CatalogRepository:
                 Exercise.name_ko,
                 Exercise.training_type_code,
                 Exercise.difficulty_code,
+                Exercise.body_focus_code,
                 ExerciseMediaAsset.s3_key.label("media_asset_key"),
             )
             .outerjoin(
@@ -168,6 +170,7 @@ class CatalogRepository:
                 primary_body_area_codes=tuple(primary_body_areas[row.id]),
                 required_equipment_codes=tuple(required_equipment[row.id]),
                 media_asset_key=row.media_asset_key,
+                body_focus_code=row.body_focus_code,
             )
             for row in rows
         )
@@ -218,14 +221,23 @@ class CatalogRepository:
         )
         source_object_key = None
         if media_candidate is not None:
-            candidate_key = media_candidate.source_metadata.get("source_object_key")
-            if isinstance(candidate_key, str):
-                source_object_key = candidate_key
+            source_object_key = _verified_source_object_key(media_candidate.source_metadata)
         return ExerciseDetailRecord(
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
             training_type_code=exercise.training_type_code,
+            body_focus_code=exercise.body_focus_code,
             primary_body_area_codes=primary_body_area_codes,
+            required_equipment_codes=tuple(
+                session.scalars(
+                    select(ExerciseEquipment.equipment_code)
+                    .where(
+                        ExerciseEquipment.exercise_id == exercise_id,
+                        ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                    )
+                    .order_by(ExerciseEquipment.equipment_code)
+                )
+            ),
             instruction_summary=exercise.instruction_summary_ko,
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
@@ -245,6 +257,7 @@ class CatalogRepository:
             media_approval_metadata=(
                 media_candidate.approval_metadata if media_candidate is not None else None
             ),
+            exercise_stable_code=exercise.stable_code,
         )
 
     def list_media_mapping_exercises(
@@ -352,6 +365,12 @@ class CatalogRepository:
             select(
                 ExerciseAlternative.alternative_set_version_code,
                 ExerciseAlternative.goal_preservation_code,
+                ExerciseAlternative.source_metadata["missing_equipment_code"].astext.label(
+                    "missing_equipment_code"
+                ),
+                ExerciseAlternative.source_metadata["selection_rationale_ko"].astext.label(
+                    "selection_rationale_ko"
+                ),
                 variant_exercise.id,
                 variant_exercise.name_ko,
                 variant_exercise.instruction_summary_ko,
@@ -404,7 +423,6 @@ class CatalogRepository:
                 .order_by(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
             ):
                 required_equipment[variant_id].append(code)
-
         return ExerciseVariantsRecord(
             source_exercise_id=exercise_id,
             catalog_version=catalog_version_code,
@@ -421,6 +439,8 @@ class CatalogRepository:
                     form_cues=tuple(row.form_cues_ko),
                     goal_preservation_code=row.goal_preservation_code,
                     media_asset_key=row.media_asset_key,
+                    missing_equipment_code=row.missing_equipment_code,
+                    selection_rationale_ko=row.selection_rationale_ko,
                 )
                 for row in rows
             ),
@@ -551,6 +571,12 @@ class CatalogRepository:
             "general_pool_included",
             "form_cues_source",
             "form_cues_review_status",
+            "met_value",
+            "met_source_code",
+            "met_source_activity_code",
+            "met_mapping_method_code",
+            "met_review_status_code",
+            "met_policy_version",
         )
         exercise_values: list[dict[str, object]] = []
         children: list[ExerciseBodyPart | ExerciseEquipment | ExerciseLocation] = []
@@ -960,6 +986,31 @@ class CatalogRepository:
                 )
             )
         session.flush()
+
+
+def _verified_source_object_key(source_metadata: Mapping[str, Any] | None) -> str | None:
+    """Read the reviewed source object key from either import layout.
+
+    Catalogs up to v2.0.4 wrote the verified source-object fields at the top
+    level of `source_metadata`. The v2.0.6 media import nests the same three
+    fields under `record`, so reading only the top level returned nothing and
+    every exercise in the active catalog answered with a null `media_url` -- the
+    app then showed its "GIF is not ready yet" placeholder even though the
+    object was in S3 and already verified. Both layouts are reviewed output, so
+    read either rather than rewriting approved catalog metadata.
+    """
+
+    if not source_metadata:
+        return None
+    candidate = source_metadata.get("source_object_key")
+    if isinstance(candidate, str) and candidate:
+        return candidate
+    nested = source_metadata.get("record")
+    if isinstance(nested, Mapping):
+        candidate = nested.get("source_object_key")
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return None
 
 
 __all__ = ["CatalogRepository"]

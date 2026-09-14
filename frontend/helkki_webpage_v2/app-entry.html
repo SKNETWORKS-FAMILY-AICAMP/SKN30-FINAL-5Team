@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HELKKI - 웹앱</title>
+  <script>document.documentElement.classList.add('font-loading');</script>
+  <link href="fonts.css" rel="stylesheet">
+  <noscript><style>html.font-loading body { visibility: visible; }</style></noscript>
+  <script>
+    (() => {
+      const release = () => document.documentElement.classList.remove('font-loading');
+      if (!document.fonts) return release();
+      const timeout = new Promise((resolve) => window.setTimeout(resolve, 1500));
+      const fontReady = document.fonts.load('400 1em Pretendard').then(() => document.fonts.ready);
+      Promise.race([fontReady, timeout]).then(release, release);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#FFFDF9",
+            "text-dark": "#3D2D20",
+            "text-warm": "#5A4636",
+            "coral-orange": "#E8875B"
+          },
+          fontFamily: {
+            sans: ["Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @layer base {
+      html, body { margin: 0; padding: 0; background-color: #FFFDF9; color: #3D2D20; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+      body { overscroll-behavior: none; }
+    }
+    html, body { min-height: 100%; }
+    .keep-all { word-break: keep-all; overflow-wrap: normal; }
+    .app-frame {
+      width: 400px;
+      height: min(780px, calc(100dvh - 72px));
+      max-width: 100%;
+      max-height: calc(100dvh - 72px);
+    }
+    .app-frame iframe { opacity: 0; transition: opacity 180ms ease; }
+    .app-frame.is-loaded iframe { opacity: 1; }
+    .app-frame.is-loaded .app-loading { opacity: 0; pointer-events: none; }
+    .home-link { left: 1.25rem; }
+    @media (min-width: 768px) {
+      html, body { overflow: hidden; }
+      .home-link { left: max(2rem, calc((100vw - 1120px) / 2 + 2rem)); }
+    }
+    @media (max-width: 767px) {
+      .desktop-entry { display: none; }
+    }
+  </style>
+</head>
+<body class="bg-surface antialiased">
+  <main class="desktop-entry relative isolate h-[100dvh] overflow-hidden">
+    <div aria-hidden="true" class="pointer-events-none absolute right-[8%] top-1/2 h-[560px] w-[560px] -translate-y-1/2 rounded-full bg-[#E8875B]/10 blur-3xl"></div>
+    <div aria-hidden="true" class="pointer-events-none absolute -bottom-64 left-[-100px] h-[400px] w-[400px] rounded-full bg-[#F4B942]/[0.05] blur-3xl"></div>
+
+    <a href="index.html" class="home-link absolute top-5 z-10 inline-flex items-center gap-1 rounded-full px-3 py-2 text-[13px] font-semibold text-text-warm transition-colors hover:bg-white/70 hover:text-coral-orange focus:outline-none focus:ring-2 focus:ring-coral-orange/40 lg:top-7">
+      <span aria-hidden="true">←</span>
+      HOME
+    </a>
+
+    <div class="relative z-0 mx-auto grid h-full w-full max-w-[1120px] grid-cols-1 items-center gap-10 px-6 py-10 md:grid-cols-[minmax(0,1fr)_400px] md:gap-12 md:px-8 lg:grid-cols-[400px_400px] lg:justify-center lg:gap-20">
+      <section aria-labelledby="brand-title" class="hidden md:block md:-translate-y-9">
+        <p class="mb-5 text-[14px] font-bold tracking-[0.15em] text-coral-orange">HELKKI</p>
+        <h1 id="brand-title" class="text-[40px] font-extrabold leading-[1.28] tracking-tight text-text-dark keep-all">
+          오늘의 운동을<br>시작해볼까요?
+        </h1>
+        <p class="mt-5 text-[17px] leading-[1.7] text-text-warm keep-all">
+          컨디션을 확인하고<br>맞춤 루틴을 시작해보세요.
+        </p>
+      </section>
+
+      <section aria-label="HELKKI 웹앱" class="flex w-full justify-center md:justify-start">
+        <div id="app-frame" class="app-frame relative overflow-hidden rounded-[24px] border border-[#EFD9CB] bg-white shadow-[0_14px_34px_rgba(90,70,54,0.09)]">
+          <div class="app-loading absolute inset-0 z-0 flex flex-col items-center justify-center bg-white text-center transition-opacity duration-200">
+            <span class="text-[20px] font-extrabold tracking-tight text-text-dark">HELKKI</span>
+            <span class="mt-2 text-[14px] text-text-warm">잠시만 기다려주세요.</span>
+          </div>
+          <iframe id="helkki-web-app" title="HELKKI 웹앱" src="https://app.helkki.com/" class="relative z-10 block h-full w-full border-0" allow="clipboard-read; clipboard-write" referrerpolicy="strict-origin-when-cross-origin" scrolling="auto"></iframe>
+        </div>
+      </section>
+    </div>
+    <footer class="absolute inset-x-0 bottom-0 z-10 border-t border-[#F5E6DA]/70 bg-[#FFFDF9]/90 backdrop-blur-sm">
+      <div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-x-3 gap-y-1 px-6 py-1.5 text-[12px] text-text-muted sm:px-8">
+        <span class="font-semibold tracking-wide text-text-warm">HELKKI</span><span aria-hidden="true">|</span><span>SKN30-FINAL-5Team</span><span aria-hidden="true">|</span><a href="https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN30-FINAL-5Team" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-coral-orange">GitHub ↗</a>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      window.location.replace('https://app.helkki.com/');
+    }
+
+    const appFrame = document.getElementById('app-frame');
+    const webApp = document.getElementById('helkki-web-app');
+    webApp.addEventListener('load', () => appFrame.classList.add('is-loaded'), { once: true });
+
+  </script>
+</body>
+</html>

@@ -48,11 +48,7 @@ class GymvisualMediaSyncTests(unittest.TestCase):
         video_dir = media_root / "videos"
         image_dir.mkdir()
         video_dir.mkdir()
-        gymvisual_ids = {
-            row["source_identity"]
-            for row in sync.read_csv(sync.REPRESENTATIVE_PATH)
-            if row["source_track"] == "gymvisual"
-        }
+        gymvisual_ids = {row["source_identity"] for row in sync.gymvisual_candidates()}
         for row in sync.read_json(sync.RAW_EXERCISES_PATH):
             if str(row["id"]) not in gymvisual_ids:
                 continue
@@ -69,15 +65,18 @@ class GymvisualMediaSyncTests(unittest.TestCase):
         self.media_patch.stop()
         self.media_tmp.cleanup()
 
-    def test_repository_local_media_has_87_exact_pairs_and_preserves_leading_zero(self) -> None:
+    def test_repository_local_media_has_91_exact_pairs_and_preserves_leading_zero(self) -> None:
         pairs = sync.validate_local_media()
-        self.assertEqual(len(pairs), 87)
+        self.assertEqual(len(pairs), 91)
         deadlift = next(pair for pair in pairs if pair.representative_exercise_id == "REX-000004")
         self.assertEqual(deadlift.source_identity, "0032")
         self.assertEqual(deadlift.image_path.name, "0032-ila4NZS.jpg")
         self.assertEqual(deadlift.video_path.name, "0032-ila4NZS.gif")
         self.assertEqual(deadlift.image_key, "images/0032-ila4NZS.jpg")
         self.assertEqual(deadlift.video_key, "videos/0032-ila4NZS.gif")
+        added = next(pair for pair in pairs if pair.representative_exercise_id == "REX-000124")
+        self.assertEqual(added.source_identity, "1369")
+        self.assertEqual(added.video_key, "videos/1369-jl6uxZV.gif")
 
     def test_mapping_manifest_has_only_source_traceability_columns(self) -> None:
         pairs = sync.validate_local_media()
@@ -86,7 +85,7 @@ class GymvisualMediaSyncTests(unittest.TestCase):
             sync.write_mapping_manifest(pairs, output)
             with output.open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            self.assertEqual(len(rows), 87)
+            self.assertEqual(len(rows), 91)
             self.assertEqual(tuple(rows[0]), sync.MAPPING_MANIFEST_COLUMNS)
             deadlift = next(row for row in rows if row["source_identity"] == "0032")
             self.assertEqual(deadlift["representative_exercise_id"], "REX-000004")
@@ -145,9 +144,17 @@ class GymvisualMediaSyncTests(unittest.TestCase):
             )
             source_path = root / "source.json"
             source_path.write_text(json.dumps({"record_count": 2}), encoding="utf-8")
+            current_catalog_path = root / "current.jsonl"
+            current_catalog_path.write_text("", encoding="utf-8")
+            current_registry_path = root / "current.csv"
+            current_registry_path.write_text(
+                "representative_exercise_id,stable_code\n", encoding="utf-8"
+            )
             with patch.multiple(
                 sync,
                 REPRESENTATIVE_PATH=representative_path,
+                CURRENT_CATALOG_PATH=current_catalog_path,
+                CURRENT_REGISTRY_PATH=current_registry_path,
                 RAW_EXERCISES_PATH=raw_path,
                 RAW_SOURCE_PATH=source_path,
                 IMAGE_DIR=root / "images",
@@ -174,12 +181,12 @@ class GymvisualMediaSyncTests(unittest.TestCase):
         client = FakeS3(source_heads)
         sync.validate_source_objects(pairs, client, "bucket")
         copied, reused = sync.copy_canonical_aliases(pairs, client, "bucket")
-        self.assertEqual(copied, 174)
+        self.assertEqual(copied, 182)
         self.assertEqual(reused, 0)
         copied_again, reused_again = sync.copy_canonical_aliases(pairs, client, "bucket")
         self.assertEqual(copied_again, 0)
-        self.assertEqual(reused_again, 174)
-        self.assertEqual(len(client.copies), 174)
+        self.assertEqual(reused_again, 182)
+        self.assertEqual(len(client.copies), 182)
 
     def test_s3_source_upload_is_idempotent_and_requires_local_bytes(self) -> None:
         pairs = sync.validate_local_media()
@@ -193,12 +200,12 @@ class GymvisualMediaSyncTests(unittest.TestCase):
         }
         client = FakeS3(source_heads)
         uploaded, reused, _ = sync.ensure_source_objects(pairs, client, "bucket")
-        self.assertEqual(uploaded, 87)
-        self.assertEqual(reused, 87)
-        self.assertEqual(len(client.uploads), 87)
+        self.assertEqual(uploaded, 91)
+        self.assertEqual(reused, 91)
+        self.assertEqual(len(client.uploads), 91)
         uploaded_again, reused_again, _ = sync.ensure_source_objects(pairs, client, "bucket")
         self.assertEqual(uploaded_again, 0)
-        self.assertEqual(reused_again, 174)
+        self.assertEqual(reused_again, 182)
 
         with (
             patch.object(sync, "IMAGE_DIR", Path("/missing/images")),
@@ -257,7 +264,7 @@ class GymvisualMediaSyncTests(unittest.TestCase):
             sync.write_review_csv(pairs, output, media_status="UNAVAILABLE")
             with output.open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            self.assertEqual(len(rows), 87)
+            self.assertEqual(len(rows), 91)
             self.assertEqual(tuple(rows[0]), sync.REVIEW_COLUMNS)
             self.assertTrue(all(row["media_status"] == "UNAVAILABLE" for row in rows))
             self.assertTrue(all(row["s3_technical_status"] == "NOT_EXECUTED" for row in rows))
@@ -300,10 +307,56 @@ class GymvisualMediaSyncTests(unittest.TestCase):
             )
             with output.open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            self.assertEqual(len(rows), 87)
+            self.assertEqual(len(rows), 91)
             self.assertTrue(all(row["rights_review_status"] == "APPROVED" for row in rows))
             self.assertTrue(all(row["production_eligibility"] == "true" for row in rows))
             self.assertTrue(all(row["backend_visibility"] == "VISIBLE" for row in rows))
+
+    def test_approved_review_evidence_requires_one_uniform_approved_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "review.csv"
+            fields = (
+                "rights_review_status",
+                "rights_reviewer",
+                "rights_reviewed_at",
+                "rights_evidence_reference",
+            )
+            with path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                writer.writerows(
+                    [
+                        {
+                            "rights_review_status": "APPROVED",
+                            "rights_reviewer": "rights-holder",
+                            "rights_reviewed_at": "2026-08-18T00:00:00+09:00",
+                            "rights_evidence_reference": "dataset-wide approval",
+                        },
+                        {
+                            "rights_review_status": "APPROVED",
+                            "rights_reviewer": "rights-holder",
+                            "rights_reviewed_at": "2026-08-18T00:00:00+09:00",
+                            "rights_evidence_reference": "dataset-wide approval",
+                        },
+                    ]
+                )
+            self.assertEqual(
+                sync.approved_review_evidence(path),
+                (
+                    "rights-holder",
+                    "2026-08-18T00:00:00+09:00",
+                    "dataset-wide approval",
+                ),
+            )
+
+            rows = sync.read_csv(path)
+            rows[1]["rights_review_status"] = "PENDING"
+            with path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaisesRegex(sync.SyncError, "uniformly APPROVED"):
+                sync.approved_review_evidence(path)
 
 
 if __name__ == "__main__":

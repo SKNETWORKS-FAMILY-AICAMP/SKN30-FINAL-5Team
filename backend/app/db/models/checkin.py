@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     Uuid,
@@ -37,6 +38,14 @@ class DailyContext(Base):
             "sleep_minutes IS NULL OR sleep_minutes BETWEEN 0 AND 1440",
             name="ck_daily_contexts_sleep_minutes",
         ),
+        CheckConstraint(
+            "sleep_source_code IS NULL OR sleep_source_code IN ('MANUAL', 'WEARABLE')",
+            name="ck_daily_contexts_sleep_source",
+        ),
+        CheckConstraint(
+            "available_time_minutes IS NULL OR available_time_minutes BETWEEN 10 AND 60",
+            name="ck_daily_contexts_available_time",
+        ),
         CheckConstraint("context_version > 0", name="ck_daily_contexts_version"),
         CheckConstraint(
             "availability_source_code IN ('MANUAL', 'ROUTINE_DEFAULT')",
@@ -56,6 +65,14 @@ class DailyContext(Base):
         String(64), ForeignKey("locations.code", ondelete="RESTRICT"), nullable=False
     )
     sleep_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sleep_source_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    available_time_minutes: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    pain_present: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default="false"
+    )
+    red_flag_present: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default="false"
+    )
     fasting_state_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     hydration_state_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     availability_source_code: Mapped[str] = mapped_column(
@@ -70,6 +87,9 @@ class DailyContext(Base):
     )
 
     discomforts: Mapped[list["DailyContextDiscomfort"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    pains: Mapped[list["DailyContextPain"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
     adverse_reactions: Mapped[list["DailyContextAdverseReaction"]] = relationship(
@@ -100,6 +120,32 @@ class DailyContextDiscomfort(Base):
         String(64), ForeignKey("body_areas.code", ondelete="RESTRICT"), nullable=False
     )
     severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class DailyContextPain(Base):
+    __tablename__ = "daily_context_pains"
+    __table_args__ = (
+        UniqueConstraint("daily_context_id", "body_area_code", name="uq_daily_context_pain_body"),
+        CheckConstraint("intensity_score BETWEEN 1 AND 10", name="ck_daily_context_pain_intensity"),
+        CheckConstraint(
+            "severity_code IN ('MILD', 'MODERATE', 'SEVERE')",
+            name="ck_daily_context_pain_severity",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    daily_context_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("daily_contexts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code", ondelete="RESTRICT"), nullable=False
+    )
+    intensity_score: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class DailyContextAdverseReaction(Base):
@@ -137,4 +183,5 @@ __all__ = [
     "DailyContextAdverseReaction",
     "DailyContextAvailabilitySlot",
     "DailyContextDiscomfort",
+    "DailyContextPain",
 ]

@@ -1,6 +1,6 @@
 # ADR-0010: Google Calendar 외부 컨텍스트 계약
 
-- 상태: ACCEPTED · 구현 보류(DEFERRED) — 2026-08-20
+- 상태: SUPERSEDED by ADR-0016 — 2026-09-02
 - 날짜: 2026-08-14
 - 최종 기술 검토: 2026-08-17
 - 승인일: 2026-08-17
@@ -10,6 +10,8 @@
 - 관련 요구사항/이슈: `F011-1-1`~`F011-1-8`, `NFR-004`, `NFR-005`, Wave 9C
 - 정책 버전: `external-context-policy-v2`
 - schema: `calendar-availability-v1`, `calendar-performance-v2`, `calendar-credential-v1`
+
+> 2026-09-02에 ADR-0016으로 외부 캘린더 계약 전체가 폐기됐다. 아래 내용은 역사 기록이며 현재 정책이나 구현 기준이 아니다.
 
 ## 구현 보류 (2026-08-20)
 
@@ -119,7 +121,7 @@ secondary calendar와 그 이벤트의 관리를 허용한다고 설명한다. F
 - 한 workout session에는 event link가 최대 한 개다. 같은 idempotency key와 같은 요청은 최초 응답을
   반환하고, 다른 key로 이미 연결된 session은 `409 CALENDAR_EVENT_ALREADY_LINKED`다.
 - performance gate는 `workout_sessions.status_code`의 공식 종료 상태
-  `COMPLETED/PARTIAL/NOT_COMPLETED/STOPPED_FOR_SAFETY`를 사용한다. `scheduled_workouts` 상태나
+  `COMPLETED/PARTIAL/NOT_COMPLETED` 완료 상태 또는 `STOPPED_SAFETY` 실행 상태를 사용한다. `scheduled_workouts` 상태나
   elapsed time, Calendar event 상태를 사용하지 않는다.
 - Google은 수행 여부 필드를 제공하지 않으므로 performance는 provider HTTP 조회 없이 항상
   `performed=null`과 검수 안내를 반환한다. endpoint 호출 시각을 `performance_checked_at`으로

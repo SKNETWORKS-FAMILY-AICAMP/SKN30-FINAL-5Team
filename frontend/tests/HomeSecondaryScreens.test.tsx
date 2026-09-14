@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 import {
   AccessibilityInfo,
@@ -24,6 +25,7 @@ import {
 import {
   CALENDAR_DAY_VISUALS,
   CALENDAR_MONTH_STATS,
+  CALENDAR_STATUS_ORDER,
   CALENDAR_WEEK_CHIPS,
   CALENDAR_WEEKDAYS,
   CALENDAR_WEEKS,
@@ -39,7 +41,7 @@ const EXPECTED_CALENDAR_WEEKS = [
       '28:done:false',
       '29:partial:false',
       '30:done:false',
-      '31:miss:false',
+      '31:rest:false',
       '1:partial:true',
       '2:rest:true',
     ],
@@ -55,10 +57,10 @@ const EXPECTED_CALENDAR_WEEKS = [
       '5:done:true',
       '6:partial:true',
       '7:done:true',
-      '8:miss:true',
+      '8:rest:true',
       '9:rest:true',
     ],
-    [3, 1, 2, 1],
+    [3, 1, 3, 0],
   ],
   [
     'week-3',
@@ -67,7 +69,7 @@ const EXPECTED_CALENDAR_WEEKS = [
     [
       '10:done:true',
       '11:partial:true',
-      '12:today:true',
+      '12:upcoming:true',
       '13:upcoming:true',
       '14:upcoming:true',
       '15:upcoming:true',
@@ -123,10 +125,10 @@ const EXPECTED_CALENDAR_WEEKS = [
 ] as const;
 
 const EXPECTED_DAY_VISUALS = [
-  ['done', '✓', 0x2713, '#F6BA50', '#FFFFFF', '#F6BA50'],
+  ['done', '✓', 0x2713, '#5E8342', '#FFFFFF', '#5E8342'],
   ['partial', '△', 0x25b3, '#F6BA50', '#6B520C', '#F6BA50'],
-  ['miss', '×', 0x00d7, '#FFFFFF', '#C0BBB1', '#E2DED4'],
   ['rest', '–', 0x2013, '#EDEAE2', '#8B8780', '#EDEAE2'],
+  ['safety', '!', 0x21, '#FCE3E7', '#C45C70', '#FCE3E7'],
   ['today', '', undefined, 'transparent', 'transparent', 'transparent'],
   ['upcoming', '', undefined, 'transparent', 'transparent', 'transparent'],
 ] as const;
@@ -209,8 +211,8 @@ describe('Home secondary visual prototypes', () => {
     expect(CALENDAR_MONTH_STATS.map(({ key, value }) => [key, value])).toEqual([
       ['done', 4],
       ['partial', 3],
-      ['rest', 3],
-      ['miss', 1],
+      ['rest', 4],
+      ['safety', 0],
     ]);
     expect(CALENDAR_WEEKDAYS.map(({ label, color }) => [label, color])).toEqual(
       [
@@ -230,8 +232,8 @@ describe('Home secondary visual prototypes', () => {
 
     expect(screen.getByText('6주차')).toBeOnTheScreen();
     expect(
-      screen.getByTestId('calendar-day-week-2-0-mark-glyph').props.children,
-    ).toBe('–');
+      screen.getByTestId('calendar-day-week-2-0-mark-moon'),
+    ).toBeOnTheScreen();
     expect(
       screen.getByTestId('calendar-day-week-3-2-mark-glyph').props.children,
     ).toBe('');
@@ -242,8 +244,10 @@ describe('Home secondary visual prototypes', () => {
     ).toMatchObject({
       width: 20,
       height: 20,
-      backgroundColor: '#EDEAE2',
-      borderColor: '#EDEAE2',
+      // The moon-and-star vector carries its own shape, so the wrapper circle
+      // stays out of its way.
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
       borderWidth: 1.5,
     });
     expect(
@@ -305,13 +309,88 @@ describe('Home secondary visual prototypes', () => {
     });
   });
 
-  it('renders the status legend above the weekday row', () => {
+  it('renders the untitled status legend above the weekday row', () => {
     const view = render(<CalendarReportScreen />);
     const tree = JSON.stringify(view.toJSON());
 
+    expect(screen.queryByText('아이콘 안내')).toBeNull();
     expect(tree.indexOf('calendar-legend-done')).toBeLessThan(
       tree.indexOf('calendar-weekday-월'),
     );
+    expect(
+      CALENDAR_STATUS_ORDER.map((status) => CALENDAR_DAY_VISUALS[status].label),
+    ).toEqual(['완료', '부분 수행', '휴식', '안전 중단']);
+    expect(CALENDAR_MONTH_STATS.map((stat) => stat.label)).toEqual([
+      '완료',
+      '부분 수행',
+      '휴식',
+      '안전 중단',
+    ]);
+  });
+
+  it('marks today separately from the recorded day status', () => {
+    render(<CalendarReportScreen />);
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-2').props.style,
+      ),
+    ).toMatchObject({ borderColor: '#E0A742', backgroundColor: '#FFF3D6' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-2-number').props.style,
+      ),
+    ).toMatchObject({ color: '#A45F00', fontWeight: '800' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-1').props.style,
+      ).borderColor,
+    ).toBe('transparent');
+  });
+
+  it('shows a caret on every expandable week card and flips it when open', () => {
+    render(<CalendarReportScreen />);
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-caret-week-3', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).transform,
+    ).toBeUndefined();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '3주차 진행 중, 요약 펼치기' }),
+    );
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-caret-week-3', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).transform,
+    ).toEqual([{ rotate: '180deg' }]);
+  });
+
+  it('summarises an expanded week with the shared status labels', () => {
+    render(<CalendarReportScreen />);
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '3주차 진행 중, 요약 펼치기' }),
+    );
+
+    expect(screen.getByText('완료 1회 / 부분 수행 1회')).toBeOnTheScreen();
+    expect(screen.queryByText(/^3주차 ·/)).toBeNull();
+    for (const status of CALENDAR_STATUS_ORDER) {
+      expect(
+        screen.getByTestId(`calendar-week-stat-${status}`),
+      ).toBeOnTheScreen();
+    }
+    expect(
+      screen.getByText(
+        '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.',
+      ),
+    ).toBeOnTheScreen();
   });
 
   it('periodically shakes the report creation CTA when motion is allowed', async () => {
@@ -345,7 +424,15 @@ describe('Home secondary visual prototypes', () => {
         onSelectRest={onSelectRest}
         onStartWorkout={onStartWorkout}
         previewState="map"
-        routine={PREVIEW_ROUTINE}
+        routine={{
+          ...PREVIEW_ROUTINE,
+          days: [
+            {
+              ...PREVIEW_ROUTINE.days[0]!,
+              routine_name: '전신 근력 시작하기',
+            },
+          ],
+        }}
         week={PREVIEW_OPEN_WEEK}
       />,
     );
@@ -356,7 +443,9 @@ describe('Home secondary visual prototypes', () => {
       screen.getByText('진행 중인 주예요. 편한 날에 하나씩 채워요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('지금 내 루틴')).toBeOnTheScreen();
-    expect(screen.getByText('근력 · 30분 · 블록 3개')).toBeOnTheScreen();
+    expect(
+      screen.getByText('전신 근력 시작하기 · 30분 · 블록 3개'),
+    ).toBeOnTheScreen();
     expect(screen.getByText('의자 스쿼트')).toBeOnTheScreen();
     expect(screen.getAllByText('3세트 × 10회')).toHaveLength(3);
     expect(screen.getByText('제자리 걷기')).toBeOnTheScreen();
@@ -376,9 +465,11 @@ describe('Home secondary visual prototypes', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '이 루틴으로 시작하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '오늘은 휴식하기' }));
+    expect(
+      screen.queryByRole('button', { name: '오늘은 휴식하기' }),
+    ).toBeNull();
     expect(onStartWorkout).toHaveBeenCalledTimes(1);
-    expect(onSelectRest).toHaveBeenCalledTimes(1);
+    expect(onSelectRest).not.toHaveBeenCalled();
   });
 
   it('shows an empty API state at the bottom without restoring map controls', async () => {
@@ -386,7 +477,7 @@ describe('Home secondary visual prototypes', () => {
 
     expect(
       screen.getByText(
-        '아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 만들어 주세요.',
+        '아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 다시 불러와 주세요.',
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByText('4,200')).toBeNull();
@@ -690,9 +781,57 @@ describe('Home secondary visual prototypes', () => {
     );
 
     fireEvent.press(screen.getByRole('switch', { name: /응원 알림/ }));
-    fireEvent.press(screen.getByRole('button', { name: /연동 기기/ }));
+    expect(screen.queryByRole('button', { name: /연동 기기/ })).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: /개인정보 처리방침 및 이용/ }),
+    );
     expect(onNotificationChange).toHaveBeenCalledWith('encouragement', true);
-    expect(onAccountAction).toHaveBeenCalledWith('연동 기기');
+    expect(onAccountAction).toHaveBeenCalledWith('개인정보 처리방침 및 이용');
+  });
+
+  it('shows the app version without a navigation arrow', async () => {
+    await render(<MyPageScreen />);
+
+    const versionRow = screen.getByRole('button', { name: '앱 버전' });
+    expect(versionRow).toBeDisabled();
+    expect(within(versionRow).getByText('0.1.0')).toBeOnTheScreen();
+    expect(within(versionRow).queryByText('›')).toBeNull();
+  });
+
+  it('opens privacy, terms, and inquiry details from My page', async () => {
+    await render(<MyPageScreen />);
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '개인정보 처리방침 및 이용' }),
+    );
+    expect(
+      screen.getByRole('header', { name: '개인정보 처리방침 및 이용' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('개인정보처리방침 확인')).toBeOnTheScreen();
+    expect(screen.getByText('개인정보 수집 및 이용')).toBeOnTheScreen();
+    expect(screen.getByText('건강 관련 민감정보 처리')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '개인정보처리방침 펼쳐보기' }),
+    );
+    expect(screen.getByTestId('policy-privacy_policy')).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '마이페이지로 돌아가기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '이용약관' }));
+    expect(screen.getByText('서비스 이용약관 동의')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '서비스 이용약관 펼쳐보기' }),
+    );
+    expect(screen.getByTestId('policy-service_terms')).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '마이페이지로 돌아가기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '문의하기' }));
+    expect(screen.getByText('SKN30th-FINAL-5team')).toBeOnTheScreen();
+    expect(screen.getByText('TEAM 콩닥 관리자')).toBeOnTheScreen();
+    expect(screen.getByText('qwop1651@naver.com')).toBeOnTheScreen();
   });
 
   it('renders logout and withdrawal confirmations as callback-only states', async () => {

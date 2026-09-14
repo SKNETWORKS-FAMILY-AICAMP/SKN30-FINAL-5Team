@@ -9,19 +9,21 @@ high-availability production architecture.
 `compose.staging.yaml` runs only FastAPI and Qdrant. The API binds to EC2 loopback until a reviewed
 domain and TLS reverse proxy are configured; Qdrant is reachable only on the Compose network.
 
-The baseline is intentionally fail-closed: V3, LLM calls, Qdrant retrieval and production promotion
-remain disabled. `infra/deployment/.env.staging` is generated on the host from AWS Secrets Manager
-and must contain only `DATABASE_URL` and non-secret operational settings. Never copy a developer
-`.env` file to EC2.
+The public service runs the approved V3 route. Its canonical deployment always combines the base,
+authenticated-Qdrant and V3-production overlays. `infra/deployment/.env.staging` is generated on
+the host from AWS Secrets Manager and is never committed, printed or copied from a developer `.env`
+file.
 
 ```bash
 docker compose --env-file infra/deployment/.env.staging \
-  -f infra/deployment/compose.staging.yaml config --quiet
-docker compose -f infra/deployment/compose.staging.yaml build api
-docker compose -f infra/deployment/compose.staging.yaml run --rm --no-deps api \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.qdrant.yaml \
+  -f infra/deployment/compose.staging.v3production.yaml config --quiet
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml build api
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml run --rm --no-deps api \
   uv run --no-sync alembic -c backend/alembic.ini upgrade head
-docker compose -f infra/deployment/compose.staging.yaml up -d
-docker compose -f infra/deployment/compose.staging.yaml ps
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml up -d
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml ps
 for attempt in $(seq 1 24); do
   curl --fail http://127.0.0.1:8000/api/v1/health/ready && break
   sleep 5
@@ -32,6 +34,58 @@ Do not expose ports 8000, 6333, 6334 or 5432 in the EC2 security group. Only 80 
 and they terminate at Caddy; the API keeps its own port on loopback so `curl 127.0.0.1:8000` still
 works over SSH for operators. OpenAI credentials are not part of this baseline and require a
 separately rotated staging credential and provider approval.
+
+## Firebase Admin credential injection
+
+The EC2 instance role reads `/helkki/staging/firebase_id` and
+`/helkki/staging/firebase-admin-service-account` from AWS Secrets Manager. The first becomes
+`FIREBASE_PROJECT_ID`. If `firebase_id` is a JSON secret, extract its
+`FIREBASE_PROJECT_ID` scalar field before writing the environment file; do not write the complete
+JSON object as the environment value. The service-account JSON must be written only to
+`/opt/helkki/secrets/firebase-admin-service-account.json`, owned by `root` with mode `0640` and the
+group set to the API container's GID (`10001`, the `app` user in `backend/Dockerfile`). Compose
+mounts that file read-only at `/run/secrets/firebase-admin-service-account.json`, and
+`GOOGLE_APPLICATION_CREDENTIALS` must use that container path.
+
+A bind mount carries the host permissions into the container, and the API does not run as root, so
+mode `0600` on a root-owned file makes the credential unreadable and every protected route fails
+closed with `AUTH_PROVIDER_UNAVAILABLE`. Group read is what the container needs; world read is
+never acceptable.
+
+Do not write the JSON to `.env.staging`, a release directory, command output, CloudWatch, or S3.
+Before starting Compose, validate that the host file exists, that
+`stat -c '%a %g'` reports `640 10001`, and that `docker compose ... config --quiet` succeeds. A
+deployment missing either Firebase environment value must be treated as a failed release.
+
+## Social login credential injection
+
+Three secrets carry the social login credentials: `/helkki/staging/kakao-oauth` and
+`/helkki/staging/google-oauth` hold the provider client credentials, and
+`/helkki/staging/social-oauth-hmac-key` holds a key we generate ourselves. The EC2 role reads all
+three through `infra/aws/ec2-staging-secrets-policy.json`; a secret that is not listed there is
+unreadable no matter what the environment file says.
+
+The API takes these from `.env.staging` like any other value -- `compose.staging.yaml` loads that
+file wholesale, so no Compose change is needed to add them. Write the provider values as
+`KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `GOOGLE_OAUTH_CLIENT_ID` and
+`GOOGLE_OAUTH_CLIENT_SECRET`. `KAKAO_CLIENT_SECRET` may be empty when the Kakao console has the
+client secret turned off; the other three are required.
+
+`SOCIAL_OAUTH_RATE_LIMIT_HMAC_KEY` is not a provider credential. It keys the digest that stands in
+for the client IP and redirect URI in `social_oauth_rate_limit_windows`, which is how the rate limit
+works without storing either in the clear. Generate it once with `openssl rand -base64 32`. Without
+it every social route answers `PROVIDER_UNAVAILABLE`, which is the intended fail-closed behaviour and
+not a reason to hardcode a value.
+
+`KAKAO_REDIRECT_URIS` and `GOOGLE_OAUTH_REDIRECT_URIS` are public configuration and belong in
+`.env.staging` directly, not in Secrets Manager. They must match the callbacks registered in each
+provider console exactly. `Settings` accepts only absolute `http(s)` callbacks and rejects a custom
+app scheme at startup, so the mobile flow needs an https callback that hands control back to the
+app; that callback is a frontend decision (FE-11) and has to be settled before the values are final.
+
+Rotating any of the three is an environment-file regeneration and an API restart. Nothing about a
+provider credential or the HMAC key may reach `.env.staging.example`, a release directory, command
+output, CloudWatch, or S3.
 
 ## Birthdate encryption with AWS KMS
 
@@ -96,6 +150,34 @@ Pass the origin only, without the `/api/v1` suffix: the client appends that pref
 (`frontend/src/api/client.ts`), so including it here produces `/api/v1/api/v1/...` and every
 request 404s.
 
+### Landing page and Expo web app on separate hosts
+
+Use `compose.staging.web.yaml` when the public entry page and the Expo web app
+share one Caddy instance. The overlay serves the landing page on `WEB_DOMAIN`,
+preserves `WEB_DOMAIN/api/*` for backward compatibility, serves the existing
+Expo export on `APP_DOMAIN`, and redirects `APEX_DOMAIN` to `WEB_DOMAIN`.
+
+Build a new Expo web release when needed with:
+
+```bash
+cd frontend
+npm run build:web
+```
+
+Set `LANDING_SITE_ROOT` and `WEB_APP_ROOT` to absolute host paths. Set
+`CORS_ALLOWED_ORIGINS` to the exact `https://APP_DOMAIN` origin because an Expo
+bundle built with `WEB_DOMAIN` as its API base makes a cross-origin API request
+after the app moves to `APP_DOMAIN`.
+
+```bash
+docker compose --env-file infra/deployment/.env.staging \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.web.yaml config --quiet
+docker compose --env-file infra/deployment/.env.staging \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.web.yaml up -d api caddy
+```
+
 The `caddy_data` volume holds the certificate and the ACME account key. Do not prune it between
 deploys: re-requesting on every restart reaches the Let's Encrypt rate limit within a day. If a
 certificate must be reissued, use the staging ACME endpoint first.
@@ -118,6 +200,73 @@ uv run --no-sync python -m backend.scripts.catalog_activate activate exercise-ca
 `DOMAIN_REVIEWER` sign-off (`V2-PROMOTION-APPROVAL-2026-08-25-R01`), so the repository writes
 `PRODUCTION_APPROVED` on its own. Reaching for that flag here would record a review that did not
 happen. The four unreviewed KSPO/wger catalogs stay `DRAFT`/`AGENT_ONLY` and are never activated.
+
+### Integrated v2.0.7
+
+`exercise-catalog-v2.0.7-final` is the same reviewed v2.0.6 content retargeted as one release, plus
+the separately approved six-field MET projection. It has its own promotion command, and that command
+is the only way it reaches staging or production:
+
+```bash
+uv run --no-sync alembic -c backend/alembic.ini upgrade head
+uv run --no-sync python -m backend.scripts.catalog_promote_v2_0_7
+uv run --no-sync python -m backend.scripts.catalog_promote_v2_0_7 --activate
+```
+
+The DRAFT path is not an alternative route to the same rows. `import_loaded_artifact` still refuses
+anything but `local` and `test`, and `integrated-catalog-v2.0.7-draft` never leaves a developer
+machine. `catalog_promote_v2_0_7` pins three hashes before it opens a transaction -- the integrated
+wrapper manifest, the inner catalog bundle manifest, and the taxonomy registry -- and
+`import_v2_bundle` then matches every sub-manifest against its approval-registry entry
+(`V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01`). A rebuilt bundle whose bytes moved fails closed at the
+first hash rather than importing content nobody approved.
+
+`--activate` is a separate invocation on purpose: the import commits atomically first, so a failed
+activation never leaves half a catalog live. Production additionally requires `APP_ENV=production`,
+which `promote_v2_0_7` passes through as `allow_production`; staging cannot reach that branch.
+
+Two things follow the activation rather than preceding it. Calorie estimates stay `UNAVAILABLE` until
+this catalog is active, because `met_value` is read from the catalog row and no earlier promoted
+catalog carries one. Reviewed FITT volume ranges apply to the 89 exercises the identity-registry join
+covers; the rest stay `REVIEW_REQUIRED` and remain bounded by the Recovery ceiling alone.
+
+**This procedure has not been run against a real database.** It is verified against the pinned bundle
+and the approval registry only (`backend/tests/unit/test_catalog_v2_0_7_release.py`). Run
+`upgrade head -> downgrade base -> upgrade head` and the promotion twice on a dedicated test database
+whose name ends in `_test` before pointing it at Aurora.
+
+#### The vector index must be rebuilt with it
+
+Activating v2.0.7 creates a new catalog version UUID, and `v3_demo_retrieval` resolves the index by
+that UUID (`get_active_for_catalog`). An index built against the previous catalog does not carry
+over, and the miss is not an error: retrieval answers `VECTOR_INDEX_NOT_READY` and falls back to the
+deterministic pool. Routine creation keeps working and quietly stops using vector retrieval, so
+nothing in the health check or the logs will say the release regressed.
+
+Rehearsing the promotion on a `_test` database shows the gap directly -- after activation the
+registry holds no row for the new catalog at all:
+
+```sql
+SELECT count(*) FROM vector_index_registry AS v
+JOIN catalog_versions AS c ON c.id = v.catalog_version_id
+WHERE c.activated_at IS NOT NULL AND v.status_code = 'ACTIVE';
+```
+
+Rebuild after `--activate`, on the staging host, with the authenticated Qdrant overlay composed:
+
+```bash
+uv run --no-sync python -m backend.scripts.build_qdrant_index   --catalog-version exercise-catalog-v2.0.7-final   --vector-index-version <approved-index-version>   --allow-provider-calls
+```
+
+`--allow-provider-calls` is what it says: the builder embeds every indexable exercise through OpenAI,
+so it spends the staging credential and must not be run speculatively. The command refuses itself
+unless `APP_ENV=staging`, `QDRANT_ENABLED=true`, the embedding contract is fully configured and
+`V3_PRODUCTION_PROMOTION_APPROVED=false` -- the production overlay sets that flag true, so run the
+build before composing it, then bring the production overlay up.
+
+Verify with the registry query above before and after: exactly one `ACTIVE` row for the new catalog
+UUID, and a collection whose point count matches the builder's preflight count. Until that row
+exists, treat V3 routine quality as unverified regardless of what the API returns.
 
 ## Qdrant staging readiness and #150 handoff
 
@@ -161,26 +310,29 @@ API pointed at the in-Compose plaintext endpoint. The overlay also resets the AP
 parks the in-Compose `qdrant` service under an unused profile, so only `api` and `caddy` start.
 
 Enabling Qdrant is necessary but not sufficient for vector retrieval: the retriever is only
-constructed on the V3 path, so the demo profile below is what actually puts it in use.
+constructed on the V3 path, so the production profile below is what actually puts it in use.
 
-### Applying the V3 demo profile
+### Applying the public V3 production profile
 
-`compose.staging.v3demo.yaml` makes V3 authoritative and is the overlay that puts Qdrant retrieval
-on the routine-creation path. Apply it on top of the Qdrant overlay, which supplies `OPENAI_API_KEY`
+`compose.staging.v3production.yaml` makes V3 authoritative and is the required overlay that puts
+Qdrant retrieval and the LLM multi-agent path on every public routine-creation request. Apply it on
+top of the Qdrant overlay, which supplies `OPENAI_API_KEY`
 and the index this profile ranks against:
 
 ```bash
-docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3demo.yaml up -d
+docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3production.yaml up -d
 ```
 
-The approved agent model code is `gpt-5.6-terra`, and `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
-it. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
+The approved agent model code is `gpt-5.6-terra`, `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
+it, and the structured decision path pins `LLM_AGENTS_REASONING_EFFORT=low` to bound latency and
+provider-default drift. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
 chat model is `None`, the V3 runtime is never built, and the retriever is never constructed. The
-symptom is not an error but a silent deterministic fallback, so confirm retrieval positively rather
+runtime is not composed and routine creation must not silently use the legacy service. Confirm
+retrieval positively rather
 than reading a healthy `/health/ready` as proof.
 
-`APP_ENV=production` with `V3_EXECUTION_PROFILE=DEMO` is rejected during settings validation, so this
-overlay cannot promote V3 outside staging. `V3_PRODUCTION_PROMOTION_APPROVED` stays `false`.
+`V3_PRODUCTION_PROMOTION_APPROVED=true` is part of this overlay. It records the approved production
+composition and must never be set by a client request or the shadow evaluator.
 
 Before #150 runs any index builder, an operator with read-only Aurora access must execute the
 following queries and transfer only the returned non-secret catalog/registry fields. Do not print

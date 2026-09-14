@@ -14,6 +14,7 @@ from backend.tests.unit.test_v3_agent_contracts import (
     A,
     B,
     C,
+    D,
     envelope,
     exercise,
     pool,
@@ -76,21 +77,50 @@ def test_valid_compiled_plan_passes_with_stable_validation_hash() -> None:
     assert first.validation_hash == second.validation_hash
 
 
-def test_exact_duration_mismatch_is_repairable_only_with_approved_alternative() -> None:
+def test_a_duration_mismatch_is_repairable_from_the_pool_alone() -> None:
+    """ADR-0022: rearranging a plan needs no Safety-approved substitute.
+
+    This asserted the opposite until ADR-0022. Nothing populates
+    `approved_safe_alternative_ids` outside these tests, so requiring it here
+    made every violation terminal and left the repair node unreachable in a
+    real run -- measured in `docs/test/ROUND2_HELDOUT_RESULTS.md` (D-6).
+    """
+
     current_envelope = envelope()
     compiled, current_pool = compiled_plan(current_envelope)
     wrong_duration = compiled.model_copy(update={"estimated_duration_seconds": 1799})
 
-    repairable = validate_plan_integrity(
-        wrong_duration,
-        envelope=current_envelope,
-        pool=current_pool,
-        repair_attempt=0,
-        validator_version=VALIDATOR_VERSION,
-        context=context(),
+    for alternatives in ((B,), ()):
+        result = validate_plan_integrity(
+            wrong_duration,
+            envelope=current_envelope,
+            pool=current_pool,
+            repair_attempt=0,
+            validator_version=VALIDATOR_VERSION,
+            context=context(alternatives=alternatives),
+        )
+        assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE, alternatives
+        assert result.violations[0].code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+
+
+def test_a_safety_exclusion_still_needs_an_approved_substitute() -> None:
+    """The half of the old rule that ADR-0022 keeps.
+
+    Replacing an exercise Safety removed is not the same as rearranging a plan:
+    the pool at large is not an answer to what this user may do instead.
+    """
+
+    current_envelope = envelope(excluded_ids=(C,))
+    compiled, current_pool = compiled_plan(current_envelope)
+    excluded = compiled.exercises[0].model_copy(
+        update={
+            "prescription": compiled.exercises[0].prescription.model_copy(update={"exercise_id": C})
+        }
     )
+    with_excluded = compiled.model_copy(update={"exercises": (excluded, *compiled.exercises[1:])})
+
     terminal = validate_plan_integrity(
-        wrong_duration,
+        with_excluded,
         envelope=current_envelope,
         pool=current_pool,
         repair_attempt=0,
@@ -98,9 +128,63 @@ def test_exact_duration_mismatch_is_repairable_only_with_approved_alternative() 
         context=context(alternatives=()),
     )
 
-    assert repairable.status_code is IntegrityValidationStatusCode.REPAIRABLE
-    assert repairable.violations[0].code is IntegrityViolationCode.REQUESTED_DURATION_MISMATCH
+    assert IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED in {
+        item.code for item in terminal.violations
+    }
     assert terminal.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+
+
+def test_a_repeated_family_is_repairable_which_is_what_the_held_out_run_lost() -> None:
+    """SQ-HELD-023 exactly: a conditionally-repairable violation sent straight
+    to the deterministic fallback because no approved substitute existed."""
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    repeated = tuple(
+        item.model_copy(
+            update={
+                "prescription": item.prescription.model_copy(
+                    update={"exercise_id": compiled.exercises[0].prescription.exercise_id}
+                ),
+                "catalog_record": compiled.exercises[0].catalog_record,
+            }
+        )
+        for item in compiled.exercises
+    )
+    duplicated = compiled.model_copy(update={"exercises": repeated})
+
+    result = validate_plan_integrity(
+        duplicated,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(alternatives=()),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+
+
+def test_the_second_round_is_never_repairable_again() -> None:
+    """One repair round, not a loop. ADR-0022 did not touch this bound."""
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    wrong_duration = compiled.model_copy(update={"estimated_duration_seconds": 1799})
+
+    result = validate_plan_integrity(
+        wrong_duration,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=1,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+    assert IntegrityViolationCode.REPAIR_ATTEMPT_EXHAUSTED in {
+        item.code for item in result.violations
+    }
 
 
 def test_recovery_ceiling_and_safety_exclusion_cannot_be_relaxed() -> None:
@@ -139,6 +223,127 @@ def test_recovery_ceiling_and_safety_exclusion_cannot_be_relaxed() -> None:
     }
     assert IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED in {
         item.code for item in unsafe_result.violations
+    }
+
+
+def test_compiled_plan_fitt_upper_bound_is_enforced_after_coordination() -> None:
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    first = compiled.exercises[0]
+    over_limit = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(
+                    update={
+                        "prescription": first.prescription.model_copy(
+                            update={"repetitions_per_set": 13}
+                        )
+                    }
+                ),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+
+    result = validate_plan_integrity(
+        over_limit,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    assert IntegrityViolationCode.FITT_RANGE_EXCEEDED in {item.code for item in result.violations}
+
+
+def _without_fitt_context(compiled, pool):
+    """Return the plan and pool with the first exercise's reviewed range removed."""
+
+    first = compiled.exercises[0]
+    unmapped_record = first.catalog_record.model_copy(update={"fitt_context": None})
+    unmapped_plan = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(update={"catalog_record": unmapped_record}),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+    # The canonical-record check compares the compiled record against the pool,
+    # so the pool has to lose the range too or the test measures that instead.
+    unmapped_pool = pool.model_copy(
+        update={
+            "exercises": tuple(
+                unmapped_record if record.exercise_id == unmapped_record.exercise_id else record
+                for record in pool.exercises
+            )
+        }
+    )
+    return unmapped_plan, unmapped_pool
+
+
+def test_exercise_no_reviewed_fitt_range_covers_is_not_a_fitt_violation() -> None:
+    """No reviewed range covers every catalog entry, and an absent bound is not broken.
+
+    The Recovery ceiling is still enforced for the exercise. Reporting the
+    absence as a violation would reject every plan while bounding no volume,
+    which is what happened when the reviewed reference and the promoted catalog
+    turned out to use different identifiers.
+    """
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    unmapped, unmapped_pool = _without_fitt_context(compiled, current_pool)
+
+    result = validate_plan_integrity(
+        unmapped,
+        envelope=current_envelope,
+        pool=unmapped_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.PASS
+    assert not result.violations
+
+
+def test_approved_range_with_no_prescribed_repetitions_is_repairable() -> None:
+    """The one case the unavailable code still reports: a Coordinator omission."""
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    first = compiled.exercises[0]
+    assert first.catalog_record.approved_fitt_volume() is not None
+    omitted = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(
+                    update={
+                        "prescription": first.prescription.model_copy(
+                            update={"repetitions_per_set": None}
+                        )
+                    }
+                ),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+
+    result = validate_plan_integrity(
+        omitted,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    assert IntegrityViolationCode.FITT_RANGE_UNAVAILABLE in {
+        item.code for item in result.violations
     }
 
 
@@ -264,5 +469,284 @@ def test_equipment_outside_the_catalog_record_is_still_rejected() -> None:
     )
 
     assert IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE in {
+        item.code for item in result.violations
+    }
+
+
+def _validate(compiled: CompiledPlan, current_envelope: ConstraintEnvelope, current_pool):
+    return validate_plan_integrity(
+        compiled,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+
+def _compiled_with(
+    current_envelope: ConstraintEnvelope,
+    prescriptions,
+    *,
+    records=None,
+) -> tuple[CompiledPlan, ExercisePoolSnapshot]:
+    current_pool = pool(current_envelope, records)
+    current_input = coordinator_input(current_envelope, current_pool)
+    compiled = compile_plan(
+        plan(current_input, plan_prescriptions=prescriptions),
+        envelope=current_envelope,
+        pool=current_pool,
+        compiler_version=COMPILER_VERSION,
+        coordinator_input=current_input,
+    )
+    return compiled, current_pool
+
+
+def _rephased(compiled: CompiledPlan, phase_codes: tuple[str, ...]) -> CompiledPlan:
+    """Force phases onto an already compiled plan.
+
+    PlanSpec refuses to build a plan that misses a phase, so a coordinator
+    answer cannot reach here in this shape. A deterministic fallback plan can:
+    DeterministicFallbackPlanSpec carries no such contract, which is how an
+    all-MAIN session used to reach the user once the graph fell back.
+    """
+
+    return compiled.model_copy(
+        update={
+            "exercises": tuple(
+                item.model_copy(
+                    update={
+                        "prescription": item.prescription.model_copy(update={"phase_code": code})
+                    }
+                )
+                for item, code in zip(compiled.exercises, phase_codes, strict=True)
+            )
+        }
+    )
+
+
+def test_plan_without_a_warmup_or_cooldown_is_a_repairable_violation() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+    )
+    compiled = _rephased(valid, ("MAIN", "MAIN", "MAIN"))
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID in codes
+    assert all(
+        violation.repairable
+        for violation in result.violations
+        if violation.code is IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID
+    )
+
+
+def test_prescription_in_a_phase_the_catalog_does_not_approve_is_flagged() -> None:
+    # A phase is a reviewed property of the exercise: a loaded compound lift is
+    # not a cooldown just because a plan puts it last.
+    current_envelope = envelope()
+    records = (
+        exercise(A, phase_codes=("WARMUP", "MAIN")),
+        exercise(B, phase_codes=("MAIN",)),
+        exercise(C, phase_codes=("WARMUP", "MAIN", "COOLDOWN")),
+        exercise(D, phase_codes=("MAIN",)),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID in codes
+
+
+def test_plan_spending_more_than_the_warmup_type_budget_is_flagged() -> None:
+    # Warmup prepares the body; it does not absorb leftover minutes.
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+    )
+    compiled = _rephased(valid, ("WARMUP", "WARMUP", "WARMUP"))
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED in codes
+
+
+def test_plan_taking_two_exercises_from_one_family_is_flagged() -> None:
+    # The catalog's GOOD_MORNING family holds three variants that differ by
+    # implement, not by what they train. Listing several of them pads a session
+    # instead of varying it, so the compiled plan must not carry more than one.
+    current_envelope = envelope()
+    records = (
+        exercise(A, family_code="GOOD_MORNING"),
+        exercise(B, family_code="GOOD_MORNING"),
+        exercise(C),
+        exercise(D),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED in codes
+
+
+def test_plan_keeping_one_exercise_per_family_passes() -> None:
+    current_envelope = envelope()
+    records = (
+        exercise(A, family_code="GOOD_MORNING"),
+        exercise(B, family_code="ROMANIAN_DEADLIFT"),
+        exercise(C),
+        exercise(D),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED not in codes
+
+
+def test_exercises_without_a_family_code_are_never_grouped() -> None:
+    # The catalog leaves family_code unset for exercises that belong to no
+    # family. Collapsing those together would refuse ordinary, valid plans.
+    current_envelope = envelope()
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=(exercise(A), exercise(B), exercise(C), exercise(D)),
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED not in codes
+
+
+def test_consecutive_main_repetition_is_repairable() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(C, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+    )
+    repeated = valid.exercises[1]
+    compiled = valid.model_copy(
+        update={
+            "exercises": (
+                valid.exercises[0],
+                repeated,
+                repeated.model_copy(
+                    update={
+                        "prescription": repeated.prescription.model_copy(update={"sequence": 3})
+                    }
+                ),
+                valid.exercises[3].model_copy(
+                    update={
+                        "prescription": valid.exercises[3].prescription.model_copy(
+                            update={"sequence": 4}
+                        )
+                    }
+                ),
+            )
+        }
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    violation = next(
+        item
+        for item in result.violations
+        if item.code is IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE
+    )
+    assert violation.repairable
+
+
+def test_repeated_main_blocks_cannot_exceed_the_recovery_set_ceiling_in_total() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(C, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+    )
+    repeated = valid.exercises[1]
+    compiled = valid.model_copy(
+        update={
+            "exercises": (
+                valid.exercises[0],
+                repeated,
+                valid.exercises[2],
+                repeated.model_copy(
+                    update={
+                        "prescription": repeated.prescription.model_copy(update={"sequence": 4})
+                    }
+                ),
+                valid.exercises[3].model_copy(
+                    update={
+                        "prescription": valid.exercises[3].prescription.model_copy(
+                            update={"sequence": 5}
+                        )
+                    }
+                ),
+            )
+        }
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    assert IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED in {
         item.code for item in result.violations
     }

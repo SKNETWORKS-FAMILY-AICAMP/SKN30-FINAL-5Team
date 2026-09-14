@@ -22,7 +22,12 @@ def _build_openai_chat_model(settings: Settings) -> BaseChatModel:
         # StructuredChatInvoker owns the single bounded retry.
         max_retries=0,
         max_completion_tokens=settings.llm_agents_max_output_tokens,
-        callbacks=[],
+        reasoning_effort=settings.llm_agents_reasoning_effort,
+        # An empty callback list is one of the two points that suppress tracing:
+        # it stops LangChain attaching its tracer to this model at all. Leaving
+        # it None lets an ambient tracer attach, which is what an approved traced
+        # run needs. `StructuredChatInvoker` owns the other point (ADR-0020).
+        callbacks=None if settings.llm_agents_tracing_enabled else [],
         disable_streaming=True,
     )
 
@@ -56,12 +61,23 @@ def build_openai_shadow_chat_model(
 
 
 def openai_demo_gates_ready(settings: Settings, *, execution_profile: str) -> bool:
-    """Allow provider construction only for the explicit staging DEMO profile."""
+    """Allow the approved V3 runtime profile to construct its bounded provider.
+
+    ``PRODUCTION`` remains an explicit, server-owned promotion: it requires the
+    promotion input in addition to the normal provider gates.  Without that
+    input the application must expose V3 composition failure rather than route
+    a user back to the legacy decision service.
+    """
+
+    profile_allowed = (settings.app_env == "staging" and execution_profile == "DEMO") or (
+        settings.app_env in {"staging", "production"}
+        and execution_profile == "PRODUCTION"
+        and settings.v3_production_promotion_approved
+    )
 
     return all(
         (
-            settings.app_env == "staging",
-            execution_profile == "DEMO",
+            profile_allowed,
             settings.llm_agents_enabled,
             settings.llm_agents_provider_code == "OPENAI",
             settings.llm_agents_model_code in settings.llm_agents_approved_model_codes,

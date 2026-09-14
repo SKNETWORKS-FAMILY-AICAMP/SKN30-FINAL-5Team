@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-MINIMUM_AGE_YEARS = 14
+MINIMUM_AGE_YEARS = 18
+MAXIMUM_AGE_YEARS = 64
 
 
 class InvalidBirthdateError(Exception):
@@ -14,22 +15,12 @@ class InvalidTimezoneError(Exception):
 
 
 class AgeRequirementNotMetError(Exception):
-    """The user is below the approved minimum age."""
+    """The user is outside the approved 18–64 age range."""
 
 
 @dataclass(frozen=True)
 class AgeEligibility:
     local_date: date
-
-
-def _latest_eligible_birthdate(local_date: date) -> date:
-    eligible_year = local_date.year - MINIMUM_AGE_YEARS
-    try:
-        return local_date.replace(year=eligible_year)
-    except ValueError:
-        # A February 29 birthdate reaches the boundary on March 1 in a
-        # non-leap year, so February 28 keeps the eligibility check conservative.
-        return local_date.replace(year=eligible_year, day=28)
 
 
 def calculate_age(
@@ -76,13 +67,15 @@ def evaluate_age_eligibility(
     if birthdate > local_date:
         raise InvalidBirthdateError
 
-    if birthdate > _latest_eligible_birthdate(local_date):
+    age = calculate_age(birthdate, timezone_name, at=instant)
+    if age < MINIMUM_AGE_YEARS or age > MAXIMUM_AGE_YEARS:
         raise AgeRequirementNotMetError
     return AgeEligibility(local_date=local_date)
 
 
 __all__ = [
     "MINIMUM_AGE_YEARS",
+    "MAXIMUM_AGE_YEARS",
     "AgeEligibility",
     "AgeRequirementNotMetError",
     "InvalidBirthdateError",

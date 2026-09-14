@@ -142,14 +142,12 @@ class CompiledPlan(BaseModel):
         _canonical_codes((self.compiler_version,), field_name="compiler_version")
         prescriptions = tuple(item.prescription for item in self.exercises)
         _validate_prescription_order(prescriptions)
-        # estimated_duration_seconds is measured from the catalog timing basis, so
-        # it lands near the request rather than on it. AGENTS.md section 7 allows
-        # the plan to sit within five minutes of the requested duration when the
-        # approved pool cannot hit it exactly; outside that window the plan is
-        # rejected rather than silently handed to the user.
-        target_seconds = self.requested_duration_minutes * SECONDS_PER_MINUTE
-        if abs(self.estimated_duration_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
-            raise ValueError("compiled plan does not preserve the requested duration")
+        # Compilation records the catalog-measured duration even when it misses
+        # the approved window. The downstream integrity validator is the
+        # authoritative enforcement point and can route an initial LLM plan to
+        # the single bounded repair round. Rejecting here made its
+        # REQUESTED_DURATION_MISMATCH rule unreachable and collapsed a
+        # repairable model arithmetic error into V3_COMPILATION_FAILED.
         if self.compiled_plan_hash != _canonical_hash(
             self.model_dump(mode="json", exclude={"compiled_plan_hash"})
         ):

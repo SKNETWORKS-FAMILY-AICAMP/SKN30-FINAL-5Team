@@ -41,6 +41,9 @@ class RoutineDayResponse(BaseModel):
     title: str
     training_type_code: str
     body_focus_code: str | None
+    routine_name: str | None = None
+    routine_name_reason_codes: list[str] | None = None
+    routine_naming_rule_version: str | None = None
     requested_duration_minutes: int
     estimated_duration_seconds: int
     estimated_calories_burned: float | None

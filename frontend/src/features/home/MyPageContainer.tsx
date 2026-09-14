@@ -1,17 +1,9 @@
 import { useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
-import { isApiError } from '../../api/errors';
-import type {
-  ConsentValues,
-  MeResponse,
-  ProfileSettingsUpdateRequest,
-} from '../../api/types';
-import {
-  localDateString,
-  useAsyncAction,
-  useAsyncData,
-} from '../../api/useAsync';
+import { isApiError, messageForError } from '../../api/errors';
+import type { MeResponse, ProfileSettingsUpdateRequest } from '../../api/types';
+import { localDateString, useAsyncAction } from '../../api/useAsync';
 import type { TabId } from '../../components/brand/BrandChrome';
 import type { MyPagePreviewState } from './homeSecondaryModel';
 import { MyPageScreen } from './MyPageScreen';
@@ -22,26 +14,16 @@ type MyPageContainerProps = {
   api: Api;
   me: MeResponse;
   onNavigateTab: (tab: TabId) => void;
-  onOpenExerciseCatalog?: () => void;
   onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
   now?: Date;
   previewState?: MyPagePreviewState;
 };
 
-const DEFAULT_CONSENTS: ConsentValues = {
-  general_personal_data: true,
-  sensitive_data: true,
-  wearable_integration: false,
-  calendar_integration: false,
-  marketing: false,
-};
-
 export function MyPageContainer({
   api,
   me,
   onNavigateTab,
-  onOpenExerciseCatalog,
   onRefreshMe,
   onSignOut,
   now,
@@ -89,10 +71,21 @@ export function MyPageContainer({
           profileWasUpdated = true;
         }
         if (imageChange !== undefined) {
-          if (imageChange === null) {
-            await api.deleteProfileImage(expectedVersion);
-          } else {
-            await api.uploadProfileImage(imageChange, expectedVersion);
+          try {
+            if (imageChange === null) {
+              await api.deleteProfileImage(expectedVersion);
+            } else {
+              await api.uploadProfileImage(imageChange, expectedVersion);
+            }
+          } catch (error) {
+            if (
+              !profileWasUpdated &&
+              isApiError(error) &&
+              error.code === 'STALE_PROFILE'
+            ) {
+              await onRefreshMe().catch(() => undefined);
+            }
+            throw profileImageSaveError(error, profileWasUpdated);
           }
         }
       } catch (error) {
@@ -107,27 +100,6 @@ export function MyPageContainer({
       await onRefreshMe();
     },
   );
-
-  const updateCoach = (coachingStyleCode: string) => {
-    if (profile === null) return;
-    void updateProfile.run({ coaching_style_code: coachingStyleCode });
-  };
-
-  const consents = useAsyncData((signal) => api.getConsents(signal), [api]);
-  const storedConsents =
-    consents.state.status === 'ready'
-      ? consents.state.data.consents.reduce<ConsentValues>(
-          (values, consent) => ({
-            ...values,
-            [consent.consent_type_code.toLowerCase()]: consent.granted,
-          }),
-          DEFAULT_CONSENTS,
-        )
-      : null;
-  const updateConsents = useAsyncAction(async (next: ConsentValues) => {
-    const response = await api.replaceConsents(next);
-    consents.setData(response);
-  });
 
   const requestDeletion = useAsyncAction(async () => {
     const response = await api.requestAccountDeletion();
@@ -146,9 +118,6 @@ export function MyPageContainer({
     <MyPageScreen
       me={me}
       joinedDays={joinedDays}
-      coachingStylePending={updateProfile.pending}
-      coachingStyleError={updateProfile.error}
-      onCoachingStyleChange={updateCoach}
       profileUpdatePending={updateProfile.pending || updateBasicProfile.pending}
       profileUpdateError={profileUpdateErrorMessage(
         updateBasicProfile.error ?? updateProfile.error,
@@ -159,41 +128,43 @@ export function MyPageContainer({
       }
       onProfileFieldChange={(body) => void updateProfile.run(body)}
       onRetryProfile={() => void onRefreshMe()}
-      consentValues={storedConsents}
-      consentPending={
-        consents.state.status === 'loading' || updateConsents.pending
-      }
-      consentError={
-        updateConsents.error ??
-        (consents.state.status === 'error' ? consents.state.message : null)
-      }
-      onConsentChange={(key, enabled) => {
-        if (storedConsents === null) return;
-        void updateConsents.run({ ...storedConsents, [key]: enabled });
-      }}
-      onRetryConsents={consents.reload}
       deletionDeadline={deletionDeadline}
       withdrawalPending={requestDeletion.pending}
       withdrawalError={requestDeletion.error}
       onConfirmWithdraw={() => void requestDeletion.run()}
       onConfirmLogout={onSignOut}
       onNavigateTab={onNavigateTab}
-      onOpenExerciseCatalog={onOpenExerciseCatalog}
       persistedSettingsAvailable={false}
       previewState={previewState}
     />
   );
 }
 
+function profileImageSaveError(
+  cause: unknown,
+  otherProfileChangesSaved: boolean,
+): Error & { readonly userMessage: string } {
+  const retryGuidance =
+    '사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.';
+  const prefix = otherProfileChangesSaved
+    ? '다른 프로필 변경은 저장했지만 프로필 사진은 저장하지 못했어요.'
+    : '프로필 사진을 저장하지 못했어요.';
+  const causeMessage =
+    isApiError(cause) && cause.code === 'INVALID_PROFILE_IMAGE'
+      ? 'JPEG, PNG, WEBP 형식의 10MB 이하 이미지만 업로드할 수 있습니다.'
+      : messageForError(cause);
+  const userMessage = `${prefix} ${causeMessage} ${retryGuidance}`;
+  return Object.assign(new Error(userMessage), { userMessage });
+}
+
 const PROFILE_FIELD_LABELS: Record<string, string> = {
   primary_goal_code: '운동 목표',
-  desired_weekly_workout_count: '주간 목표',
-  default_requested_duration_minutes: '희망 시간',
+  desired_weekly_workout_count: '주간 운동 횟수',
+  default_requested_duration_minutes: '운동 시간',
   preferred_location_code: '선호 장소',
   available_location_codes: '운동 장소',
-  attention_area_codes: '통증 부위',
+  persistent_pains: '통증 부위',
   preferred_exercise_type_codes: '선호 운동',
-  coaching_style_code: '코칭 스타일',
   experience_level_code: '운동 경험',
   nickname: '닉네임',
   height_cm: '키',

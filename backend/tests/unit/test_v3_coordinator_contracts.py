@@ -9,6 +9,7 @@ from backend.app.domain.agents.retrieval import (
     RetrievalStatusCode,
 )
 from backend.app.domain.agents.v3_contracts import (
+    SPECIALIST_AGENT_ORDER,
     ConstraintEnvelope,
     CoordinatorInput,
     ExercisePrescription,
@@ -111,7 +112,7 @@ def test_coordinator_accepts_canonical_three_proposal_input_and_one_plan() -> No
 
     current_plan.validate_against(current_input)
 
-    assert current_input.schema_version == "v3-coordinator-input-v1"
+    assert current_input.schema_version == "v3-coordinator-input-v2"
     assert current_plan.schema_version == "plan-spec-v1"
 
 
@@ -141,11 +142,57 @@ def test_failed_proposal_blocks_coordinator_input() -> None:
         status=V3ProposalStatusCode.FAILED,
     )
 
-    with pytest.raises(ValidationError, match="non-ready"):
+    with pytest.raises(ValidationError, match="failed advisory"):
         coordinator_input(
             current_envelope,
             current_pool,
             current_proposals=(valid[0], failed, valid[2]),
+        )
+
+
+@pytest.mark.parametrize(
+    "agent_type",
+    (SpecialistAgentTypeCode.RECOVERY, SpecialistAgentTypeCode.FEASIBILITY),
+)
+def test_needs_input_advisory_is_accepted(agent_type: SpecialistAgentTypeCode) -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    valid = list(proposals(current_envelope, current_pool))
+    index = SPECIALIST_AGENT_ORDER.index(agent_type)
+    valid[index] = proposal(
+        agent_type,
+        current_envelope,
+        current_pool,
+        status=V3ProposalStatusCode.NEEDS_INPUT,
+        prescriptions=(),
+    )
+
+    current_input = coordinator_input(
+        current_envelope,
+        current_pool,
+        current_proposals=tuple(valid),
+    )
+
+    assert current_input.proposals[index].proposal_status_code is V3ProposalStatusCode.NEEDS_INPUT
+
+
+def test_needs_input_training_still_blocks_coordinator_input() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    valid = proposals(current_envelope, current_pool)
+    training = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        status=V3ProposalStatusCode.NEEDS_INPUT,
+        prescriptions=(),
+    )
+
+    with pytest.raises(ValidationError, match="READY Training"):
+        coordinator_input(
+            current_envelope,
+            current_pool,
+            current_proposals=(training, valid[1], valid[2]),
         )
 
 

@@ -24,6 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REPRESENTATIVE_PATH = (
     REPO_ROOT / "data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv"
 )
+CURRENT_CATALOG_PATH = (
+    REPO_ROOT
+    / "data/generated/exercise-catalog-v2.0.4-final/backend_bundle/catalog/exercises.jsonl"
+)
+CURRENT_REGISTRY_PATH = (
+    REPO_ROOT
+    / "data/generated/exercise-catalog-v2.0.4-final"
+    / "backend_bundle/catalog/input/representative_exercises.csv"
+)
 RAW_EXERCISES_PATH = REPO_ROOT / "data/raw/gym_visual/exercises.json"
 RAW_SOURCE_PATH = REPO_ROOT / "data/raw/gym_visual/source.json"
 IMAGE_DIR = REPO_ROOT / "data/media/images"
@@ -34,7 +43,10 @@ MAPPING_MANIFEST_PATH = (
 )
 BUCKET = "exercise-app-media-343953861875-ap-northeast-2-an"
 REGION = "ap-northeast-2"
-EXPECTED_COUNT = 87
+# The original reviewed set has 87 rows. v2.0.4 carries four additional
+# Gymvisual-origin SEPARATE_EXERCISE records with exact source identities, so
+# the sync inventory is the union rather than either catalog in isolation.
+EXPECTED_COUNT = 91
 # Keep AWS CLI authentication refreshes below the account's OAuth rate limit.
 S3_WORKERS = 4
 MAPPING_MANIFEST_COLUMNS = (
@@ -181,6 +193,17 @@ def read_json(path: Path) -> Any:
         raise SyncError(f"invalid JSON: {path}") from error
 
 
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    try:
+        return [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    except (OSError, json.JSONDecodeError) as error:
+        raise SyncError(f"invalid JSONL: {path}") from error
+
+
 def _unique_index(rows: list[dict[str, Any]], key: str, label: str) -> dict[str, dict[str, Any]]:
     values = [str(row.get(key, "")) for row in rows]
     if any(not value for value in values) or len(values) != len(set(values)):
@@ -202,9 +225,54 @@ def _media_files(directory: Path, extension: str) -> dict[str, list[Path]]:
     return result
 
 
+def gymvisual_candidates() -> list[dict[str, str]]:
+    """Return every exact Gymvisual identity needed by reviewed/current catalogs."""
+
+    legacy = [
+        row for row in read_csv(REPRESENTATIVE_PATH) if row.get("source_track") == "gymvisual"
+    ]
+    registry = _unique_index(
+        read_csv(CURRENT_REGISTRY_PATH), "stable_code", "current representative registry"
+    )
+    current: list[dict[str, str]] = []
+    for row in read_jsonl(CURRENT_CATALOG_PATH):
+        if row.get("source_track") != "gymvisual":
+            continue
+        stable_code = str(row.get("stable_code", ""))
+        registered = registry.get(stable_code)
+        if registered is None:
+            raise SyncError(f"current Gymvisual exercise is absent from registry: {stable_code}")
+        current.append(
+            {
+                "representative_exercise_id": registered["representative_exercise_id"],
+                "source_track": "gymvisual",
+                "source_identity": str(row.get("source_identity", "")),
+                "stable_code": stable_code,
+            }
+        )
+
+    combined: dict[str, dict[str, str]] = {}
+    for row in [*legacy, *current]:
+        representative_id = row.get("representative_exercise_id", "")
+        normalized = {
+            "representative_exercise_id": representative_id,
+            "source_track": "gymvisual",
+            "source_identity": row.get("source_identity", ""),
+            "stable_code": row.get("stable_code", ""),
+        }
+        source_identity = normalized["source_identity"]
+        prior = combined.get(source_identity)
+        if prior is not None:
+            # Current catalogs may rename a stable code while preserving the
+            # same Gymvisual source identity. Keep the already-reviewed alias
+            # rather than copying identical bytes to a second canonical key.
+            continue
+        combined[source_identity] = normalized
+    return sorted(combined.values(), key=lambda row: row["representative_exercise_id"])
+
+
 def validate_local_media() -> list[MediaPair]:
-    representatives = read_csv(REPRESENTATIVE_PATH)
-    gymvisual = [row for row in representatives if row.get("source_track") == "gymvisual"]
+    gymvisual = gymvisual_candidates()
     if len(gymvisual) != EXPECTED_COUNT:
         raise SyncError(
             f"expected {EXPECTED_COUNT} Gymvisual representatives, got {len(gymvisual)}"
@@ -296,7 +364,12 @@ def write_mapping_manifest(pairs: list[MediaPair], path: Path = MAPPING_MANIFEST
         "w", encoding="utf-8", newline="", dir=path.parent, delete=False
     ) as handle:
         temporary_path = Path(handle.name)
-        writer = csv.DictWriter(handle, fieldnames=MAPPING_MANIFEST_COLUMNS, extrasaction="raise")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=MAPPING_MANIFEST_COLUMNS,
+            extrasaction="raise",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
     temporary_path.replace(path)
@@ -541,10 +614,30 @@ def write_review_csv(
         "w", encoding="utf-8", newline="", dir=path.parent, delete=False
     ) as handle:
         temporary_path = Path(handle.name)
-        writer = csv.DictWriter(handle, fieldnames=REVIEW_COLUMNS, extrasaction="raise")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=REVIEW_COLUMNS,
+            extrasaction="raise",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
     temporary_path.replace(path)
+
+
+def approved_review_evidence(path: Path = REVIEW_PATH) -> tuple[str, str, str]:
+    """Reuse one uniform dataset-wide approval without inventing review metadata."""
+
+    rows = read_csv(path)
+    if not rows:
+        raise SyncError("approved Gymvisual review evidence is empty")
+    if any(row.get("rights_review_status") != "APPROVED" for row in rows):
+        raise SyncError("existing Gymvisual review is not uniformly APPROVED")
+    fields = ("rights_reviewer", "rights_reviewed_at", "rights_evidence_reference")
+    values = {tuple(row.get(field, "") for field in fields) for row in rows}
+    if len(values) != 1 or not all(next(iter(values))):
+        raise SyncError("existing Gymvisual review does not carry one complete approval evidence")
+    return next(iter(values))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -564,8 +657,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rights-reviewer", default="")
     parser.add_argument("--rights-reviewed-at", default="")
     parser.add_argument("--rights-evidence-reference", default="")
+    parser.add_argument(
+        "--reuse-approved-review-evidence",
+        action="store_true",
+        help=(
+            "reuse the existing uniform dataset-wide Gymvisual approval metadata; "
+            "fails closed unless every existing row is APPROVED with identical evidence"
+        ),
+    )
     args = parser.parse_args(argv)
     try:
+        if args.reuse_approved_review_evidence:
+            if args.rights_review_status != "PENDING" or any(
+                (args.rights_reviewer, args.rights_reviewed_at, args.rights_evidence_reference)
+            ):
+                raise SyncError(
+                    "--reuse-approved-review-evidence cannot be combined with explicit review args"
+                )
+            (
+                args.rights_reviewer,
+                args.rights_reviewed_at,
+                args.rights_evidence_reference,
+            ) = approved_review_evidence()
+            args.rights_review_status = "APPROVED"
         pairs = validate_local_media()
         if args.mapping_only:
             write_mapping_manifest(pairs)

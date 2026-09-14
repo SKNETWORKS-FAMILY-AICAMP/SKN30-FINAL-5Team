@@ -44,7 +44,7 @@ const SESSION_STATUS: Record<string, string> = {
   IN_PROGRESS: '진행 중',
   COMPLETED: '완료',
   PARTIAL: '일부 완료',
-  NOT_COMPLETED: '미수행',
+  NOT_COMPLETED: '휴식',
   STOPPED_FOR_SAFETY: '안전 중단',
 };
 
@@ -138,6 +138,7 @@ const BODY_FOCUS: Record<string, string> = {
   QUADRICEPS: '대퇴사두근',
   HAMSTRINGS: '햄스트링',
   CALVES: '종아리',
+  ADDUCTORS: '내전근',
   CORE: '코어',
   FULL_BODY: '전신',
   CARDIO: '유산소',
@@ -184,12 +185,14 @@ const EXPERIENCE_LEVEL: Record<string, string> = {
   INTERMEDIATE: '중급',
 };
 
+// Names match the onboarding coaching-style step so the same setting never
+// appears under two labels.
 const COACHING_STYLE: Record<string, string> = {
-  SUPPORTIVE: '든든하게',
-  CONCISE: '간결하게',
-  ENERGETIC: '활기차게',
+  SUPPORTIVE: '차근차근',
+  CONCISE: '딱 필요한 만큼',
+  ENERGETIC: '힘차게',
   // Older preview fixtures used this value before the stable contract landed.
-  FRIENDLY: '든든하게',
+  FRIENDLY: '차근차근',
 };
 
 const AGENT_TYPE: Record<string, string> = {
@@ -330,6 +333,23 @@ export const DEFAULT_BODY_AREA_OPTIONS = DEFAULT_BODY_AREA_CODES.map(
 export const EXTENDED_BODY_AREA_OPTIONS = EXTENDED_BODY_AREA_CODES.map(
   (code) => ({ code, label: bodyAreaLabel(code) }),
 );
+
+export const SELECTABLE_BODY_AREA_OPTIONS = [
+  ...DEFAULT_BODY_AREA_OPTIONS,
+  ...EXTENDED_BODY_AREA_OPTIONS,
+] as const;
+
+const BODY_AREA_SELECTION_ORDER = new Map<string, number>(
+  SELECTABLE_BODY_AREA_OPTIONS.map((option, index) => [option.code, index]),
+);
+
+export function orderBodyAreaCodes(codes: readonly string[]): string[] {
+  return [...codes].sort(
+    (left, right) =>
+      (BODY_AREA_SELECTION_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (BODY_AREA_SELECTION_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
 
 export const ADVERSE_REACTION_OPTIONS = Object.entries(ADVERSE_REACTION).map(
   ([code, label]) => ({ code, label }),

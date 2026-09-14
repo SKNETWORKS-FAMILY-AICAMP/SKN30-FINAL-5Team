@@ -20,11 +20,73 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_decision_input_idempotency_head() -> None:
+def test_migration_history_has_a_single_linear_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0034_decision_input_idempotency"]
+    # A second head means two branches were authored against the same parent, which
+    # blocks every later migration until someone merges them by hand.
+    assert scripts.get_heads() == ["0054_workout_feedback_updated_at"]
+    assert scripts.get_revision("0054_workout_feedback_updated_at").down_revision == (
+        "0053_banana_bonding_quest"
+    )
+    assert scripts.get_revision("0053_banana_bonding_quest").down_revision == (
+        "0052_banana_mini_game"
+    )
+    assert scripts.get_revision("0052_banana_mini_game").down_revision == (
+        "0051_plan_candidate_routine_name"
+    )
+    assert scripts.get_revision("0051_plan_candidate_routine_name").down_revision == (
+        "0050_drop_retired_profile_cols"
+    )
+    assert scripts.get_revision("0050_drop_retired_profile_cols").down_revision == (
+        "0049_drop_profile_coaching_style"
+    )
+    assert scripts.get_revision("0049_drop_profile_coaching_style").down_revision == (
+        "0048_integrated_catalog_v2_0_7"
+    )
+    assert scripts.get_revision("0048_integrated_catalog_v2_0_7").down_revision == (
+        "0047_social_oauth_google"
+    )
+    assert scripts.get_revision("0047_social_oauth_google").down_revision == (
+        "0046_social_oauth_kakao"
+    )
+    assert scripts.get_revision("0046_social_oauth_kakao").down_revision == (
+        "0045_v2_0_6_release_contract"
+    )
+    assert scripts.get_revision("0045_v2_0_6_release_contract").down_revision == (
+        "0044_profile_image_metadata"
+    )
+    assert scripts.get_revision("0044_profile_image_metadata").down_revision == (
+        "0043_banana_wallet_rewards"
+    )
+    assert scripts.get_revision("0043_banana_wallet_rewards").down_revision == (
+        "0042_in_app_notifications"
+    )
+    assert scripts.get_revision("0042_in_app_notifications").down_revision == (
+        "0041_user_plan_revisions"
+    )
+    assert scripts.get_revision("0041_user_plan_revisions").down_revision == (
+        "0040_weekly_safety_and_calorie"
+    )
+    assert scripts.get_revision("0040_weekly_safety_and_calorie").down_revision == (
+        "0039_workout_difficulty_reasons"
+    )
+    assert scripts.get_revision("0039_workout_difficulty_reasons").down_revision == (
+        "0038_workout_execution_state"
+    )
+    assert scripts.get_revision("0038_workout_execution_state").down_revision == (
+        "0037_retire_calendar_integration"
+    )
+    assert scripts.get_revision("0037_retire_calendar_integration").down_revision == (
+        "0036_checkin_safety_recovery"
+    )
+    assert scripts.get_revision("0036_checkin_safety_recovery").down_revision == (
+        "0035_onboarding_eligibility"
+    )
+    assert scripts.get_revision("0035_onboarding_eligibility").down_revision == (
+        "0034_decision_input_idempotency"
+    )
     assert scripts.get_revision("0034_decision_input_idempotency").down_revision == (
         "0033_media_s3_key_per_catalog"
     )
@@ -116,6 +178,170 @@ def test_migration_history_has_decision_input_idempotency_head() -> None:
 
 
 @pytest.mark.integration
+def test_completed_input_index_does_not_block_regenerations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The unique input index must cover originals only.
+
+    A regeneration re-runs the same immutable daily-context input on purpose and shares
+    ``(user_id, daily_context_id, daily_context_version, input_hash)`` with its root. If the
+    predicate covered every COMPLETED row, the second regeneration of a day would violate the
+    index and the feature would break, so the predicate is asserted here rather than left to
+    review.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
+
+    with create_engine(database_url).connect() as connection:
+        indexdef = connection.execute(
+            text(
+                "SELECT indexdef FROM pg_indexes "
+                "WHERE indexname = 'uq_decision_runs_completed_input'"
+            )
+        ).scalar_one()
+
+    # PostgreSQL re-renders the predicate with explicit casts, so assert on the parts
+    # that carry the contract rather than on exact formatting.
+    normalized = " ".join(indexdef.split()).lower()
+    assert "unique index" in normalized
+    assert "(user_id, daily_context_id, daily_context_version, input_hash)" in normalized
+    assert "'completed'" in normalized
+    # Legacy V1/V2 rows carry a NULL mode and must stay covered as originals.
+    assert "coalesce(generation_mode_code" in normalized
+    assert "'original'" in normalized
+
+
+_CALENDAR_TABLES = (
+    "calendar_connections",
+    "calendar_event_links",
+    "calendar_oauth_requests",
+    "calendar_rate_limit_counters",
+)
+
+
+@pytest.mark.integration
+def test_retiring_calendar_drops_its_tables_and_restores_them_on_rollback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0039 must drop only the integration tables and be reversible.
+
+    Both directions delegate to 0013, so this asserts the delegation actually runs rather
+    than trusting that the two revisions stay in step. The rollback half matters because a
+    drop migration that cannot be undone strands anyone who needs to step back past it.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    config = Config(str(ALEMBIC_CONFIG))
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        present = set(inspect(connection).get_table_names())
+    assert not (present & set(_CALENDAR_TABLES))
+    # The in-app monthly record calendar is derived from workout sessions, so the
+    # retirement must leave that source untouched.
+    assert "workout_sessions" in present
+
+    # Target this revision by name rather than "-1": later migrations land on top of it,
+    # and a relative step would exercise whichever one happens to be head instead.
+    command.downgrade(config, "0036_checkin_safety_recovery")
+    with engine.connect() as connection:
+        # One inspector for the whole block; a second one built from the same connection
+        # reuses the earlier reflection cache and reports the tables as missing.
+        inspector = inspect(connection)
+        restored = set(inspector.get_table_names())
+        assert set(_CALENDAR_TABLES) <= restored
+        indexes = {
+            name
+            for table in _CALENDAR_TABLES
+            for name in (index["name"] for index in inspector.get_indexes(table))
+            if name
+        }
+    assert "uq_calendar_connections_token_secret_ref" in indexes
+
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        final = set(inspect(connection).get_table_names())
+    assert not (final & set(_CALENDAR_TABLES))
+
+
+_RETIRED_PROFILE_COLUMNS = frozenset(
+    {"coaching_style_code", "preferred_location_code", "height_cm", "sex_code"}
+)
+
+
+@pytest.mark.integration
+def test_dropping_the_retired_profile_columns_is_reversible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0049 and 0050 must remove exactly the retired storage and be reversible.
+
+    `weight_kg` sits between the dropped columns in the same table and is still a
+    required onboarding input, so it is asserted explicitly: a rollback that loses
+    it would take the calorie estimate with it.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    config = Config(str(ALEMBIC_CONFIG))
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("user_profiles")}
+        checks = {check["name"] for check in inspector.get_check_constraints("user_profiles")}
+        assert "user_available_locations" not in set(inspector.get_table_names())
+    assert not (columns & _RETIRED_PROFILE_COLUMNS)
+    assert "weight_kg" in columns
+    assert "ck_user_profiles_coaching_style" not in checks
+
+    # Target the revision by name rather than "-2": a later migration would make a
+    # relative step land somewhere else entirely.
+    command.downgrade(config, "0048_integrated_catalog_v2_0_7")
+    with engine.connect() as connection:
+        # One inspector for the whole block; a second one built from the same
+        # connection reuses the earlier reflection cache.
+        inspector = inspect(connection)
+        restored = {column["name"] for column in inspector.get_columns("user_profiles")}
+        restored_checks = {
+            check["name"] for check in inspector.get_check_constraints("user_profiles")
+        }
+        assert "user_available_locations" in set(inspector.get_table_names())
+    assert _RETIRED_PROFILE_COLUMNS <= restored
+    assert "weight_kg" in restored
+    assert "ck_user_profiles_coaching_style" in restored_checks
+
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        final = {column["name"] for column in inspector.get_columns("user_profiles")}
+        assert "user_available_locations" not in set(inspector.get_table_names())
+    assert not (final & _RETIRED_PROFILE_COLUMNS)
+
+
+@pytest.mark.integration
 def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     test_database_url = os.getenv("TEST_DATABASE_URL")
     if not test_database_url:
@@ -131,11 +357,8 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
     engine = create_engine(test_database_url)
     try:
         inspector = inspect(engine)
+        # The calendar integration tables are absent at head; 0039 retired them.
         assert {
-            "calendar_connections",
-            "calendar_event_links",
-            "calendar_oauth_requests",
-            "calendar_rate_limit_counters",
             "decision_explanations",
             "decision_deliberations",
             "agent_proposal_revisions",
@@ -149,7 +372,49 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "exercise_safety_rules",
             "exercise_alternatives",
             "exercise_media_assets",
+            "daily_context_pains",
+            "in_app_notifications",
+            "banana_wallets",
+            "banana_transactions",
         }.issubset(inspector.get_table_names())
+        assert {
+            "user_id",
+            "balance",
+            "created_at",
+            "updated_at",
+        } == {column["name"] for column in inspector.get_columns("banana_wallets")}
+        assert {
+            "id",
+            "user_id",
+            "workout_session_id",
+            "transaction_type",
+            "amount",
+            "balance_after",
+            "event_key",
+            "reference_code",
+            "source_local_date",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("banana_transactions")}
+        assert {
+            "profile_image_object_key",
+            "profile_image_content_type",
+            "profile_image_byte_size",
+        }.issubset({column["name"] for column in inspector.get_columns("user_profiles")})
+        assert {
+            "sleep_source_code",
+            "available_time_minutes",
+            "pain_present",
+            "red_flag_present",
+        }.issubset({column["name"] for column in inspector.get_columns("daily_contexts")})
+        assert {
+            "id",
+            "daily_context_id",
+            "body_area_code",
+            "intensity_score",
+            "severity_code",
+            "policy_version",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("daily_context_pains")}
         assert {
             "id",
             "catalog_version_id",
@@ -282,18 +547,6 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
         assert {"condition_code", "pain_discomfort_area_code"}.issubset(
             alternative_relation_key["column_names"]
         )
-        assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
-            "id",
-            "user_id",
-            "provider_code",
-            "provider_subject",
-            "token_secret_ref",
-            "status_code",
-            "granted_at",
-            "revoked_at",
-            "created_at",
-            "updated_at",
-        }
         with engine.connect() as connection:
             body_focus_codes = set(
                 connection.scalars(

@@ -18,13 +18,23 @@ export type FirebaseWebConfig = {
   appId: string;
 };
 
+export type SocialOAuthRedirectUris = {
+  GOOGLE: string | null;
+  KAKAO: string | null;
+};
+
 export type EnvIssue = {
   key: string;
   message: string;
 };
 
 export type EnvConfig =
-  | { status: 'ready'; apiBaseUrl: string; firebase: FirebaseWebConfig }
+  | {
+      status: 'ready';
+      apiBaseUrl: string;
+      firebase: FirebaseWebConfig;
+      socialOAuthRedirectUris: SocialOAuthRedirectUris;
+    }
   | { status: 'incomplete'; issues: EnvIssue[] };
 
 const FIREBASE_KEYS = {
@@ -55,6 +65,12 @@ function rawEnv(): Record<string, string> {
       process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
     ),
     EXPO_PUBLIC_FIREBASE_APP_ID: read(process.env.EXPO_PUBLIC_FIREBASE_APP_ID),
+    EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI: read(
+      process.env.EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI,
+    ),
+    EXPO_PUBLIC_KAKAO_REDIRECT_URI: read(
+      process.env.EXPO_PUBLIC_KAKAO_REDIRECT_URI,
+    ),
   };
 }
 
@@ -97,5 +113,9 @@ export function resolveEnvConfig(
     status: 'ready',
     apiBaseUrl: apiBaseUrl.replace(/\/+$/, ''),
     firebase: firebase as unknown as FirebaseWebConfig,
+    socialOAuthRedirectUris: {
+      GOOGLE: source.EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI || null,
+      KAKAO: source.EXPO_PUBLIC_KAKAO_REDIRECT_URI || null,
+    },
   };
 }

@@ -1,0 +1,124 @@
+{
+  "dataset_id": "service-quality-retrieval-v1",
+  "schema_version": "service-quality-retrieval-case-v1",
+  "description": "PHASE 3 retrieval ground truth. Queries are expressed the way the shipped retriever expresses them: normalized_query_codes, not natural language. See notes on each case, and docs/test/TEST_PLAN.md PHASE 3 for why a natural-language variant is scored separately and never reported as the production path.",
+  "cases": [
+    {
+      "case_id": "RQ-GOAL-001",
+      "description": "근력 목표 홈 초급자. STRENGTH goal을 가진 운동이 상위에 와야 한다.",
+      "normalized_query_codes": ["BEGINNER", "HOME", "STRENGTH"],
+      "natural_language_query": "집에서 맨몸으로 할 수 있는 근력 운동",
+      "eligible_exercise_codes": [
+        "WARMUP_ARM_CIRCLE", "WARMUP_HIP_OPENER", "WARMUP_MARCH_IN_PLACE", "WARMUP_SHOULDER_ROLL",
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "PUSHUP_KNEE", "GLUTE_BRIDGE",
+        "PLANK_FOREARM", "DEAD_BUG",
+        "COOLDOWN_HAMSTRING_STRETCH", "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE",
+        "COOLDOWN_CALF_STRETCH"
+      ],
+      "relevant_exercise_codes": [
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "PUSHUP_KNEE", "GLUTE_BRIDGE"
+      ],
+      "expected_metadata": { "goal_codes_any_of": ["STRENGTH"] }
+    },
+    {
+      "case_id": "RQ-GOAL-002",
+      "description": "유연성 목표. 스트레칭 계열이 상위에 와야 한다.",
+      "normalized_query_codes": ["BEGINNER", "FLEXIBILITY", "HOME"],
+      "natural_language_query": "몸이 뻣뻣할 때 하는 스트레칭",
+      "eligible_exercise_codes": [
+        "WARMUP_ARM_CIRCLE", "WARMUP_HIP_OPENER", "WARMUP_MARCH_IN_PLACE", "WARMUP_SHOULDER_ROLL",
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "PUSHUP_KNEE", "GLUTE_BRIDGE",
+        "PLANK_FOREARM", "DEAD_BUG",
+        "COOLDOWN_HAMSTRING_STRETCH", "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE",
+        "COOLDOWN_CALF_STRETCH"
+      ],
+      "relevant_exercise_codes": [
+        "COOLDOWN_HAMSTRING_STRETCH", "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE",
+        "COOLDOWN_CALF_STRETCH"
+      ],
+      "expected_metadata": { "goal_codes_any_of": ["FLEXIBILITY"] }
+    },
+    {
+      "case_id": "RQ-GOAL-003",
+      "description": "코어 안정성 목표. 코어 운동이 상위에 와야 한다.",
+      "normalized_query_codes": ["BEGINNER", "CORE_STABILITY", "HOME"],
+      "natural_language_query": "허리를 안정시키는 복부 코어 운동",
+      "eligible_exercise_codes": [
+        "WARMUP_ARM_CIRCLE", "WARMUP_HIP_OPENER", "WARMUP_MARCH_IN_PLACE", "WARMUP_SHOULDER_ROLL",
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "PUSHUP_KNEE", "GLUTE_BRIDGE",
+        "PLANK_FOREARM", "DEAD_BUG",
+        "COOLDOWN_HAMSTRING_STRETCH", "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE",
+        "COOLDOWN_CALF_STRETCH"
+      ],
+      "relevant_exercise_codes": ["PLANK_FOREARM", "DEAD_BUG"],
+      "expected_metadata": { "goal_codes_any_of": ["CORE_STABILITY"] }
+    },
+    {
+      "case_id": "RQ-GOAL-004",
+      "description": "가동성 목표. 준비운동 계열이 상위에 와야 한다.",
+      "normalized_query_codes": ["BEGINNER", "HOME", "MOBILITY"],
+      "natural_language_query": "운동 전에 몸을 푸는 준비 동작",
+      "eligible_exercise_codes": [
+        "WARMUP_ARM_CIRCLE", "WARMUP_HIP_OPENER", "WARMUP_MARCH_IN_PLACE", "WARMUP_SHOULDER_ROLL",
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "PUSHUP_KNEE", "GLUTE_BRIDGE",
+        "PLANK_FOREARM", "DEAD_BUG",
+        "COOLDOWN_HAMSTRING_STRETCH", "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE",
+        "COOLDOWN_CALF_STRETCH"
+      ],
+      "relevant_exercise_codes": [
+        "WARMUP_ARM_CIRCLE", "WARMUP_HIP_OPENER", "WARMUP_MARCH_IN_PLACE", "WARMUP_SHOULDER_ROLL"
+      ],
+      "expected_metadata": { "goal_codes_any_of": ["MOBILITY"] }
+    },
+    {
+      "case_id": "RQ-EQUIP-001",
+      "description": "덤벨 보유 사용자. 마스터 명세의 예시 질의에 대응한다. 다만 장비는 서비스의 선택 게이트가 아니므로 관련성은 순위 기대일 뿐이다.",
+      "normalized_query_codes": ["BEGINNER", "HOME", "STRENGTH"],
+      "natural_language_query": "덤벨만 이용해서 할 수 있는 상체 운동",
+      "eligible_exercise_codes": [
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "PUSHUP_KNEE", "GLUTE_BRIDGE", "PLANK_FOREARM",
+        "DEAD_BUG", "ROW_DUMBBELL", "OVERHEAD_PRESS_DUMBBELL",
+        "COOLDOWN_CHEST_STRETCH", "COOLDOWN_CHILD_POSE"
+      ],
+      "relevant_exercise_codes": ["ROW_DUMBBELL", "OVERHEAD_PRESS_DUMBBELL"],
+      "expected_metadata": { "equipment_codes_any_of": ["DUMBBELL"] },
+      "notes": "장비 기반 관련성은 검색 순위에 대한 기대이며 자격 판정이 아니다. 자격은 pool 구성에서 정해진다."
+    },
+    {
+      "case_id": "RQ-FILTER-001",
+      "description": "자격 목록이 좁은 경우. 검색 결과는 반드시 자격 집합 안에만 있어야 한다.",
+      "normalized_query_codes": ["BEGINNER", "HOME", "STRENGTH"],
+      "natural_language_query": "하체 근력 운동",
+      "eligible_exercise_codes": ["GLUTE_BRIDGE", "PLANK_FOREARM", "DEAD_BUG"],
+      "relevant_exercise_codes": ["GLUTE_BRIDGE"],
+      "expected_metadata": {},
+      "notes": "Metadata Filter Accuracy 전용. 자격 밖 운동이 한 건이라도 반환되면 실패다."
+    },
+    {
+      "case_id": "RQ-FILTER-002",
+      "description": "직전 계획에 쓰인 운동은 제외 대상이다. 단 필수 운동은 제외되지 않는다.",
+      "normalized_query_codes": ["BEGINNER", "HOME", "STRENGTH"],
+      "natural_language_query": "지난번과 다른 하체 운동",
+      "eligible_exercise_codes": [
+        "SQUAT_BODYWEIGHT", "LUNGE_FORWARD", "WALL_SIT", "GLUTE_BRIDGE", "PLANK_FOREARM",
+        "DEAD_BUG"
+      ],
+      "previous_plan_exercise_codes": ["SQUAT_BODYWEIGHT", "LUNGE_FORWARD"],
+      "mandatory_exercise_codes": ["GLUTE_BRIDGE"],
+      "relevant_exercise_codes": ["GLUTE_BRIDGE", "WALL_SIT"],
+      "expected_metadata": {},
+      "notes": "previous_plan 제외와 mandatory 보존이 동시에 성립해야 한다."
+    },
+    {
+      "case_id": "RQ-LOCATION-001",
+      "description": "헬스장 이용자. 자격 목록에 머신 운동이 포함된다.",
+      "normalized_query_codes": ["BEGINNER", "GYM", "STRENGTH"],
+      "natural_language_query": "헬스장 머신으로 하는 하체 운동",
+      "eligible_exercise_codes": [
+        "LEG_PRESS_MACHINE", "SQUAT_BODYWEIGHT", "GLUTE_BRIDGE", "PLANK_FOREARM", "DEAD_BUG"
+      ],
+      "relevant_exercise_codes": ["LEG_PRESS_MACHINE"],
+      "expected_metadata": { "location_codes_any_of": ["GYM"] }
+    }
+  ]
+}

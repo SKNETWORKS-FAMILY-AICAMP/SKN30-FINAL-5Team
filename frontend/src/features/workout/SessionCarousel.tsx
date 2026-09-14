@@ -1,3 +1,4 @@
+import { ROUTINE_PHASE_LABELS } from '../../components/RoutineSections';
 /**
  * One-at-a-time exercise block carousel.
  *
@@ -24,6 +25,7 @@ import {
 import type { SessionItem, WorkoutPlanItem } from '../../api/types';
 import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 import { useBrandFontFamily } from '../../components/brand/BrandChrome';
+import { ExerciseNameText } from '../../components/ExerciseNameText';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import { WORKOUT_CAROUSEL } from './workoutModel';
 
@@ -116,6 +118,9 @@ export function SessionCarousel({
                 },
               ]}
             >
+              <Text style={styles.sequence}>
+                {ROUTINE_PHASE_LABELS[item.phase_code ?? 'MAIN']}
+              </Text>
               <View style={styles.cardHeader}>
                 <Text style={styles.sequence}>
                   {item.sequence} / {orderedItems.length}
@@ -123,11 +128,11 @@ export function SessionCarousel({
                 {done ? <Text style={styles.doneBadge}>완료</Text> : null}
               </View>
 
-              <Text
+              <ExerciseNameText
                 style={[styles.name, family ? { fontFamily: family } : null]}
               >
                 {item.exercise_name}
-              </Text>
+              </ExerciseNameText>
               <Text style={styles.meta}>
                 {item.sets}세트
                 {item.reps === null

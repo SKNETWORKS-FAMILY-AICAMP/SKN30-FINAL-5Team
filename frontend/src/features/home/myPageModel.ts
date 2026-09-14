@@ -2,7 +2,6 @@ import type { MeProfile, WorkoutSessionLogSummary } from '../../api/types';
 import {
   bodyAreaLabel,
   experienceLevelLabel,
-  locationLabel,
   primaryGoalLabel,
 } from '../../api/labels';
 
@@ -15,10 +14,8 @@ export type MyPageStats = {
 export type MyPageProfileField =
   | 'primary_goal_code'
   | 'experience_level_code'
-  | 'available_location_codes'
-  | 'default_requested_duration_minutes'
   | 'desired_weekly_workout_count'
-  | 'attention_area_codes';
+  | 'persistent_pains';
 
 export type MyPageProfileRow = readonly [
   field: MyPageProfileField,
@@ -41,25 +38,19 @@ export function buildMyPageProfileRows(
       experienceLevelLabel(profile.experience_level_code),
     ],
     [
-      'available_location_codes',
-      '운동 장소',
-      profile.available_location_codes.map(locationLabel).join(' · ') ||
-        locationLabel(profile.preferred_location_code),
-    ],
-    [
-      'default_requested_duration_minutes',
-      '희망 시간',
-      `${profile.default_requested_duration_minutes}분`,
-    ],
-    [
       'desired_weekly_workout_count',
-      '주간 목표',
-      `${profile.desired_weekly_workout_count}회`,
+      '주간 운동 횟수',
+      `주 ${profile.desired_weekly_workout_count}회`,
     ],
     [
-      'attention_area_codes',
+      'persistent_pains',
       '통증 부위',
-      profile.attention_area_codes.map(bodyAreaLabel).join(' · ') || '없음',
+      (
+        profile.persistent_pains?.map((pain) => pain.body_area_code) ??
+        profile.attention_area_codes
+      )
+        .map(bodyAreaLabel)
+        .join(' · ') || '없음',
     ],
   ] as const;
 }

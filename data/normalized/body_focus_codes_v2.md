@@ -25,6 +25,7 @@
 | 하체 | `QUADRICEPS` | 대퇴사두근 | 무릎 폄·스쿼트 계열에서 대퇴사두근이 대표 초점인 동작 |
 | 하체 | `HAMSTRINGS` | 햄스트링 | 무릎 굽힘·루마니안 데드리프트 등 햄스트링이 대표 초점인 동작 |
 | 하체 | `CALVES` | 종아리 | 발바닥 굽힘·카프 레이즈·카프 프레스 |
+| 하체 | `ADDUCTORS` | 내전근 | 다리를 몸의 중심선으로 모으는 힙 내전 동작 |
 | 몸통/기타 | `CORE` | 코어 | 복부·복횡근·복사근 중심의 브레이싱·크런치·회전 제어 |
 | 몸통/기타 | `FULL_BODY` | 전신 | 특정 부위 하나가 대표적이지 않고 전신 협응이 훈련 초점인 근력 동작에만 사용 |
 | 유산소·가동성 | `CARDIO` | 유산소 | 걷기·달리기·점프 등 심폐·지속 활동; `training_type_code=CARDIO`에 고정 |
@@ -55,6 +56,10 @@
 
 `UPPER_BODY`와 `LOWER_BODY`를 기계적으로 하나의 고정 코드로 치환하지 않는다. 각 운동의
 매핑 근거와 검토 상태를 확인해 단일 대표 코드를 선택한다.
+
+`ADDUCTORS`는 하체의 대표 훈련 초점 코드다. `primary_body_area_codes`와
+`secondary_body_area_codes`는 해부학적 주·부위 정보를 별도로 보존하므로 `ADDUCTORS`를
+추가해도 두 축을 대체하거나 중복 저장하지 않는다.
 
 출처: `data/normalized/catalog_enrichment_v2.csv`,
 `data/reports/integrated_exercise_review_updated.csv`의 `training_type_code_candidate`, `target`,

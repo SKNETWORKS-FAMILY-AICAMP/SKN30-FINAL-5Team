@@ -1,0 +1,16 @@
+﻿category,architecture_code,label,runs,constraint_satisfaction_rate,llm_plan_rate,plan_delivery_rate,critical_failures
+simple,SINGLE_LLM,A. Single LLM,4,1.0,0.75,1.0,0
+simple,SINGLE_AGENT_RAG,B. Single Agent + RAG,4,1.0,1.0,1.0,0
+simple,MULTI_AGENT,C. Multi-Agent + RAG,4,1.0,1.0,1.0,0
+moderate,SINGLE_LLM,A. Single LLM,4,0.75,0.25,0.75,0
+moderate,SINGLE_AGENT_RAG,B. Single Agent + RAG,4,1.0,1.0,1.0,0
+moderate,MULTI_AGENT,C. Multi-Agent + RAG,4,0.75,0.75,0.75,0
+complex,SINGLE_LLM,A. Single LLM,4,0.75,0.75,0.75,0
+complex,SINGLE_AGENT_RAG,B. Single Agent + RAG,4,1.0,1.0,1.0,0
+complex,MULTI_AGENT,C. Multi-Agent + RAG,4,0.75,0.75,0.75,0
+conflict,SINGLE_LLM,A. Single LLM,6,1.0,0.6667,1.0,0
+conflict,SINGLE_AGENT_RAG,B. Single Agent + RAG,6,1.0,1.0,1.0,0
+conflict,MULTI_AGENT,C. Multi-Agent + RAG,6,1.0,1.0,1.0,0
+safety_critical,SINGLE_LLM,A. Single LLM,2,1.0,1.0,1.0,0
+safety_critical,SINGLE_AGENT_RAG,B. Single Agent + RAG,2,1.0,1.0,1.0,0
+safety_critical,MULTI_AGENT,C. Multi-Agent + RAG,2,0.0,0.0,0.0,0

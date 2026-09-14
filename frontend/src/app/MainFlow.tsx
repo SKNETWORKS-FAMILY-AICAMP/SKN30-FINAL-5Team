@@ -15,35 +15,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Api } from '../api/endpoints';
+import { isApiError, messageForError } from '../api/errors';
 import type {
   DecisionResponse,
   MeResponse,
+  NotificationListResponse,
+  NotificationResponse,
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
 } from '../api/types';
 import { localDateString, weekStartString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
-import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
 import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
-import { HomeContainer } from '../features/home/HomeContainer';
+import {
+  HomeContainer,
+  type HomeRecoveryState,
+} from '../features/home/HomeContainer';
 import { MyPageContainer } from '../features/home/MyPageContainer';
+import {
+  NotificationSheet,
+  type NotificationLoadStatus,
+} from '../features/home/NotificationSheet';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
+import { RewardsScreen } from '../features/rewards/RewardsScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
-import { SessionResultScreen } from '../features/workout/SessionResultScreen';
+import {
+  isRestOutcome,
+  SessionResultScreen,
+} from '../features/workout/SessionResultScreen';
 import { WorkoutScreen } from '../features/workout/WorkoutScreen';
 import { WeeklyReportScreen } from '../features/weekly/WeeklyReportScreen';
 
 type Step =
   | { name: 'home' }
-  | { name: 'session'; sessionId: string; plan: WorkoutPlan }
+  | {
+      name: 'session';
+      sessionId: string;
+      plan: WorkoutPlan;
+      locationCode?: string;
+    }
   | { name: 'result'; sessionId: string; outcome: SessionOutcome }
   | { name: 'weekly'; weekStart: string }
   | { name: 'calendar-report' }
   | { name: 'account' }
   | { name: 'exercises' }
-  | { name: 'house' }
-  | { name: 'calendar' };
+  | { name: 'rewards' }
+  | { name: 'house' };
 
 export function MainFlow({
   api,
@@ -56,27 +75,138 @@ export function MainFlow({
   onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
 }) {
+  const localDate = localDateString(new Date(), me.profile?.timezone);
   const [step, setStep] = useState<Step>({ name: 'home' });
-  const [restChoice, setRestChoice] = useState<{
+  const [restLocalDate, setRestLocalDate] = useState<string | null>(null);
+  const [homeSafetyGuidance, setHomeSafetyGuidance] = useState<{
     localDate: string;
-    pressureNotificationsAllowed: boolean;
+    message: string;
   } | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
+  const [decisionGenerationLocalDate, setDecisionGenerationLocalDate] =
+    useState<string | null>(null);
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
-  const restoreAttempted = useRef(false);
+  const [recoveryNonce, setRecoveryNonce] = useState(0);
+  const [todaySession, setTodaySession] =
+    useState<WorkoutSessionDetailResponse | null>(null);
+  const [homeRecoveryState, setHomeRecoveryState] = useState<HomeRecoveryState>(
+    { status: 'loading' },
+  );
+  const [alternativeUsage, setAlternativeUsage] = useState({
+    localDate,
+    count: 0,
+  });
+  const [notificationResponse, setNotificationResponse] =
+    useState<NotificationListResponse | null>(null);
+  const [notificationStatus, setNotificationStatus] =
+    useState<NotificationLoadStatus>('idle');
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null,
+  );
+  const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
+  const [pendingNotificationId, setPendingNotificationId] = useState<
+    string | null
+  >(null);
+  const [notificationToastVisible, setNotificationToastVisible] =
+    useState(false);
+  const [notificationNotice, setNotificationNotice] = useState<string | null>(
+    null,
+  );
+  const knownNotificationIds = useRef<Set<string> | null>(null);
+  const notificationRequestSequence = useRef(0);
+  const decisionRef = useRef(decision);
 
-  // A restart loses this flow's in-memory state, so recover today's stored
-  // decision — and an unfinished session — from the server exactly once.
-  // Nothing here re-runs agents; both calls only read what a decision run
-  // already persisted.
   useEffect(() => {
-    if (restoreAttempted.current) {
+    decisionRef.current = decision;
+  }, [decision]);
+
+  const refreshNotifications = useCallback(
+    async (signal?: AbortSignal): Promise<boolean> => {
+      if (signal?.aborted) {
+        return false;
+      }
+      const requestSequence = notificationRequestSequence.current + 1;
+      notificationRequestSequence.current = requestSequence;
+      setNotificationStatus('loading');
+      setNotificationError(null);
+      try {
+        const next = await api.listNotifications(signal);
+        if (
+          signal?.aborted ||
+          requestSequence !== notificationRequestSequence.current
+        ) {
+          return false;
+        }
+
+        const previousIds = knownNotificationIds.current;
+        const hasNewUnread =
+          previousIds !== null &&
+          next.items.some(
+            (item) => !item.is_read && !previousIds.has(item.notification_id),
+          );
+        knownNotificationIds.current = new Set(
+          next.items.map((item) => item.notification_id),
+        );
+        setNotificationResponse(next);
+        setNotificationStatus('ready');
+        if (hasNewUnread) {
+          setNotificationToastVisible(true);
+        }
+        return true;
+      } catch (error: unknown) {
+        if (
+          signal?.aborted ||
+          (error instanceof Error && error.name === 'AbortError') ||
+          requestSequence !== notificationRequestSequence.current
+        ) {
+          return false;
+        }
+        setNotificationStatus('error');
+        setNotificationError(messageForError(error));
+        return false;
+      }
+    },
+    [api],
+  );
+
+  useEffect(() => {
+    if (step.name !== 'home') {
       return;
     }
-    restoreAttempted.current = true;
     const controller = new AbortController();
-    const localDate = localDateString(new Date(), me.profile?.timezone);
+    const timeout = setTimeout(
+      () => void refreshNotifications(controller.signal),
+      0,
+    );
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [refreshNotifications, step.name]);
+
+  useEffect(() => {
+    if (!notificationToastVisible) {
+      return;
+    }
+    const timeout = setTimeout(() => setNotificationToastVisible(false), 2_500);
+    return () => clearTimeout(timeout);
+  }, [notificationToastVisible]);
+
+  // A restart loses this flow's in-memory state, so recover today's decision
+  // and its plan-scoped session from one consistent server snapshot. This
+  // read never re-runs agents or starts a workout session.
+  useEffect(() => {
+    if (step.name !== 'home') {
+      return;
+    }
+    const controller = new AbortController();
+    const loadingTimeout = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        setHomeRecoveryState({ status: 'loading' });
+      }
+    }, 0);
+    const decisionIdAtStart = decisionRef.current?.decision_id ?? null;
     const weekStart = weekStartString(new Date(), me.profile?.timezone);
     const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
       ? api
@@ -85,85 +215,155 @@ export function MainFlow({
       : Promise.resolve(null);
 
     void (async () => {
-      const [stored, sessions, latestPlanRevision] = await Promise.all([
-        api.getDecisionForDate(localDate, controller.signal).catch(() => null),
+      const [homeResult, latestPlanRevision] = await Promise.all([
         api
-          .listWorkoutSessions(
-            { fromLocalDate: localDate, toLocalDate: localDate },
-            controller.signal,
-          )
-          .catch(() => null),
+          .getHomeState(localDate, controller.signal)
+          .then((data) => ({ status: 'success' as const, data }))
+          .catch((error: unknown) => ({ status: 'error' as const, error })),
         latestPlanRevisionRequest,
       ]);
       if (controller.signal.aborted) {
         return;
       }
+      clearTimeout(loadingTimeout);
       if (latestPlanRevision !== null) {
         setPlanRevision(latestPlanRevision);
       }
-      const todaySessions = sessions?.items ?? [];
-      const active = todaySessions.find(
-        (item) =>
-          item.status_code === 'PLANNED' || item.status_code === 'IN_PROGRESS',
-      );
-      if (active && stored?.final_plan) {
-        // The user already committed to today's routine; put them back in it.
-        setDecision(stored);
-        setStep({
-          name: 'session',
-          sessionId: active.session_id,
-          plan: stored.final_plan,
+      if (homeResult.status === 'error') {
+        setHomeRecoveryState({
+          status: 'error',
+          message: messageForError(homeResult.error),
+          permissionDenied:
+            isApiError(homeResult.error) &&
+            homeResult.error.kind === 'permission',
         });
         return;
       }
-      if (todaySessions.length > 0) {
-        // The day's session already ended, so the decision no longer
-        // describes what the user can do next — same as after a workout.
-        return;
-      }
-      if (stored) {
-        setDecision(stored);
-      }
+      setTodaySession(homeResult.data.workout_session);
+      setDecision((current) =>
+        (current?.decision_id ?? null) === decisionIdAtStart
+          ? homeResult.data.decision
+          : current,
+      );
+      setHomeRecoveryState({ status: 'ready' });
     })();
 
-    return () => controller.abort();
-  }, [api, me.profile?.timezone]);
+    return () => {
+      clearTimeout(loadingTimeout);
+      controller.abort();
+    };
+  }, [api, localDate, me.profile?.timezone, recoveryNonce, step.name]);
 
   const goHome = useCallback(() => setStep({ name: 'home' }), []);
+  const recoverHomeDecision = useCallback(
+    () => setRecoveryNonce((value) => value + 1),
+    [],
+  );
 
   // One tab handler for every screen that shows the bar, so the destinations
   // stay identical wherever it appears.
-  const onTab = useCallback((tab: TabId) => {
-    if (tab === 'house') {
-      setStep({ name: 'house' });
+  const onTab = useCallback(
+    (tab: TabId) => {
+      if (tab === 'house') {
+        setStep({ name: 'house' });
+        return;
+      }
+      if (tab === 'report') {
+        setStep({ name: 'calendar-report' });
+        return;
+      }
+      if (tab === 'my') {
+        setStep({ name: 'account' });
+        return;
+      }
+      recoverHomeDecision();
+      setStep({ name: 'home' });
+    },
+    [recoverHomeDecision],
+  );
+  const toggleNotifications = useCallback(() => {
+    setNotificationNotice(null);
+    if (notificationSheetOpen) {
+      setNotificationSheetOpen(false);
       return;
     }
-    if (tab === 'report') {
-      setStep({ name: 'calendar-report' });
-      return;
-    }
-    if (tab === 'my') {
-      setStep({ name: 'account' });
-      return;
-    }
-    setStep({ name: 'home' });
-  }, []);
-  const localDate = localDateString(new Date(), me.profile?.timezone);
+    setNotificationSheetOpen(true);
+    void refreshNotifications();
+  }, [notificationSheetOpen, refreshNotifications]);
+  const selectNotification = useCallback(
+    (notification: NotificationResponse) => {
+      if (notification.is_read || pendingNotificationId !== null) {
+        return;
+      }
+      setPendingNotificationId(notification.notification_id);
+      setNotificationError(null);
+      setNotificationNotice(null);
+      void (async () => {
+        try {
+          if (notification.action_type === 'CLAIM_DAILY_REWARD') {
+            // The reward is paid where it is offered: the sheet stays open and
+            // reports the amount the server actually granted, so tapping the
+            // notification never drops the user into the wallet screen. Claim
+            // before marking it read so a failed payout leaves a visible,
+            // retryable notification. A payout that succeeds before the read
+            // call fails is safe to retry because the server claim is
+            // idempotent per local day.
+            const claimed = await api.claimDailyReward();
+            setNotificationNotice(
+              `오늘의 바나나 ${claimed.transaction.amount}개가 지갑에 담겼어요.`,
+            );
+          }
+          await api.markNotificationRead(notification.notification_id);
+          await refreshNotifications();
+          if (notification.action_type === 'OPEN_KIKKI_HOME') {
+            setNotificationSheetOpen(false);
+            onTab('house');
+          }
+        } catch (error: unknown) {
+          setNotificationStatus('error');
+          setNotificationError(messageForError(error));
+        } finally {
+          setPendingNotificationId(null);
+        }
+      })();
+    },
+    [api, onTab, pendingNotificationId, refreshNotifications],
+  );
   const routineStartLocalDate = me.profile
     ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
     : undefined;
-  const restToday = restChoice?.localDate === localDate;
+  const restToday =
+    restLocalDate === localDate ||
+    todaySession?.status_code === 'NOT_COMPLETED';
 
   switch (step.name) {
     case 'session':
       return (
         <WorkoutScreen
           api={api}
+          exerciseGuideContext={{ locationCode: step.locationCode ?? null }}
+          locationCode={step.locationCode}
           sessionId={step.sessionId}
           plan={step.plan}
-          onOutcome={(outcome) =>
-            setStep({ name: 'result', sessionId: step.sessionId, outcome })
-          }
+          onOutcome={(outcome) => {
+            if (outcome.kind === 'safetyStop') {
+              // The day is rest from here, and Home says so -- but the user is
+              // still asked how the session went before leaving, which is the
+              // only place that question gets asked for a safety stop.
+              setRestLocalDate(localDate);
+              setHomeSafetyGuidance({
+                localDate,
+                message: outcome.event.guidance,
+              });
+            } else if (isRestOutcome(outcome)) {
+              setRestLocalDate(localDate);
+              setHomeSafetyGuidance(null);
+              setRecoveryNonce((value) => value + 1);
+              goHome();
+              return;
+            }
+            setStep({ name: 'result', sessionId: step.sessionId, outcome });
+          }}
         />
       );
 
@@ -174,9 +374,7 @@ export function MainFlow({
           sessionId={step.sessionId}
           outcome={step.outcome}
           onDone={() => {
-            // The session is over, so today's decision no longer describes what
-            // the user can do next.
-            setDecision(null);
+            setRecoveryNonce((value) => value + 1);
             goHome();
           }}
         />
@@ -185,10 +383,20 @@ export function MainFlow({
     case 'house':
       return (
         <MascotHouseScreen
+          accountId={me.user_id}
           api={api}
           nickname={me.profile?.nickname ?? '회원'}
           onNavigate={onTab}
           timeZone={me.profile?.timezone}
+        />
+      );
+
+    case 'rewards':
+      return (
+        <RewardsScreen
+          api={api}
+          backAccessibilityLabel="홈으로 돌아가기"
+          onBack={goHome}
         />
       );
 
@@ -211,7 +419,6 @@ export function MainFlow({
           api={api}
           timeZone={me.profile?.timezone}
           routineStartLocalDate={routineStartLocalDate}
-          restLocalDate={restChoice?.localDate}
           onNavigateTab={onTab}
           onOpenWeeklyReport={(weekStart) =>
             setStep({ name: 'weekly', weekStart })
@@ -227,41 +434,101 @@ export function MainFlow({
           onNavigateTab={onTab}
           onRefreshMe={onRefreshMe}
           onSignOut={onSignOut}
-          onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
         />
       );
 
     case 'exercises':
-      return (
-        <ExerciseCatalogScreen
-          api={api}
-          onBack={() => setStep({ name: 'account' })}
-        />
-      );
-
-    case 'calendar':
-      return <CalendarStatusScreen onBack={goHome} />;
+      return <ExerciseCatalogScreen api={api} onBack={goHome} />;
 
     case 'home':
     default:
       return (
-        <HomeContainer
-          api={api}
-          me={me}
-          restToday={restToday}
-          decision={decision}
-          onDecisionChange={setDecision}
-          planRevision={planRevision}
-          onPlanRevisionChange={setPlanRevision}
-          onSessionStarted={(sessionId, plan) =>
-            setStep({ name: 'session', sessionId, plan })
-          }
-          onRestChosen={(pressureNotificationsAllowed) =>
-            setRestChoice({ localDate, pressureNotificationsAllowed })
-          }
-          onTab={onTab}
-          onOpenCalendar={() => setStep({ name: 'calendar-report' })}
-        />
+        <>
+          <HomeContainer
+            api={api}
+            me={me}
+            recoveryState={homeRecoveryState}
+            restToday={restToday}
+            safetyGuidance={
+              homeSafetyGuidance?.localDate === localDate
+                ? homeSafetyGuidance.message
+                : undefined
+            }
+            decision={decision}
+            decisionGenerationPending={
+              decisionGenerationLocalDate === localDate
+            }
+            todaySession={todaySession}
+            alternativeUsedCount={
+              alternativeUsage.localDate === localDate
+                ? alternativeUsage.count
+                : 0
+            }
+            hasUnreadNotification={
+              (notificationResponse?.unread_count ?? 0) > 0
+            }
+            notificationPanel={
+              <NotificationSheet
+                errorMessage={notificationError}
+                notice={notificationNotice}
+                onRetry={() => void refreshNotifications()}
+                onSelect={selectNotification}
+                pendingNotificationId={pendingNotificationId}
+                response={notificationResponse}
+                status={notificationStatus}
+                visible={notificationSheetOpen}
+              />
+            }
+            onDismissNotificationPanel={
+              notificationSheetOpen
+                ? () => {
+                    setNotificationSheetOpen(false);
+                    setNotificationNotice(null);
+                  }
+                : undefined
+            }
+            notificationToastVisible={notificationToastVisible}
+            onNotifications={toggleNotifications}
+            onAlternativeSuccess={() =>
+              setAlternativeUsage((current) => ({
+                localDate,
+                count:
+                  current.localDate === localDate
+                    ? Math.min(2, current.count + 1)
+                    : 1,
+              }))
+            }
+            onDecisionChange={setDecision}
+            onDecisionGenerationPendingChange={(pending) =>
+              setDecisionGenerationLocalDate((current) =>
+                pending ? localDate : current === localDate ? null : current,
+              )
+            }
+            planRevision={planRevision}
+            onSessionStarted={(sessionId, plan, locationCode) => {
+              setStep({ name: 'session', sessionId, plan, locationCode });
+            }}
+            onResumeWorkout={(locationCode) => {
+              if (todaySession !== null && decision?.final_plan) {
+                setStep({
+                  name: 'session',
+                  sessionId: todaySession.session_id,
+                  plan: decision.final_plan,
+                  locationCode,
+                });
+              }
+            }}
+            onCheckinDecisionSuccess={() => {
+              setRestLocalDate(null);
+              setTodaySession(null);
+              setHomeSafetyGuidance(null);
+            }}
+            onRecoverDecision={recoverHomeDecision}
+            onTab={onTab}
+            onOpenCalendar={() => setStep({ name: 'calendar-report' })}
+            onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
+          />
+        </>
       );
   }
 }

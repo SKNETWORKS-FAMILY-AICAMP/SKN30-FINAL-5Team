@@ -6,23 +6,35 @@
 
 이 규칙은 의료 진단, 치료 또는 재활 처방이 아니다. 사용자가 직접 보고한 상태를 이용해 검수된 운동 후보를 제한하는 제품 정책이다.
 
-현재 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트별 상세 입력·출력·proposal JSON 구조와 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
+현행 결정 경로는 `SafetyPolicyEngine → ConstraintEnvelope/Safety-approved Pool → Training·Recovery·Feasibility → Coordinator → Plan Compiler → Integrity Validator`다. Safety는 proposal Agent가 아니라 결정적 정책 엔진이며 validator는 compiled plan의 envelope 준수를 강제한다.
 
 ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기준 구현과 필수 검증이 병합되기
 전에는 아래 현재 계약을 production 기준으로 유지하며, 8.1을 구현 완료나 새 안전 정책 승인으로
 해석하지 않는다.
 
 ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`다. 8.2와 9.1은 구현·비교
-검증과 production 전환 승인 전까지 현재 V1/V2의 네 proposal, 결정적 Coordinator와
-narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 목표 계약인 ADR-0014는
+검증과 production 전환 승인 전까지 legacy 응답의 read 호환을 바꾸지 않는다. Qdrant 세부 목표 계약인 ADR-0014는
 `ACCEPTED` 상태이지만 adapter·migration·shadow 검증 전에는 production 구현 완료로 간주하지 않는다.
+
+### 1.1 최신 정책 우선 적용 (2026-09-01)
+
+`SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`가 이 문서의 온보딩·체크인·통증·운동 실행 계약 기준이다.
+
+- 지원 범위는 18–64세 일반 성인이다. 생년월일은 암호화해 수집하고 사용자 timezone의 local date 기준으로 서버가 eligibility를 판정한다. 저장된 생년월일과 체중은 인증된 본인의 프로필 조회에만 반환한다(ADR-0020). 성별·키·온보딩 장소·기본 시간·사용자 장비는 수집하지 않는다. 선택적 `persistent_pains`는 Daily Check-in 기본값으로만 저장하며, 생년월일과 함께 Eligibility 외의 결정, LLM, snapshot, 로그에 사용하지 않는다.
+- Check-in은 선택적 수면, 필수 피로 코드(`LOW`/`MODERATE`/`HIGH`), 10–90분, 장소, 당일 NRS 통증과 Red Flag를 사용한다. 기본 권장값은 30분이지만 서버는 이 값을 사용자 요청으로 대체하지 않는다. 근육통은 Recovery 입력이나 계산에 사용하지 않으며, 장소는 완화할 수 없다.
+- NRS 1–3/4–6은 해당 부위의 검수된 금기 관계 운동을 제외하며, 4–6에는 전역 `LIGHT` 상한을 더한다. NRS 7–10 또는 Red Flag는 계획을 만들지 않는다. 안전 metadata 결측·미검수 운동만 fail-closed로 제외한다.
+- Recovery는 수면·피로 조합으로 `NORMAL`/`LIGHT`/`VERY_LIGHT`를 계산하고 결측을 좋은 상태로 간주하지 않는다. 통증 상한과 충돌하면 더 보수적인 상한을 적용한다.
+- 운동 중 `PAIN_OR_ABNORMAL_RESPONSE`는 증상 세부정보 없이 세션 전체를 종료한다. Safety Event에는 선택적 현재 `plan_item_id`, 결과·시각·규칙 버전만 저장하며 당일 이어하기·대체 운동을 제공하지 않는다.
+- 공식 수행 상태는 local date의 최종 완료 블록 수만으로 `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`를 결정한다. `RUNNING`/`RESTING`/`PAUSED`/`STOPPED_RESUMABLE`/`STOPPED_SAFETY`/`COMPLETED`는 별도 실행 상태다.
+
+전환은 additive API·DB migration, 구버전 read 유지, 신규 write 전환, 호환 검증 후 legacy 제거 순서로만 진행한다.
 
 규칙의 적용 우선순위는 다음과 같다.
 
 1. 중대한 이상 반응 처리
 2. 심한 통증과 급성 부상 신호 처리
 3. 통증 부위별 운동 제외
-4. 요청 시간 선호, 장소, 장비 제약
+4. 요청 시간 선호와 장소 제약
 5. 복귀 모드 상한
 6. 목표와 CORE 운동 보존
 7. 진척과 지속 가능성에 따른 후보 선택
@@ -40,8 +52,6 @@ narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 목�
 - 웨어러블 데이터가 없어도 모든 핵심 흐름이 동작한다.
 - 웨어러블 데이터만으로 안전 결정을 내리지 않는다.
 - 웨어러블은 MVP의 선택적 입력 경로이며 권한 거부·미연동 사용자는 수동 체크인으로 동일한 핵심 흐름을 사용한다.
-- 캘린더는 빈 시간·계획 등록과 등록된 일정의 수행 여부만 확인하는 보조 경로다. 세부 운동 기록은 저장하지 않으며 공식 수행 상태를 변경하지 않는다.
-- 웨어러블 운동 데이터는 캘린더에 자동 등록하지 않는다.
 - 안전 거부는 조정 에이전트와 LLM이 무시할 수 없다.
 - 내부 원래 후보의 안전 검증 결과는 최종 추천 루틴 반환 여부를 결정하며, 원래 후보를 사용자 선택지로 공개하지 않는다.
 - 사용자가 요청한 운동 시간은 시스템이 임의로 축소하지 않는다.
@@ -118,9 +128,9 @@ OTHER
 
 이 값은 의료적 통증 척도로 해석하지 않는다.
 
-### 3.3.1 온보딩 통증 입력과 점수 변환
+### 3.3.1 온보딩 `persistent_pains`와 (Legacy) 직접 통증 입력
 
-신규 온보딩 계약은 `pain_present`와 `PainAreaInput[] pain_areas`를 사용한다.
+선택적 `persistent_pains`는 온보딩에서 저장할 수 있으나 Daily Check-in의 수정 가능한 기본값일 뿐이다. 사용자가 당일 값을 제출하기 전에는 Safety·루틴 생성에 사용하지 않으며, 제출된 `daily_context_pains`만 Safety 입력이다. 아래 `PainAreaInput`은 이전 직접 온보딩 통증 입력의 호환 기록이다.
 
 ```text
 PainAreaInput
@@ -139,10 +149,10 @@ PainAreaInput
 
 결정 정책 `pain-intensity-action-v2`는 원점수 구간별 서비스 액션을 다음과 같이 결정한다.
 
-| intensity_score | severity_code | service_action | alternative policy |
+| intensity_score | severity_code | service_action | 후보 처리 |
 |---:|---|---|---|
-| 1..3 | `MILD` | `LOAD_REDUCED` | 같은 목표 → 부하 감소 → ROM 감소 → 쉬운 변형 |
-| 4..6 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
+| 1..3 | `MILD` | `LOAD_REDUCED` | 해당 부위 contraindicated 운동을 제외한 남은 후보로 목표 유지 |
+| 4..6 | `MODERATE` | `SKIP_AFFECTED_AREA` | 해당 부위 contraindicated 운동을 제외하고 전역 `LIGHT` 상한 적용 |
 | 7..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
 
 원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다.
@@ -158,7 +168,7 @@ v2.0.2 일괄 승인(`USER_DIRECT_REVIEW_2026_08_29`)이 사용한 것과 같은
 경로를 유지하며 점수를 추정하거나 backfill하지 않는다. 숫자 NRS 입력 UI를 도입할 때 이 표를 서버
 계약으로 노출하고 클라이언트가 경계를 재구현하지 않는다.
 
-### 3.4 이상 반응 코드
+### 3.4 (Legacy) 이상 반응 코드
 
 ~~~text
 CHEST_DISCOMFORT
@@ -173,7 +183,8 @@ CANNOT_BEAR_WEIGHT
 OTHER_SERIOUS_REACTION
 ~~~
 
-구현 시 하나의 목록으로 저장하되 처리 결과는 다음 두 그룹으로 구분한다.
+아래는 이전 상세 입력 계약의 호환 기록이다. 최신 정책의 운동 중 Safety Event는 사용자가
+`PAIN_OR_ABNORMAL_RESPONSE` 사유만 선택하고, 증상 유형·통증 부위·NRS를 수집하거나 저장하지 않는다.
 
 긴급 중단 그룹:
 
@@ -212,6 +223,15 @@ OPTIONAL
 `BEGINNER` 운동과 `BEGINNER` FITT로 재구성할 수 있다. 후보는 `DOMAIN_APPROVED` 운동으로
 제한하며 `beginner_suitable` 또는 별도 `intermediate_suitable` 플래그를 사용하지 않는다.
 
+검수된 FITT 세트·반복 범위(`catalog_enrichment_v3_fitt.csv` × `fitt_template_v1.csv`)가 어떤
+운동을 실제로 덮고 있을 때, 그 운동의 처방은 승인 범위 안에 있어야 한다. 범위가 없는 운동은
+Recovery ceiling이 유일한 승인 볼륨 근거이며, 이름·움직임·난이도에서 범위를 추론하지 않는다.
+범위의 부재는 위반이 아니라 미검수 상태다 — 부재를 위반으로 처리하면 아무 볼륨도 제한하지
+못한 채 모든 계획이 거부된다. 현재 승격 카탈로그(v2.0.6)의 `stable_code`는 검수 참조의
+`NEX-` 식별자와 이어지는 검수된 매핑이 없어 커버리지가 0이다. 이 상태는
+`backend/tests/unit/test_fitt_policy.py`가 명시적으로 고정하고 있으며, 매핑이 도착하면
+그 테스트를 교체해야 한다.
+
 ### 3.6 코치 문구 성향
 
 ~~~text
@@ -240,26 +260,29 @@ FAILED
 
 안전 상태와 최종 액션은 다른 축이다. `BLOCKED`는 원인에 따라 REST 또는 STOP_AND_SEEK_HELP로 사용자에게 표시할 수 있고, `FAILED`는 제품 오류이며 운동 액션을 성공 결과로 만들지 않는다.
 
+승인 Safety 필터와 사용자 적격성 필터를 모두 적용한 뒤 eligible exercise가 0개면
+`BLOCKED`와 `REST`를 반환하고 `final_plan`은 `null`이다. 이 경우 대체 운동을 임의로 만들지 않으며,
+기존 `reason_codes`와 `summary`에 `NO_APPROVED_SAFE_EXERCISE` 차단 사유를 포함한다. `NEEDS_INPUT`은
+필수 입력 누락에만 사용한다.
+
 ---
 
 ## 4. 결정 순서
 
-### 4.1 중대한 이상 반응
+### 4.1 Red Flag
 
-긴급 중단 그룹의 코드가 하나라도 있으면 STOP_AND_SEEK_HELP를 반환한다.
+Daily Check-in의 `red_flag_present=true`이면 루틴 생성을 중단하고 `STOP_AND_SEEK_HELP` 안내를 반환한다.
 
 - final_plan은 null이다.
 - 운동을 추천하거나 증상의 원인을 추정하지 않는다.
-- 긴급 안내 문구를 반환한다.
+- 원인을 추정하지 않는 중립적 안내 문구를 반환한다.
 - 다른 에이전트 제안과 사용자 코치 성향은 이 결과를 변경할 수 없다.
 
-### 4.2 심한 통증과 급성 근골격 신호
+### 4.2 심한 통증
 
 다음 중 하나면 `STOP_EXERCISE`를 반환한다.
 
-- 한 부위라도 NRS 7–10
-- 급성 근골격 신호 그룹의 코드가 있음
-- 운동 중 통증 증가·갑작스러운 통증·부종·감각 이상·체중부하 불가가 발생함
+- Daily Check-in에서 한 부위라도 NRS 7–10
 
 `STOP_EXERCISE`에는 대체 운동과 final_plan을 제공하지 않는다. 긴급 중단 그룹은
 `STOP_AND_SEEK_HELP`로 별도 처리한다.
@@ -268,21 +291,13 @@ FAILED
 
 NRS 구간별로 다음과 같이 처리한다.
 
-- 불편 부위가 명확함
-- NRS 1–3: 원래 운동이 불편 부위를 사용하면 해당 부위를 피하는 검수된 Alternative를 우선
-  적용하고 `LOAD_REDUCED`를 사용한다. 통증 부위와 겹치지 않으면 원래 목표를 유지하며 부하
-  감소, ROM 감소, 쉬운 변형 순으로 적용한다.
-- NRS 4–6: 통증 부위를 primary·secondary 모두에서 제외하고 저강도 `ACTIVE_RECOVERY` 후보를 사용한다.
-- NRS 7–10: 대체 후보를 만들지 않고 `STOP_EXERCISE`를 반환한다.
-- 긴급 중단 그룹과 급성 근골격 신호 그룹이 모두 비어 있음
-- 후보가 있는 경우 `DOMAIN_APPROVED` 상태의 대체 운동이어야 함
-- 대체 운동이 현재 장소와 장비를 충족함
+- NRS 1–3: 해당 부위의 `contraindicated` 운동을 Safety-approved Pool에서 제외하고 남은 후보로
+  목표를 유지한다.
+- NRS 4–6: 같은 제외 규칙에 더해 전체 후보에 `LIGHT` 상한을 적용한다.
+- NRS 7–10: 계획을 생성하지 않고 `STOP_EXERCISE`를 반환한다.
 
-NRS 1–3의 서비스 액션은 `LOAD_REDUCED` 또는 `ROM_REDUCED`이며, 원 운동이 보고된 불편
-부위를 사용하면 먼저 `NRS_1_3`·해당 부위 Alternative를 조회한다. 일치하는 Alternative가
-없을 때만 안전성이 확인된 원 운동에 다운시프트를 적용한다. NRS 4–6의 서비스 액션은
-`SKIP_AFFECTED_AREA`이며 `NRS_4_6`·해당 부위의 저강도 `ACTIVE_RECOVERY` 후보를 제공한다.
-NRS 7–10은 대체 운동을 제공하지 않는다.
+운동 중 `PAIN_OR_ABNORMAL_RESPONSE`는 이 절의 후보 재구성 경로가 아니다. 증상 상세를 입력받지
+않고 그날의 세션 전체를 종료하며, 당일 이어하기·Skip 후 재개·Alternative·대체 운동을 제공하지 않는다.
 
 ### 4.3.1 안전 규칙 레코드 해석
 
@@ -343,7 +358,7 @@ NRS 7–10은 대체 운동을 제공하지 않는다.
 피로 입력은 사용자의 주관적 제품 입력이며 의료 상태로 해석하지 않는다.
 
 - 중간 수준 피로는 요청 시간을 유지하는 DOWNSHIFT 후보를 만든다.
-- 높은 피로, 설정된 수면 부족 신호, 최근 운동 부하 누적, 여러 부위의 일반적 근육통은 RECOVERY 후보를 만든다.
+- 높은 피로, 설정된 수면 부족 신호, 최근 운동 부하 누적은 RECOVERY 후보를 만든다.
 - 수면 부족과 최근 부하의 수치 임계값은 버전화된 정책 설정으로 관리해야 하며 전문가 검수 전 임의로 정하지 않는다.
 
 RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동성 운동으로 제한한다.
@@ -354,9 +369,9 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 - 통증과 이상 반응이 없음
 - 회복 또는 복귀 제한이 없음
-- 현재 장소와 장비로 원래 계획 수행 가능
+- 현재 장소에서 원래 계획 수행 가능
 - 원래 계획이 사용자가 요청한 시간 목표와 강도 선호에 부합함
-- SafetyAgent의 안전 상태와 의견이 Coordinator 결정에 반영됨
+- SafetyPolicyEngine의 안전 envelope가 Coordinator·compiler·integrity validator 결과에 유지됨
 
 ---
 
@@ -366,7 +381,25 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/domain/rules/duration.py`의 `DURATION_TOLERANCE_SECONDS`이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 값을 공유한다.
 
-V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. V3 계획은 현재 모든 항목을 `MAIN`으로 구성하므로 `setup_seconds`, `warmup_seconds`, `cooldown_seconds`가 아직 0이다. 이 구간의 도입은 별도 과제로 관리한다.
+V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. `warmup_seconds`와 `cooldown_seconds`는 해당 phase 항목들의 `estimated_item_seconds` 합이며, V1/V2 루틴 경로와 같은 방식으로 계산한다. V3는 별도의 장비 준비 블록을 모델링하지 않으므로 `setup_seconds`는 0이다.
+
+세션 구성 한도는 `backend/app/domain/rules/plan_shape.py`에 있으며 V1/V2 루틴 경로와 V3 계획 경로가 공유한다. 서로 다른 운동 종류는 최대 10개다. WARMUP·COOLDOWN은 각각 최대 2개 종류이고 같은 운동을 반복하지 않는다. MAIN은 요청 시간을 구성하기 위해 같은 승인 운동을 운동당 최대 10블록까지 반복할 수 있으나, 같은 운동이 인접한 MAIN 블록에 올 수 없다. Recovery ceiling이 있으면 반복 블록의 세트 합계도 운동당 ceiling을 넘을 수 없다.
+
+공개 루틴 이름은 `plan_naming.py`가 컴파일된 MAIN의 부위·동작 패턴·운동 유형과 조정 action에서 결정한다. 이름과 근거 machine code, `PLAN_NAMING_RULE_VERSION`을 함께 반환하며 LLM·진단·의료 표현을 사용하지 않는다. 데이터가 부족하면 `오늘의 운동 루틴`으로 폴백한다.
+
+- 계획은 `WARMUP`·`MAIN`·`COOLDOWN`을 모두 포함하고 그 순서를 지킨다.
+- 서로 다른 운동 종목은 한 세션에 최대 10개, 그중 `WARMUP` 최대 2개, `COOLDOWN` 최대 2개다.
+- 같은 운동을 여러 블록으로 나눠도 종목 수는 1개로 센다. 남는 시간은 종목을 늘리는 대신 세트 수로 흡수한다.
+- 쪼갠 블록은 세션 전체에 흩어 놓는다. 같은 운동이 인접한 MAIN 블록에 오면 한 번의 긴 운동으로 읽히므로,
+  `space_repeated_blocks`가 다른 종목을 사이에 끼워 넣는다. 블록 자체의 상대 순서는 보존한다. 분리할
+  다른 종목이 부족하면 남은 블록을 뒤로 몰되 계획을 거부하지는 않는다.
+- 카탈로그의 `family_code`가 같은 운동은 한 세션에 1개만 넣는다. 바벨·시티드·스미스 굿모닝처럼 도구만 다른 변형을
+  나란히 배치하면 종목 수만 쓰고 사용자에게 새로운 운동을 주지 않는다. `family_code`가 없는 운동은 어떤 그룹에도
+  속하지 않으므로 서로 묶지 않는다. WARMUP·COOLDOWN을 채울 후보가 이미 사용한 family뿐이면 phase를 비우는 대신
+  그 후보를 사용한다. phase가 빠진 계획은 그 자체로 무효이기 때문이다.
+- phase는 운동의 검수된 속성이다. 계획은 카탈로그가 승인하지 않은 phase에 운동을 배치할 수 없다.
+
+V3에서 이 한도는 컴파일된 계획에 대한 무결성 검증(`validate_plan_integrity`)이 강제한다. 위반은 조정자 1회 재수정 대상이며, 재수정으로도 해소되지 않으면 결정론적 폴백이 같은 승인 풀에서 같은 형태를 다시 만든다. 폴백조차 해당 phase 후보를 찾지 못하면 계획을 반환하지 않고 실패한다.
 
 ~~~text
 estimated_duration_seconds
@@ -394,7 +427,7 @@ MVP 데이터 허용 범위:
 
 운동 시작 후 `actual_elapsed_seconds`는 0초부터 증가하는 클라이언트 경과 타이머 값이다. 이 값은 수행량 확인과 기록에만 사용하며 운동 블록, 세션 상태 또는 안전 결과를 자동 판정하지 않는다. 시작·일시정지·재개·종료 이벤트는 별도 이력으로 누적하되 공식 수행 상태를 변경하지 않는다.
 
-예상 소모 칼로리 산식과 계수는 버전 관리하며 개발 전 확정한다. 표시 문구는 추정치임을 명시하고 의료적 해석을 제공하지 않는다.
+예상 소모 칼로리는 공식 완료 블록과 누적 운동 진행 시간만으로 서버가 계산한다. `actual_elapsed_seconds`와 웨어러블·계획 조정 값은 계산 입력으로 사용하지 않는다. 승인된 MET 매핑과 저장된 체중이 모두 있을 때 `MET × 3.5 × weight_kg ÷ 200 × 완료 블록에 배분된 진행 시간(분)`을 사용하고, 0.1 kcal HALF_UP 반올림·정책 버전·MET 출처 버전·입력 snapshot을 저장한다. 체중 또는 승인 매핑이 없으면 세션 완료를 실패시키지 않고 추정값은 `null`/`UNAVAILABLE`로 저장한다. 표시 문구는 추정치임을 명시하고 의료적 해석을 제공하지 않는다.
 
 ---
 
@@ -402,16 +435,40 @@ MVP 데이터 허용 범위:
 
 다운시프트는 사용자의 requested duration을 유지하면서 최종 추천 루틴의 수행 부담을 낮춘다. lighter 계획을 별도 생성하거나 공개하지 않는다.
 
-1. 안전, 장소, 장비 충돌 운동을 제거한다.
+1. 안전·장소 충돌 운동을 제거한다.
 2. requested duration과 CORE 목표·운동 순서를 유지하고 `estimated_duration_seconds`를 `requested_duration_minutes * 60`에 맞춘다.
 3. 외부 부하와 강도를 낮춘다.
 4. 필요하면 세트·반복, 운동 난이도 또는 운동 유형을 조정한다.
 5. 준비·세트·반복·휴식·전환·마무리 구성을 조정해 요청 시간에 맞춘다.
-6. 모든 대체 운동은 검수된 대체 관계를 사용한다.
+6. 대체 관계는 카탈로그의 검수·추적용 관계이며, Safety Pool을 우회하거나 운동 중 교체를 제공하는 근거로 사용하지 않는다.
 
 시스템이 40분 요청을 15분 또는 5분으로 임의 축소하는 것은 금지한다. 사용자가 당일 시간을 직접 변경하면 변경된 값을 새 requested duration으로 사용한다. 남은 시간은 승인된 구성요소의 시간 배분으로 맞추되, 시간을 채우기 위한 불필요한 운동은 추가하지 않는다. 안전상 정확한 시간의 운동 제공이 불가능하면 시간 선호보다 REST 또는 STOP_AND_SEEK_HELP가 우선한다.
 
 TIME_SHORTAGE 미수행 이력이 반복돼도 agent가 요청 시간을 자동 변경할 수 없다. 시스템은 사용자에게 희망 시간 변경 여부를 물을 수만 있고 명시적 USER_OVERRIDE가 있을 때만 반영한다.
+
+### 6.1 어려움 피드백 조정 사다리
+
+`difficulty_code=HARD` 피드백은 다음 루틴부터 한 단계 하향을 적용한다. 어느 축을 낮출지는
+`difficulty_reason_codes`가 정한다.
+
+| 입력 | 우선 조정 축 |
+|---|---|
+| `MOVEMENT_DIFFICULT`만 | 운동 난이도 |
+| `VOLUME_HIGH`만 | 운동 강도 |
+| 둘 다 | 운동 난이도를 먼저 조정한다 |
+
+조정 축의 최종 우선순위는 운동 난이도 → 운동 강도 → 시간 배분이다.
+
+1. 더 낮은 난이도의 운동 또는 variant로 교체한다.
+2. 교체할 난이도나 variant가 없으면 강도 하향으로 전환한다. 세트·반복·부하·휴식 구조로만
+   낮춘다.
+3. 강도 조절만으로 대응하기 어려우면 시간 배분을 조정한다. **이 단계는 요청 시간을 줄이지
+   않는다.** 5절이 허용하는 ±300초 창 안에서 요청값보다 짧은 쪽 계획을 선택하는 것까지만
+   허용하며, 창 밖으로 나가는 축소는 금지한다. 사용자가 직접 시간을 바꾸는 것은 별개다.
+
+한 번의 조정에서는 원칙적으로 하나의 축만 변경하고, 다음 수행 피드백으로 효과를 평가한 뒤
+다음 축으로 넘어간다. 조정 근거가 된 피드백과 적용한 축은 decision run에 기록해 재현 가능하게
+한다. 어느 단계에서도 안전 규칙의 제외 결과를 되돌리지 않는다.
 
 ---
 
@@ -433,6 +490,19 @@ RETURN_MODE_COMPLETION_GAP_DAYS=14
 `NOT_COMPLETED` 이력과 연속 미수행 횟수는 다음 계획의 학습 신호로만 사용하며 복귀 모드를
 활성화하거나 벌점을 부과하지 않는다. 마지막 공식 완료 이력이 없는 콜드스타트 사용자는
 미수행 이력만으로 복귀 모드에 들어가지 않는다.
+
+주간 body-focus rotation은 `weekly_target_sessions`를 목표로 최근 7일의 실제 수행 세션에서만
+읽는다. `COMPLETED`와 하나 이상의 블록을 수행한 `PARTIAL`은 `PlanCandidate.body_focus_code`를
+포함하고, `NOT_COMPLETED`와 생성만 된 루틴은 제외한다. 가장 최근 실제 수행 세션과 같은 primary
+body focus는 다른 승인 후보가 가능한 경우 연속하지 않으며, safety-relevant body-area label이나
+고정 부위 순서는 rotation 입력으로 사용하지 않는다. 반면 추천 학습에는 세 공식 상태를 모두
+사용하고, `PARTIAL`의 중단 사유와 `NOT_COMPLETED`의 skip reason, 운동 후 feedback은 다음 결정
+입력 스냅샷에 보존한다.
+
+프로필의 `primary_goal_code`가 실제로 변경되면 이전 목표로 생성된 활성 루틴은 더 이상 현재
+추천의 입력으로 사용하지 않는다. 이전 루틴은 이력 재현을 위해 `ARCHIVED`로 보존하고, 다음 루틴은
+저장된 최신 목표와 배포 승인 catalog의 목표 연결·처방으로 새 버전을 생성한다. 같은 목표를 다시
+저장하거나 목표와 무관한 프로필 필드만 수정한 경우에는 이 규칙으로 활성 루틴을 만료시키지 않는다.
 
 POL-012의 14일 미접속 서비스 분류는 계정 참여 상태를 위한 별도 운영 정책이며, 운동 복귀
 모드를 활성화하는 근거가 아니다. 운동 복귀 모드의 유일한 날짜 근거는 마지막 공식
@@ -472,7 +542,7 @@ FEASIBILITY
 공통 입력에는 다음 스냅샷이 포함된다.
 
 - 사용자 프로필의 최소 정규화 필드
-- `date_of_birth`와 서버가 계산한 만 나이는 에이전트 입력에 포함하지 않는다. 만 나이는 가입 자격 확인과 프로필 표시 외에 사용하지 않는다.
+- `date_of_birth`와 서버가 계산한 만 나이는 에이전트 입력에 포함하지 않는다. 만 나이는 가입 자격 확인 외에 사용하지 않는다.
 - 활성 기본 루틴 버전
 - 당일 체크인과 이상 반응
 - 최근 완료·미수행 기록
@@ -480,7 +550,7 @@ FEASIBILITY
 - 사용자 정책 버전
 - 운동 카탈로그와 안전 규칙 버전
 - 선택적 웨어러블 요약
-- 가능 시간·장소·장비·일정·선호·기피 조건
+- 가능 시간·장소·일정·선호·기피 조건
 
 공통 출력에는 다음을 포함한다.
 
@@ -498,13 +568,11 @@ FEASIBILITY
 - evidence references
 - policy_version
 
-proposal_status는 `READY`, `NEEDS_INPUT`, `FAILED` 중 하나다. opaque confidence 점수는 MVP 계약에 포함하지 않는다. Training·Recovery·Safety·Feasibility 네 proposal 중 하나라도 `FAILED`이거나 누락되면 decision run은 `FAILED`이며 계획을 성공 응답하지 않는다.
+proposal_status는 `READY`, `NEEDS_INPUT`, `FAILED` 중 하나다. opaque confidence 점수는 MVP 계약에 포함하지 않는다. Safety는 proposal이 아니라 선행 `SafetyPolicyEngine`이며, Training·Recovery·Feasibility 세 proposal의 provider 실패는 검증 가능한 결정적 fallback으로만 진행한다. 안전한 fallback이 없으면 decision run은 `FAILED`이고 계획을 성공 응답하지 않는다.
 
 evidence는 저장된 입력 필드와 규칙 코드를 가리키는 구조화 참조다. 내부 추론 전문을 저장하거나 클라이언트에 노출하지 않는다.
 
-Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Recovery·Safety·Feasibility proposal을 입력받아 최종 루틴 한 개를 선택한다. `BLOCKED`와 같은 SafetyAgent의 중단 의견을 우선 반영하고, 요청 운동 시간을 보존한다.
-
-독립적인 Safety 최종 재검사는 수행하지 않는다.
+Coordinator(의장 에이전트)는 Safety-approved Pool과 Training PlanSpec, Recovery·Feasibility adjustment code를 입력받아 최종 루틴 한 개를 선택한다. Safety envelope를 완화할 수 없고, compiler 뒤 integrity validator가 compiled plan의 envelope·장소·Recovery/Pain cap·시간 제약을 검증한다.
 
 ### 8.1 (SUPERSEDED) V2 구조화 상호검토 목표 계약
 
@@ -545,7 +613,7 @@ review는 machine code와 승인 후보 ID만 포함하고 자유 텍스트 reas
 - 요청 시간·시간 출처·승인 후보 집합·입력/정책/카탈로그/규칙 버전은 변경할 수 없다.
 - Safety `BLOCKED`, `REST`, `STOP_AND_SEEK_HELP`, veto와 제외 운동은 완화할 수 없다.
 - Safety Agent만 veto를 `false -> true`로 강화하거나 제외 운동을 추가할 수 있다.
-- Feasibility의 장소·장비·가용 시간 불가능 조건은 다른 Agent 선호로 해제할 수 없다.
+- Feasibility의 장소·가용 시간 불가능 조건은 다른 Agent 선호로 해제할 수 없다.
 - 승인 정책이 만든 Recovery 최대 강도·부하·볼륨·복귀 상한을 Training이 초과할 수 없다.
 - Training primary goal은 위 hard constraint 안에서 보존한다. 동시에 만족할 후보가 없으면 목표나
   시간을 임의로 바꾸지 않고 기존 계약의 `REST`, `NEEDS_INPUT` 또는 `FAILED`로 종료한다.
@@ -556,7 +624,7 @@ review는 machine code와 승인 후보 ID만 포함하고 자유 텍스트 reas
 
 Agent는 DB, repository, FastAPI, ORM, LLM SDK와 외부 API를 직접 호출하지 않는다. application
 service는 검수 catalog, 목표·루틴 policy, Recovery ceiling, Safety rule·대체, 정확한 시간 계산,
-장소·장비 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
+장소 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
 막으면 고정 failure code로 fail-closed하며 예외 원문이나 사용자 원문을 복사하지 않는다.
 
 ### 8.2 승인된 V3 Safety-first LLM Agent 목표 계약
@@ -569,7 +637,7 @@ V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngi
 - 요청 시간과 시간 출처
 - primary goal과 required goal tag
 - intensity·load·volume·return ceiling
-- 장소·장비와 실행 가능 hard constraint
+- 장소와 실행 가능 hard constraint
 - input, policy, safety, duration, catalog schema/version/hash
 
 application loader는 같은 catalog version의 PostgreSQL에서 production-approved 운동을 결정적으로
@@ -587,7 +655,7 @@ Qdrant unavailable/not-ready/timeout, stale result와 catalog/index/embedding ve
 
 Round 1 LLM Agent는 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 개다. 동일 envelope와 pool을 받아
 LangGraph에서 병렬 실행하고 LangChain/Pydantic structured output만 반환한다. Training은 pool 안에서
-PlanSpec 초안을 만들고, Recovery는 승인 ceiling 안의 조정, Feasibility는 장소·장비·시간 안의 실행
+PlanSpec 초안을 만들고, Recovery는 승인 ceiling 안의 조정, Feasibility는 장소·시간 안의 실행
 가능성 proposal을 만든다.
 
 ADR-0015에 따라 계획을 만드는 Agent는 Training 하나다. Recovery와 Feasibility는 회복 상한과
@@ -607,7 +675,7 @@ integrity validator는 원시 통증·이상 반응을 재분류하지 않고 co
 duration, goal, equipment/location, catalog와 schema constraint를 지켰는지만 검사한다.
 
 repairable violation은 machine code로 Coordinator에 한 번만 반환한다. 요청 시간, 세트·반복,
-Recovery ceiling, 순서·schema, 필수 목표, 장비, 승인 대체가 있는 제외 운동 위반만 repair 대상이다.
+Recovery ceiling, 순서·schema, 필수 목표, 장소, Safety 제외 운동 위반만 repair 대상이다.
 `STOP_AND_SEEK_HELP`, 생성 금지 veto, 안전 운동 없음, 필수 입력 누락, 정책 데이터 불완전, provider
 전체 장애와 repair 재실패는 Coordinator로 돌아가지 않는다. deterministic fallback도 같은 compiler와
 validator를 통과해야 하며 `STOP_AND_SEEK_HELP`를 REST나 plan으로 바꿀 수 없다.
@@ -624,6 +692,11 @@ validator를 통과해야 하며 `STOP_AND_SEEK_HELP`를 REST나 plan으로 바�
 decision당 최대 두 번이고 idempotent하다. snapshot/envelope/pool이 stale하거나 safety·catalog·policy
 version이 바뀌면 새 decision/check-in 경로가 필요하다.
 
+root 계보 한도와 별도로, 같은 local date의 성공 재생성과 체크인 수정을 합쳐 최대 두 번만 허용한다.
+최초 체크인은 세지 않고 체크인 수정으로 root가 바뀌어도 하루 한도는 초기화하지 않는다. 두 경로는
+같은 사용자·날짜 트랜잭션 잠금 아래 현재 횟수를 검사하며 멱등 재시도는 다시 세지 않는다.
+체크인이 수정된 뒤 이전 root snapshot으로 재생성할 수 없고 새 context의 decision root가 필요하다.
+
 ---
 
 ## 9. LLM 경계
@@ -632,7 +705,7 @@ version이 바뀌면 새 decision/check-in 경로가 필요하다.
 
 - 불편 부위와 이상 반응 분류
 - 안전 제외와 veto
-- 장소와 장비 검증
+- 장소 검증
 - 시간 계산
 - 복귀 모드
 - 다운시프트와 후보 생성
@@ -680,37 +753,38 @@ structured output validation 또는 required Agent가 최종 실패하면 부분
 - 사용자의 휴식 선택은 원래 decision result와 별도로 selection에 저장한다.
 - 휴식 선택 이후 해당 로컬 날짜의 압박 알림은 차단한다.
 
-공식 운동 수행 상태는 앱의 운동 블록 완료 체크로만 확정한다. 전체 경과 타이머, 웨어러블 또는 캘린더의 수행 여부 확인 결과는 참고 신호이며 공식 상태를 변경할 수 없다. 수동 외부 운동 기록은 MVP에 포함하지 않는다.
+공식 운동 수행 상태는 앱의 운동 블록 완료 체크로만 확정한다. 전체 경과 타이머와 웨어러블 요약은 참고 신호이며 공식 상태를 변경할 수 없다. 수동 외부 운동 기록은 MVP에 포함하지 않는다.
 
-운동 세션 상태 전이:
+바나나 운동 보상은 공식 수행 상태와 별도로 실제 누적 운동 시간이 요청 시간의 50% 이상인
+세션에만 지급한다. 이 시간 조건은 완료 상태를 바꾸지 않으며, 미달·미수행·중단으로 바나나를
+차감하지 않는다. `PARTIAL`과 `STOPPED_FOR_SAFETY`는 조건을 충족하면 같은 금액을 지급한다.
+
+신규 write의 실행 상태 전이:
 
 ~~~text
-PLANNED -> IN_PROGRESS -> COMPLETED
-                       -> PARTIAL
-                       -> NOT_COMPLETED
-                       -> STOPPED_FOR_SAFETY
+RUNNING <-> RESTING
+RUNNING/RESTING <-> PAUSED
+RUNNING/RESTING -> STOPPED_RESUMABLE -> RUNNING
+RUNNING/RESTING -> STOPPED_SAFETY
+RUNNING/RESTING -> COMPLETED
 ~~~
 
 각 운동 블록은 `PENDING` 또는 `COMPLETED`다. 사용자가 체크 버튼, 블록 격파 또는 좌측 밀기 등 클라이언트 제스처로 완료를 명시하면 해당 plan item을 COMPLETED로 저장한다. 세트·반복·유산소 권장 시간은 처방 정보이며 센서나 경과 시간으로 완료를 추정하지 않는다.
 
-최종 수행 상태는 서로 배타적이다. 모든 계획 블록이 COMPLETED면 세션은 COMPLETED, 하나 이상 완료됐지만 PENDING 블록이 남으면 PARTIAL, 완료 블록이 없으면 NOT_COMPLETED다. NOT_COMPLETED에는 가장 큰 이유 하나만 저장한다.
+공식 수행 상태는 서로 배타적이다. 모든 계획 블록이 COMPLETED면 `COMPLETED`, 하나 이상 완료됐지만 PENDING 블록이 남으면 `PARTIAL`, 완료 블록이 없으면 `NOT_COMPLETED`다. 중단 사유와 타이머는 이 결과를 바꾸지 않는다.
 
-운동 중 안전 이벤트는 다음 결정적 코드를 사용한다.
+사용자가 일반 사유를 골라 중단하면 세션을 종료하지 않고 `STOPPED_RESUMABLE`로 전이한다. 위 전이표의 `STOPPED_RESUMABLE -> RUNNING`이 이어하기이며, 종료된 세션은 이어할 수 없으므로 일반 중단을 종료로 처리하면 이어하기가 성립하지 않는다. 사용자가 고른 사유는 미수행 사유로 저장하고 다시 중단하면 마지막 값으로 대체한다. 재개하지 않은 세션은 누구도 종료하지 않으므로 중단 시점이 사유를 남길 마지막 기회다. 닫힌 주의 리포트는 종료되지 않은 세션을 거부하지 않고 완료 블록으로 공식 상태를 계산한다. 닫힌 주에는 재개가 불가능하고, 공식 수행 상태의 근거는 언제나 블록 체크이기 때문이다.
 
-| 조건 | instruction | resulting action | session status | reason code | guidance code |
-|---|---|---|---|---|---|
-| NRS 1–3 | `SHOW_CAUTION` | `LOAD_REDUCED` 또는 `ROM_REDUCED` | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
-| NRS 4–6 | `SHOW_CAUTION` | `SKIP_AFFECTED_AREA` 또는 `ACTIVE_RECOVERY` | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
-| NRS 7–10 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
-| 급성 근골격 신호 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
-| 긴급 중단 그룹 | `STOP_AND_SEEK_HELP` | `STOP_AND_SEEK_HELP` | `STOPPED_FOR_SAFETY` | `EMERGENCY_ADVERSE_REACTION` | `SERIOUS_ADVERSE_REACTION_STOP` |
+운동 중 사용자가 `PAIN_OR_ABNORMAL_RESPONSE`를 선택하면 증상 유형·통증 부위·NRS를 추가 입력받지 않는다. 세션 전체를 `STOPPED_SAFETY`와 `is_resumable=false`로 전이하고, `plan_item_id`(가능한 경우), `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`, 시각·규칙 버전만 Safety Event로 저장한다. 당일 이어하기·Skip 후 재개·Alternative를 제공하지 않는다. 종료된 세션의 블록과 상태는 변경할 수 없다.
 
-긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. NRS 1–7 이벤트는 위의
-검수된 동적 재구성 정책에 따라 처리한다. COMPLETED, PARTIAL,
-NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
+안전 중단에서도 운동 후 feedback(`difficulty_code`)은 수집한다. 이는 증상 입력이 아니라 다른 종료와 동일한 체감 질문이며, 위 문단이 금지하는 증상 유형·통증 부위·NRS를 묻지 않는다. 화면은 진지한 톤을 유지하고 안내 문구를 함께 표시한다. 이전 구현은 완료 블록이 없는 안전 중단을 휴식으로 처리해 이 질문을 건너뛰었는데, 사용자의 답이 가장 필요한 종료가 유일하게 답을 받지 못하는 경로였다.
 
-운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD` 하나만 받는다. 표시 문구는
-각각 `쉬웠어요`, `적당했어요`, `어려워요`다. 운동 후 통증·이상 반응 수집을 feedback에 중복하지
+운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD`를 받는다. 표시 문구는
+각각 `쉬웠어요`, `적당했어요`, `어려워요`다. `HARD`인 경우에만 이유를
+`difficulty_reason_codes`로 하나 이상 함께 받는다. 값은 `VOLUME_HIGH`(운동량이 많아 힘들었음)와
+`MOVEMENT_DIFFICULT`(동작 자체가 어려웠음)이며 복수 선택할 수 있다. `HARD`가 아닌 경우 이유를
+받지 않는다. 이 두 코드는 다음 루틴의 조정 방향을 정하는 입력이며 의료적 해석 대상이 아니다.
+운동 후 통증·이상 반응 수집을 feedback에 중복하지
 않고 운동 중 Safety Event API를 유지한다. 기존 fatigue/satisfaction/pain/discomfort/adverse 필드는
 호환 기간 동안만 읽기·legacy write를 지원하고 새 client는 보내지 않는다. 기존 값을 삭제하거나
 통증 없음으로 재해석하지 않는다.
@@ -722,22 +796,32 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - 경계는 저장된 IANA timezone으로 계산하며 다음 로컬 월요일 00:00부터 직전 주를 `CLOSED`로 판정한다. scheduler 상태나 마지막 로그인 시각은 이 판정의 입력이 아니다.
 - 열린 주는 최종 주간 리포트를 생성할 수 없다.
 - 닫힌 주 리포트는 사용자가 요청할 때 생성한다.
-- 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED, STOPPED_FOR_SAFETY를 사용한다.
-- 웨어러블 요약과 캘린더 수행 여부 확인 결과는 별도 참고 항목으로만 표시한다.
-- 다음 주 계획은 직전 주 리포트가 생성되고 사용자가 확인한 뒤에만 최종 확정할 수 있다.
+- 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED를 사용한다. Safety Event는 별도 안전 중단 지표로 집계한다.
+- 웨어러블 요약은 별도 참고 항목으로만 표시한다.
+- 다음 주 계획은 직전 주 리포트가 생성되고 상세 화면의 자동 확인 저장이 완료된 뒤에만 최종 확정할 수 있다.
 - 최초 가입자의 첫 주 목표·루틴은 이전 주 리포트 없이 생성할 수 있다. 이 콜드스타트 예외 이후의 다음 주 계획부터 직전 주 리포트 생성·확인 게이트를 적용한다.
 - AI 기반 다음 주 계획 수정은 최대 2회다.
-- 2회를 모두 사용하면 사용자가 직접 편집할 수 있으나 모든 수정은 시간·장소·장비·안전 규칙을 다시 통과해야 한다.
+- 2회를 모두 사용하면 사용자가 직접 편집할 수 있으나 모든 수정은 시간·장소·안전 규칙을 다시 통과해야 한다.
 - 주간 리포트 생성과 계획 수정에서 필수 규칙 또는 에이전트가 실패하면 `FAILED`이며 추정값으로 계속하지 않는다.
 
-주간 리포트 확인은 최초 열람으로 추정하지 않고 사용자의 명시적 acknowledgement mutation으로 기록한다.
+주간 리포트 상세를 정상적으로 조회하거나 생성하면 클라이언트가 기존 acknowledgement mutation을
+자동 호출한다. 별도 확인 버튼은 제공하지 않는다(프로젝트 소유자 결정, 2026-09-08).
+GET 자체는 상태를 변경하지 않으며, 서버의 `ACKNOWLEDGED` 응답을 확인한 뒤에만 적용 가능한
+다음 주 계획 생성을 자동 요청한다. 과거 리포트의 다음 주가 이미 지난 경우 계획을 소급 생성하지 않는다.
+실패해도 리포트 본문을 유지하고 재시도를 제공하며, 동일 요청 재시도에는 같은 멱등 키를 사용한다.
 
 ### 11.1 닫힌 주 집계 입력 계약
 
-- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 네 공식 세션 상태의 횟수, 선택적인 대표 미수행 reason code와 버전만 가진 불변 최소 집계다.
+- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 세 공식 세션 상태의 횟수, 별도 Safety Event 수,
+  실제 저장된 결과별 reason code, 추천 action code, 체감 난이도와 운동 결정에 연결된 체크인의
+  피로도·통증 여부를 비식별 횟수와 변화 코드로 축약한 불변 최소 집계다.
 - `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
 - 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
 - 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+- 이번 주 목표·수행·체감 난이도·컨디션·통증·사유는 결정적으로 집계한다. OpenAI narration은
+  실제 추천 반영 설명, 다음 주 강도·운동량·시간·통증 대응 문구, 한 줄 코치만 작성할 수 있으며
+  집계값이나 안전 판정은 바꿀 수 없다. 한 줄 코치는 집계 숫자를 나열하지 않는 70자 이하의
+  친숙한 한국어 한 문장으로 제한한다. provider 장애나 검증 실패 시 같은 집계의 템플릿 문구를 쓴다.
 - 신규 `pain_report_count`의 canonical 원천은 해당 주의 `workout_safety_event_discomforts`가 존재하는
   distinct workout session 수다. 동일 세션의 여러 event/부위는 한 번만 센다. 호환 기간의 legacy
   `workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 한 번 포함하고
@@ -747,11 +831,19 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 ### 11.2 다음 계획 revision과 finalize 정책
 
 - 초기 계획 endpoint는 `INITIAL`만, 수정 endpoint는 `AI` 또는 `USER`만 생성한다.
-- `AI` revision의 루틴 결정 주체는 결정적 Coordinator이며 Safety 상태·의견은 SafetyAgent 결과를 보존한다. LLM은 설명 문구에만 사용할 수 있고 루틴, 요청 시간, 안전 상태, veto 또는 후보를 변경할 수 없다.
+- `AI` revision의 루틴 결정은 SafetyPolicyEngine envelope와 승인 pool 안에서 Coordinator·compiler·integrity validator가 수행한다. LLM은 envelope 밖 루틴, 요청 시간, 안전 상태, veto 또는 후보를 변경할 수 없다.
 - 성공한 Coordinator 기반 `AI` revision만 횟수에 포함하며 1회와 2회는 허용하고 세 번째 요청은 `AI_REVISION_LIMIT_REACHED`로 차단한다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` 결과는 성공 횟수를 늘리지 않는다.
-- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치, 허용 장소, 사용 가능한 장비, SafetyAgent 의견 반영을 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치(아래 세트·반복 편집 예외 제외), 허용 장소, Safety envelope·승인 pool 반영과 compiled-plan integrity를 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- 사용자가 세트 수 또는 반복 수를 직접 수정한 결과에 한해 요청 시간 ±300초 일치 검사를 면제한다(ADR-0018). 사용자의 명시적 입력이 요청 시간보다 우선하며, 면제되는 것은 시간 검사 하나뿐이다. 안전 제외 운동 포함, 승인 pool 이탈, 필수 운동 누락, 카탈로그 레코드 불일치 검사는 그대로 적용한다. 사용자 편집으로 만들어진 계획임을 저장해 재현 기록에 남긴다.
+- 사용자의 운동 순서 변경은 같은 phase 안에서만 허용한다. `WARMUP`·`MAIN`·`COOLDOWN` 경계를 넘는 이동은 거부한다. 순서를 바꾼 뒤에는 전체 `sequence`를 1부터 연속으로 다시 매긴다.
+- plan 직접 편집은 재추천·체크인 수정의 하루 2회 한도에 포함하지 않는다. 세트·반복 편집은 장소를
+  받거나 변경하지 않고 양의 수만 저장한다. 운동의 측정 방식이 사용자가 고르는 값을 정한다. 반복
+  기반 운동은 반복 수를, 시간 기반 운동은 세트당 시간을 직접 입력하며, 두 값을 함께 보내는 요청은
+  거부한다. 반복 기반 운동의 세트당 시간은 승인된 카탈로그 기준으로 서버가 계산하고, 시간 기반
+  운동에서 시간을 생략하면 카탈로그 기준을 유지한다. 시작 전 순서 변경은 전체 항목을 대상으로 한다. 진행 중과
+  재개 가능한 일반 중단 상태에서는 미완료 항목만 바꿀 수 있고, 완료 항목의 순서와 내용은 변경할 수 없다.
 - `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
-- `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
+- `finalized=true`는 직전 리포트의 확인 저장이 완료되어 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
 - weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.
 
 ---
@@ -783,8 +875,6 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | 상황 | 필수 처리 |
 |---|---|
 | 웨어러블 없음 또는 권한 거부 | 수동 체크인과 앱 운동 블록 체크로 정상 처리 |
-| 캘린더 미연결·권한 거부 | 수동 체크인과 앱 운동 블록 체크를 유지하고 계획을 변경하지 않음 |
-| 캘린더 provider 장애 | `PROVIDER_UNAVAILABLE`, 계획을 삭제·변경하지 않고 수동 경로 유지 |
 | 선택 데이터 누락 | 칼로리 값은 `null`로 유지하고 의료 상태를 추론하지 않음 |
 | LLM 장애 | 템플릿 설명 사용 |
 | 필수 전문 에이전트 하나라도 장애 | FAILED, 운동 계획을 성공 응답으로 반환하지 않음 |
@@ -811,7 +901,8 @@ Vector retrieval 원인 code는 `VECTOR_INDEX_UNAVAILABLE`, `VECTOR_INDEX_NOT_RE
 
 아래 정확한 기간은 `ACCEPTED` ADR-0004의 승인된 기본 정책이다. 법률상 예외가 확인되거나 기간을 변경할 때는 새 ADR과 production 보유·삭제 작업을 함께 갱신한다.
 
-- 일반 개인정보, 민감정보, 웨어러블 연동, 캘린더 연동, 마케팅 동의를 별도로 기록한다.
+- 일반 개인정보, 민감정보, 웨어러블 연동, 마케팅 동의는 네 consent code로 별도로 기록한다. 서비스 이용약관은 별도 `terms_version`·`terms_agreed_at` 이력으로 기록하며 개인정보처리방침은 별도 동의 없이 열람만 제공한다.
+- 가입 화면은 서비스 이용약관·일반 개인정보·민감정보 처리 필수 동의와 웨어러블·마케팅 선택 동의를 함께 노출한다. 이용약관에는 고령자, 임신·산후, 만성질환자가 운동 금지 집단이 아니라 현 서비스의 집단별 처방 검증 범위 밖이라는 지원 제외 사유를 고지한다.
 - 동의 철회 시 해당 수집·동기화와 외부 토큰을 즉시 중단하며, 연동 해제와 데이터 삭제는 별도 조작으로 제공한다.
 - 체크인 원자료는 28일, 웨어러블 원본은 24시간, 일별 요약·상세 수행·설문은 90일, 주간 리포트는 12개월을 기본 보유기간으로 한다.
 - 탈퇴·삭제 요청 즉시 접근과 동기화를 차단하고 운영 DB 연결 데이터는 7일 이내 삭제, 백업은 30일 이내 순환 삭제한다. 관리자 접속기록은 2년 보관한다.
@@ -912,12 +1003,12 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
   계약을 사용한다.
 
-### 13.3 운동 가능 시간과 캘린더 외부 컨텍스트 정책
+### 13.3 (Archive) 운동 가능 시간 슬롯·캘린더 외부 컨텍스트 정책
 
-#### 13.3.1 현행 정책 — 사용자 수동 가능 시간
+#### 13.3.1 이전 계약 — 사용자 수동 가능 시간
 
-외부 캘린더(Google) 연동은 보류 상태다(ADR-0010 "구현 보류"). 따라서 운동 가능 시간의 유일한
-입력원은 사용자가 일일 체크인에서 직접 입력한 값이다.
+최신 정책은 Daily Check-in의 단일 `available_time_minutes`(10–90)만 사용한다. 아래 슬롯·캘린더
+계약은 기존 구현·read 호환 기록이며 신규 결정 입력이나 제품 범위로 해석하지 않는다.
 
 - 가능 시간 입력은 선택이다. 입력하지 않아도 체크인, 결정, 운동 실행, 주간 리포트의 핵심 흐름이
   모두 정상 동작한다.
@@ -927,53 +1018,7 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
   맞닿을 수 없으며 최대 8개다. 서버는 시작 시각 오름차순으로 정규화한다.
 - 가능 시간은 참고 입력이다. 사용자의 희망 운동시간을 단축·연장하지 않고, 운동 계획·안전 판단·
   안전 veto·공식 운동 수행 상태를 바꾸지 않으며, 특정 요일을 필수 운동일로 강제하지 않는다.
-- 일정 제목, 설명, 참석자, 장소, 링크 같은 캘린더 본문 성격의 값은 받지도 저장하지도 않는다.
-- 후보 계산은 `select_availability`와 `AvailabilitySlot`을 그대로 사용한다. 캘린더 연동이 재개되면
-  `CALENDAR` 입력원이 수동 입력보다 낮은 우선순위로 추가될 뿐 이 규칙은 바뀌지 않는다.
-
-#### 13.3.2 보류된 캘린더 provider 정책
-
-아래는 캘린더 연동이 재개될 때 적용할 승인된 계약이다. 현재는 구현하지 않는다.
-
-Google Calendar의 provider별 상세 계약은 `ACCEPTED` ADR-0010과
-`external-context-policy-v2`를 따른다. 실제 route·HTTP adapter·repository·migration은
-TASK-BACKEND-007의 단계별 게이트를 따른다.
-
-- 캘린더는 선택적 보조 컨텍스트다. 미연결·권한 거부·provider 장애에서도 수동 체크인과 앱 운동
-  블록 체크를 포함한 핵심 흐름이 동작한다.
-- `CALENDAR_INTEGRATION` 동의가 없거나 철회되면 provider 호출을 수행하지 않는다.
-- availability는 저장된 사용자 IANA timezone의 로컬 하루와 literal `primary` calendar 하나를 Google
-  freebusy 전용 scope로 조회한다. CalendarList, secondary/shared calendar, event list, 제목, 설명,
-  참석자, 위치와 calendar 본문은 조회하지 않는다.
-- freebusy는 종일 여부를 제공하지 않으므로 종일 여부를 시간 경계로 추정하지 않는다. provider가
-  반환한 종일 포함 모든 busy 구간을 점유 시간으로 처리한다.
-- 겹치거나 맞닿은 busy 구간을 병합한 뒤 각 빈 구간의 앞뒤 15분을 buffer로 제외한다. 남은 구간이
-  사용자의 희망 운동시간보다 짧으면 후보를 만들지 않는다.
-- 시간대 필터와 필수 운동 요일을 적용하지 않는다. 후보는 시작 시각 오름차순으로 최대 8개다.
-- 후보가 없으면 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
-- 사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다.
-- 사용자별 availability 30회/시간과 전체 calendar endpoint 60회/시간을 provider 호출 전에 적용한다.
-- availability는 cache하지 않아 stale 판정이 없고 성공값은 `freshness_code=LIVE`다. performance는
-  공식 workout session 종료 상태 이후,
-  같은 link의 직전 `performance_checked_at`부터 10분 뒤에만 재확인한다.
-- Google Calendar는 운동 수행 필드가 없으므로 `performed=null`과 검수 fallback 안내를 반환한다.
-  Google event를 다시 조회하지 않고 confirmed, tentative, cancelled, 삭제와 참석 응답을 운동 수행
-  여부로 해석하지 않는다.
-- Calendar event link는 `scheduled_workout_id`가 아니라 공식 block completion을 가진
-  `workout_session_id`를 참조한다. 사용자 소유 `PLANNED` session에만 한 번 등록하고 server가 계획의
-  요청 시간으로 `end_at`을 계산한다.
-- 캘린더 관찰 결과는 workout session의 공식 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`,
-  `STOPPED_FOR_SAFETY`를 생성·
-  변경할 수 없다. 안전 veto와 수동 체크인보다 우선할 수 없다.
-- raw freebusy/event payload 보유기간은 0시간이다. token 원문, calendar 본문과 provider 원시 오류를
-  DB, cache, log, metric, trace, snapshot, fixture와 LLM 입력에 포함하지 않는다.
-- 보조 캘린더와 이벤트 summary는 각각 고정 `헬끼 운동 일정`, `헬끼 운동`이며 설명·위치·참석자·
-  회의 링크·메모를 보내지 않는다.
-- 연동 해제는 로컬 `REVOKE_PENDING`으로 접근을 차단하고 token secret 폐기 뒤 `REVOKED`로 완료한다.
-  반복 해제는 성공 no-op이다. Firebase 로그인과 동일한 Google Cloud project에서는 Calendar 단독
-  provider revoke를 호출하지 않는다. 원격 보조 캘린더는 남고 사용자가 직접 삭제한다.
-- 동의 철회는 즉시 provider 접근을 막고 같은 secret cleanup을 시작한다. 계정 삭제는 DB hard delete
-  전에 Calendar secret 파기를 완료하도록 ADR-0008 checkpoint를 확장한다.
+- 후보 계산은 `select_availability`와 `AvailabilitySlot`을 그대로 사용한다.
 
 ---
 
@@ -1006,9 +1051,9 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 ## 15. 필수 골든 시나리오
 
 1. 통증 없음, 프로필 희망 시간 확인: KEEP
-2. 상체 근력 40분 요청과 피로 MODERATE: 요청 시간과 CORE를 보존한 강도 DOWNSHIFT, `estimated_duration_seconds=2400`
-3. 프로필 40분에서 사용자가 당일 30분으로 변경: 30분 요청과 `estimated_duration_seconds=1800`을 사용하고 임의 추가 축소 없음
-4. 무릎 MILD 또는 MODERATE: 검수된 충돌 운동 제외와 대체 후보
+2. 상체 근력 40분 요청과 피로 `HIGH`: 요청 시간과 CORE를 보존한 `LIGHT` 또는 `VERY_LIGHT` DOWNSHIFT, 허용 후보 중 40분과 가장 가까운 ±300초 계획
+3. 프로필 40분에서 사용자가 당일 30분으로 변경: 30분 요청과 가장 가까운 ±300초 계획을 사용하고 임의 추가 축소 없음
+4. 무릎 MILD 또는 MODERATE: 검수된 충돌 운동 제외와 남은 Safety-approved Pool
 5. 무릎 SEVERE: REST, 운동 계획 없음
 6. 긴급 중단 그룹 입력: STOP_AND_SEEK_HELP, 운동 계획 없음
 7. 마지막 공식 완료 후 13일: 복귀 모드 비활성
@@ -1022,7 +1067,7 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 15. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
 16. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
 17. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
-18. 운동 중 안전 중단: STOPPED_FOR_SAFETY와 승인 reason/guidance code
+18. 운동 중 `PAIN_OR_ABNORMAL_RESPONSE` 중단: 세부 증상 수집 없이 `STOPPED_SAFETY`, 별도 Safety Event 및 완료 블록 수 기반 `PARTIAL` 또는 `NOT_COMPLETED`
 19. 닫히지 않은 주 리포트 요청: 거부
 20. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
 21. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
@@ -1047,13 +1092,6 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
 41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
 42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
-43. 캘린더 미연동: 수동 체크인과 앱 운동 블록 체크로 정상 핵심 흐름
-44. 캘린더 권한 거부: 수동 경로 유지, 기존 운동 계획 불변
-45. 캘린더 `performed=true`: 공식 세션 상태 불변
-46. Google `performed=null`: fallback 안내 반환, 오류 아님
-47. 캘린더 provider 장애: `PROVIDER_UNAVAILABLE`, 계획 삭제·변경 없음
-48. 하루 전체 busy: 빈 후보 배열, 희망 운동시간 단축 없음
-49. freebusy 종일 구간: busy로 처리하며 일정 본문 조회 없음
 
 ---
 
@@ -1066,7 +1104,6 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 - 회복 콘텐츠 목록
 - 안전 문구의 외부 도메인 최종 검수
 - PAR-Q+ 문항 사용 여부와 번역·라이선스
-- 주간 리포트 acknowledgement UX
 - 첫 출시 국가와 대상 사용자가 대한민국인지
 - Kakao 앱·REST key·client secret·production redirect URI owner와 등록 완료일
 - Google/Firebase 프로젝트 및 Naver 앱 등록·심사 담당자와 완료일
@@ -1089,5 +1126,4 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 
 - 수면 부족, 최근 부하, 복귀 첫 세션의 전문가 승인 상한은 무엇인가?
 - 계획 시간이 요청 시간과 정확히 일치하더라도 실제 경과 시간은 달라질 수 있음을 UI에서 어떤 문구로 표시할 것인가?
-- 주간 리포트 명시적 확인 버튼의 최종 문구와 배치는 무엇인가?
 - 안전 문구와 부위별 제외표의 최종 외부 승인자는 누구인가?

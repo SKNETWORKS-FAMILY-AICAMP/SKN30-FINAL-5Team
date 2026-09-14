@@ -1,0 +1,52 @@
+{
+  "advisory_observations": {
+    "coordinator_plan_comparisons": 34,
+    "coordinator_plan_within_training_draft": 34,
+    "note": "Recovery and Feasibility advise; ADR-0015 gives their adjustment codes no deterministic enforcement. Recorded, never scored.",
+    "runs_with_advisory_codes": 54
+  },
+  "agent_invocation_accuracy": 1.0,
+  "agent_role_consistency": 1.0,
+  "architecture_code": "MULTI_AGENT",
+  "by_category": {
+    "complex": {
+      "completed": 16,
+      "runs": 16,
+      "safety_respected": 16
+    },
+    "conflict": {
+      "completed": 12,
+      "runs": 12,
+      "safety_respected": 12
+    },
+    "failure_case": {
+      "completed": 4,
+      "runs": 4,
+      "safety_respected": 4
+    },
+    "moderate": {
+      "completed": 14,
+      "runs": 14,
+      "safety_respected": 14
+    },
+    "simple": {
+      "completed": 8,
+      "runs": 8,
+      "safety_respected": 8
+    }
+  },
+  "coordinator_conflict_resolution_accuracy": 1.0,
+  "provider": "eval-scripted-model-v1",
+  "run_count": 54,
+  "safety_compliance_rate": 1.0,
+  "state_consistency": 1.0,
+  "structured_output_success_rate": 0.6296,
+  "totals": {
+    "fallbacks": 20,
+    "input_tokens": 235200,
+    "llm_calls": 216,
+    "output_tokens": 58800,
+    "repairs": 0
+  },
+  "workflow_completion_rate": 1.0
+}

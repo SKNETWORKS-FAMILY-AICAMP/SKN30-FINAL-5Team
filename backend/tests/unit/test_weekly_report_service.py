@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
@@ -26,6 +27,7 @@ from backend.app.modules.weekly_reports.service import (
     ReportInputChangedError,
     WeeklyReportService,
     WeekNotClosedError,
+    WeekOutcomeInconsistentError,
     WeekOutcomesIncompleteError,
 )
 
@@ -114,6 +116,20 @@ class FakeWeeklyReportRepository:
     ) -> tuple[WeeklySessionEvidence, ...]:
         return self.evidence
 
+    def get_prior_week_completed_count(
+        self, session: Any, user_id: UUID, week_start: date
+    ) -> int | None:
+        prior = [
+            (start, stored)
+            for start, week in self.weeks.items()
+            if start < week_start
+            if (stored := self.reports_by_week.get(week.week_id)) is not None
+        ]
+        if not prior:
+            return None
+        _, stored = max(prior, key=lambda item: item[0])
+        return stored.response_payload["counts"]["completed"]
+
     def get_report_for_week(self, session: Any, week_id: UUID) -> StoredReport | None:
         return self.reports_by_week.get(week_id)
 
@@ -136,6 +152,7 @@ class FakeWeeklyReportRepository:
                 "partial": values.partial_count,
                 "not_completed": values.not_completed_count,
                 "stopped_for_safety": values.stopped_for_safety,
+                "safety_stopped_session_count": values.safety_stopped_session_count,
             },
             "primary_miss_reason_code": values.primary_miss_reason_code,
             "completion_rate": values.completion_rate,
@@ -148,6 +165,21 @@ class FakeWeeklyReportRepository:
             "next_action": values.next_action,
             "agent_summaries": values.agent_summaries,
             "summary": values.summary,
+            "total_workout_seconds": values.total_workout_seconds,
+            "total_estimated_calories_burned": values.total_estimated_calories_burned,
+            "average_intensity_code": values.average_intensity_code,
+            "most_performed_training_type_code": values.most_performed_training_type_code,
+            "most_performed_exercise_name": values.most_performed_exercise_name,
+            "completed_count_change": values.completed_count_change,
+            "highlight_codes": values.highlight_codes,
+            "improvement_codes": values.improvement_codes,
+            "routine_difficulty_code": values.routine_difficulty_code,
+            "condition_summary": values.condition_summary,
+            "outcome_reason_summary": values.outcome_reason_summary,
+            "recommendation_action_counts": values.recommendation_action_counts,
+            "adjustment_summary": values.decision_summary,
+            "next_week_recommendation": values.next_week_recommendation,
+            "coach_message": values.coach_message,
             "acknowledged_at": None,
             "generated_at": values.generated_at,
         }
@@ -213,16 +245,30 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "KEEP",
             "APPROPRIATE",
             False,
+            progress_seconds=900,
+            estimated_calories_burned=90.5,
+            training_type_codes=("STRENGTH", "STRENGTH"),
+            intensity_codes=("LOW", "MODERATE"),
+            exercise_names=("스쿼트", "스쿼트"),
+            fatigue_level_code="HIGH",
+            daily_pain_present=True,
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=1),
             "PARTIAL",
             ("COMPLETED", "PENDING"),
             False,
-            None,
+            "TIME_SHORTAGE",
             "DOWNSHIFT",
             "HARD",
             False,
+            progress_seconds=600,
+            estimated_calories_burned=45.25,
+            training_type_codes=("CARDIO",),
+            intensity_codes=("MODERATE",),
+            exercise_names=("제자리 걷기",),
+            stop_reason_code="TIME_SHORTAGE",
+            fatigue_level_code="MODERATE",
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=2),
@@ -233,6 +279,8 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "KEEP",
             None,
             False,
+            progress_seconds=0,
+            fatigue_level_code="MODERATE",
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=3),
@@ -243,6 +291,9 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "RECOVERY",
             None,
             True,
+            progress_seconds=120,
+            stop_reason_code="PAIN_OR_ABNORMAL_RESPONSE",
+            fatigue_level_code="LOW",
         ),
     )
 
@@ -324,21 +375,107 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.primary_miss_reason_code == "TIME_SHORTAGE"
     assert response.completion_rate == 0.25
     assert response.persistence_rate == 0.5
     assert response.negotiation_success_rate == 0.5
     assert response.adjustment_direction_code == "MIXED"
+    assert response.total_workout_seconds == 1620
+    assert response.total_estimated_calories_burned == 135.75
+    assert response.average_intensity_code == "MODERATE"
+    assert response.most_performed_training_type_code == "STRENGTH"
+    assert response.most_performed_exercise_name == "스쿼트"
+    assert response.routine_difficulty_code == "APPROPRIATE"
+    assert response.condition_summary is not None
+    assert response.condition_summary.model_dump() == {
+        "checkin_count": 4,
+        "fatigue_level_counts": {"HIGH": 1, "LOW": 1, "MODERATE": 2},
+        "fatigue_change_code": "IMPROVED",
+        "pain_checkin_count": 1,
+        "workout_pain_or_safety_stop_count": 1,
+    }
+    assert response.outcome_reason_summary == {
+        "not_completed": {"TIME_SHORTAGE": 1},
+        "partial": {"TIME_SHORTAGE": 1},
+        "stopped_for_safety": {"PAIN_OR_ABNORMAL_RESPONSE": 1},
+    }
+    assert response.recommendation_action_counts == {
+        "DOWNSHIFT": 1,
+        "KEEP": 2,
+        "RECOVERY": 1,
+    }
+    assert response.adjustment_summary == response.decision_summary
+    assert response.next_week_recommendation is not None
+    assert response.coach_message == response.summary
+    assert response.completed_count_change is None
+    assert response.highlight_codes == [
+        "COMPLETED_SESSION_RECORDED",
+        "PARTIAL_SESSION_PROGRESS_RECORDED",
+        "ADJUSTED_PLAN_PROGRESS_RECORDED",
+    ]
+    assert response.improvement_codes == [
+        "SAFETY_STOPPED_SESSION_RECORDED",
+        "MISSED_SESSION_PATTERN_RECORDED",
+        "PARTIAL_SESSION_PATTERN_RECORDED",
+    ]
     assert "벌점" not in response.summary
     assert repository.last_report_values is not None
     snapshot = repository.last_report_values.input_snapshot
+    assert snapshot["recommendation_context_counts"] == {
+        "DOWNSHIFT": {"MODERATE_FATIGUE": 1},
+        "KEEP": {"HIGH_FATIGUE": 1, "MODERATE_FATIGUE": 1, "PAIN_PRESENT": 1},
+        "RECOVERY": {"LOW_FATIGUE": 1},
+    }
     assert snapshot["feedback_summary"] == {
         "difficulty_counts": {"APPROPRIATE": 1, "HARD": 1},
         "pain_report_count": 1,
     }
     assert "user_id" not in snapshot
     assert "session_id" not in snapshot
+    assert snapshot["weekly_metrics"]["total_estimated_calories_burned"] == 135.75
+
+
+def test_report_keeps_an_uncomputed_calorie_total_distinct_from_zero() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = tuple(replace(row, estimated_calories_burned=None) for row in _evidence())
+
+    response = _service(repository).create_report(
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert response.total_estimated_calories_burned is None
+
+
+def test_report_compares_completed_count_with_the_closest_prior_report() -> None:
+    repository = FakeWeeklyReportRepository()
+    service = _service(repository)
+    user_id = uuid4()
+    prior_week_start = WEEK_START - timedelta(days=7)
+    repository.evidence = (_evidence()[0],)
+    service.create_report(
+        FakeSession(),
+        user_id,
+        prior_week_start,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+    repository.evidence = _evidence()
+
+    response = service.create_report(
+        FakeSession(),
+        user_id,
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert response.completed_count_change == 0
 
 
 class RecordingNarrationAgent:
@@ -348,12 +485,18 @@ class RecordingNarrationAgent:
     def interpret(self, report: WeeklyReportNarrationInput) -> WeeklyReportNarration:
         self.inputs.append(report)
         return WeeklyReportNarration(
-            summary="주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요.",
+            summary="이번 주 흐름을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!",
             decision_summary="조정된 루틴의 수행 결과와 미완료 사유를 함께 반영했습니다.",
             next_action="다음 주에는 가능한 시간에 맞춰 한 번의 운동부터 시작해 보세요.",
             source_code="LLM",
+            next_week_recommendation={
+                "intensity": "체감 난이도에 맞춰 강도를 조정할게요.",
+                "volume": "완료할 수 있는 운동량을 우선할게요.",
+                "duration": "요청한 운동 시간을 기준으로 구성할게요.",
+                "pain_response": "통증 신호에는 안전 기준을 우선할게요.",
+            },
             model_code="test-model",
-            prompt_version="weekly-report-narration-prompt-v1",
+            prompt_version="weekly-report-narration-prompt-v3",
         )
 
 
@@ -379,13 +522,22 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
     assert len(agent.inputs) == 1
     received = agent.inputs[0]
     assert repository.last_report_values is not None
-    assert received.input_snapshot == repository.last_report_values.input_snapshot
+    assert "week" not in received.input_snapshot
+    assert "most_performed_exercise_name" not in received.input_snapshot["weekly_metrics"]
+    assert received.input_snapshot["condition_summary"] == {
+        "checkin_count": 4,
+        "fatigue_level_counts": {"HIGH": 1, "LOW": 1, "MODERATE": 2},
+        "fatigue_change_code": "IMPROVED",
+        "pain_checkin_count": 1,
+        "workout_pain_or_safety_stop_count": 1,
+    }
     assert received.objective_metrics == {
         "counts": {
             "completed": 1,
             "partial": 1,
             "not_completed": 1,
             "stopped_for_safety": 1,
+            "safety_stopped_session_count": 1,
         },
         "completion_rate": 0.25,
         "persistence_rate": 0.5,
@@ -393,12 +545,13 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
         "primary_miss_reason_code": "TIME_SHORTAGE",
         "adjustment_direction_code": "MIXED",
     }
-    assert response.summary == "주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요."
+    assert response.summary == "이번 주 흐름을 잘 남겼어요, 다음 주도 내 페이스로 이어가요!"
     assert response.counts.model_dump() == {
         "completed": 1,
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.completion_rate == 0.25
     assert response.persistence_rate == 0.5
@@ -407,10 +560,16 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "agent_type_code": "WEEKLY_REPORT_INTERPRETER",
             "source_code": "LLM",
             "model_code": "test-model",
-            "prompt_version": "weekly-report-narration-prompt-v1",
+            "prompt_version": "weekly-report-narration-prompt-v3",
             "fallback_reason_code": None,
-            "input_schema_version": "weekly-report-input-v1",
+            "input_schema_version": "weekly-report-input-v4",
             "input_hash": repository.last_report_values.input_hash,
+            "next_week_recommendation": {
+                "intensity": "체감 난이도에 맞춰 강도를 조정할게요.",
+                "volume": "완료할 수 있는 운동량을 우선할게요.",
+                "duration": "요청한 운동 시간을 기준으로 구성할게요.",
+                "pain_response": "통증 신호에는 안전 기준을 우선할게요.",
+            },
         }
     }
 
@@ -432,6 +591,7 @@ def test_agent_failure_falls_back_without_changing_deterministic_statistics() ->
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.completion_rate == 0.25
     assert response.persistence_rate == 0.5
@@ -477,14 +637,84 @@ def test_same_closed_week_and_input_hash_returns_same_report_across_keys() -> No
         )
 
 
-def test_unresolved_session_blocks_report_generation() -> None:
+def test_a_session_left_open_is_counted_from_its_blocks_not_refused() -> None:
+    """A stop the user never came back from must not withhold the whole report.
+
+    Stopping with a reason now keeps the session resumable, so a user who does
+    not return leaves `IN_PROGRESS` behind. The week is closed before this runs
+    and nothing in it can resume, so the blocks decide the outcome exactly as
+    they do for a session the user closed -- refusing here would also block the
+    next week's plan, which this report gates.
+    """
+
     repository = FakeWeeklyReportRepository()
     repository.evidence = (
         WeeklySessionEvidence(
             WEEK_START, "IN_PROGRESS", ("COMPLETED", "PENDING"), False, None, "KEEP"
         ),
     )
+    report = _service(repository).create_report(
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert report.counts.partial == 1
+    assert report.counts.completed == 0
+    assert report.counts.not_completed == 0
+
+
+def test_a_session_left_open_with_no_completed_block_still_needs_its_reason() -> None:
+    # Zero completed blocks is NOT_COMPLETED, and the report cannot report a
+    # missed session without the learning reason behind it. The resumable stop
+    # records that reason when the user gives it, so this only fires for a
+    # session abandoned without any stop at all.
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "IN_PROGRESS", ("PENDING", "PENDING"), False, None, "KEEP"
+        ),
+    )
     with pytest.raises(WeekOutcomesIncompleteError):
+        _service(repository).create_report(
+            FakeSession(),
+            uuid4(),
+            WEEK_START,
+            _request(),
+            uuid4(),  # type: ignore[arg-type]
+        )
+
+
+def test_a_session_left_open_with_a_recorded_reason_counts_as_missed() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "IN_PROGRESS", ("PENDING", "PENDING"), False, "TIME_SHORTAGE", "KEEP"
+        ),
+    )
+    report = _service(repository).create_report(
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert report.counts.not_completed == 1
+
+
+def test_a_closed_session_whose_status_contradicts_its_blocks_is_still_refused() -> None:
+    # The tolerance above is only for sessions nobody closed. A stored terminal
+    # status that disagrees with the blocks is a real inconsistency.
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "COMPLETED", ("COMPLETED", "PENDING"), False, None, "KEEP"
+        ),
+    )
+    with pytest.raises(WeekOutcomeInconsistentError):
         _service(repository).create_report(
             FakeSession(),
             uuid4(),

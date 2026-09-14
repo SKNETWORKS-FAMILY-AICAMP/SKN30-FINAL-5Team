@@ -7,6 +7,7 @@
  */
 
 import { jest } from '@jest/globals';
+import { useState } from 'react';
 import {
   act,
   fireEvent,
@@ -32,10 +33,11 @@ import type {
   WorkoutPlan,
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
+import { MainFlow } from '../src/app/MainFlow';
 import { MascotStage } from '../src/components/brand/BrandChrome';
-import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
+import { BirthDateField } from '../src/features/onboarding/BirthDateField';
 import {
   ONBOARDING_STEPS,
   OnboardingScreen,
@@ -46,6 +48,7 @@ import { SessionScreen } from '../src/features/workout/SessionScreen';
 function plan(itemCount = 2): WorkoutPlan {
   return {
     plan_id: 'plan-1',
+    plan_revision: 0,
     action_code: 'KEEP',
     training_type_code: 'STRENGTH',
     body_focus_code: 'FULL_BODY',
@@ -149,15 +152,40 @@ function dailyContext(): DailyContextResponse {
     local_date: '2026-08-17',
     context_version: 1,
     fatigue_level_code: 'MODERATE',
-    requested_duration_minutes: 30,
-    duration_adjustment_source_code: 'PROFILE',
+    available_time_minutes: 30,
     location_code: 'HOME',
     sleep_minutes: 420,
-    discomforts: [],
-    adverse_reaction_codes: [],
+    sleep_source_code: 'MANUAL',
+    pain_present: false,
+    red_flag_present: false,
+    pains: [],
     created_at: '2026-08-17T00:00:00+09:00',
     updated_at: '2026-08-17T00:00:00+09:00',
   };
+}
+
+function submitRequiredCheckin(): void {
+  if (screen.queryByLabelText('운동 가능 시간 미선택')) {
+    for (let count = 0; count < 3; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+  }
+  const noRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 없어요',
+  });
+  const yesRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 있어요',
+  });
+  if (
+    noRedFlag &&
+    !noRedFlag.props.accessibilityState?.selected &&
+    !yesRedFlag?.props.accessibilityState?.selected
+  ) {
+    fireEvent.press(noRedFlag);
+  }
+  fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
 }
 
 function week(): WeekResponse {
@@ -207,15 +235,88 @@ function me(): MeResponse {
 function stubApi(overrides: Partial<Api> = {}): Api {
   return {
     getMe: jest.fn(),
+    getOnboardingRequirements: jest.fn(async () => ({
+      terms_version: 'terms-test-v1',
+      consent_policy_version: 'consent-test-v1',
+      required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+      optional_consent_type_codes: [],
+    })),
     submitOnboarding: jest.fn(),
     createRoutine: jest.fn(),
     getCurrentRoutine: jest.fn(),
     getExercise: jest.fn(),
     getDailyContext: jest.fn(),
+    getDailyContextDefaults: jest.fn(notFound),
     replaceDailyContext: jest.fn(),
     createDecision: jest.fn(),
     getDecision: jest.fn(),
+    getDecisionForDate: jest.fn(notFound),
+    getHomeState: jest.fn(async (localDate: string) => ({
+      local_date: localDate,
+      decision: null,
+      final_plan: null,
+      workout_session: null,
+    })),
+    getRewards: jest.fn(async () => ({
+      balance: 0,
+      daily_reward: {
+        local_date: '2026-08-22',
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    })),
     regenerateDecision: jest.fn(),
+    updateDecisionPlanItem: jest.fn(
+      async (
+        _decisionId: string,
+        planItemId: string,
+        body: {
+          expected_plan_revision: number;
+          sets: number;
+          reps: number | null;
+        },
+      ) => ({
+        decision_id: 'decision-1',
+        plan_revision: body.expected_plan_revision + 1,
+        final_plan: {
+          ...plan(),
+          plan_revision: body.expected_plan_revision + 1,
+          items: plan().items.map((item) =>
+            item.plan_item_id === planItemId
+              ? { ...item, sets: body.sets, reps: body.reps }
+              : item,
+          ),
+        },
+      }),
+    ),
+    updateDecisionPlanOrder: jest.fn(
+      async (
+        _decisionId: string,
+        body: {
+          expected_plan_revision: number;
+          ordered_plan_item_ids: string[];
+        },
+      ) => {
+        const original = plan();
+        const byId = new Map(
+          original.items.map((item) => [item.plan_item_id, item]),
+        );
+        return {
+          decision_id: 'decision-1',
+          plan_revision: body.expected_plan_revision + 1,
+          final_plan: {
+            ...original,
+            plan_revision: body.expected_plan_revision + 1,
+            items: body.ordered_plan_item_ids.map((id, index) => ({
+              ...byId.get(id)!,
+              sequence: index + 1,
+            })),
+          },
+        };
+      },
+    ),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({
       items: [],
@@ -284,10 +385,18 @@ describe('environment configuration', () => {
       EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'demo.firebaseapp.com',
       EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'demo',
       EXPO_PUBLIC_FIREBASE_APP_ID: 'app',
+      EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI:
+        'https://app.example.test/oauth/google/callback',
+      EXPO_PUBLIC_KAKAO_REDIRECT_URI:
+        'https://app.example.test/oauth/kakao/callback',
     });
     expect(config.status).toBe('ready');
     if (config.status === 'ready') {
       expect(config.apiBaseUrl).toBe('http://10.0.2.2:8000');
+      expect(config.socialOAuthRedirectUris).toEqual({
+        GOOGLE: 'https://app.example.test/oauth/google/callback',
+        KAKAO: 'https://app.example.test/oauth/kakao/callback',
+      });
     }
   });
 });
@@ -301,6 +410,116 @@ describe('idempotency keys', () => {
     );
     expect(first).not.toBe(second);
   });
+
+  it('reuses an explicit key for the same decision intent', async () => {
+    const serverDecision = decision({
+      public_agent_summaries: [
+        {
+          agent_type_code: 'TRAINING',
+          recommendation_code: 'KEEP',
+          reason_codes: ['PRIMARY_GOAL_PRESERVED'],
+          summary: '운동 목표와 희망 운동 시간을 유지했어요.',
+        },
+        {
+          agent_type_code: 'RECOVERY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['RECOVERY_CONTEXT_REVIEWED'],
+          summary: '오늘의 회복 상태를 확인했어요.',
+        },
+        {
+          agent_type_code: 'SAFETY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['NO_SAFETY_SIGNAL_REPORTED'],
+          summary: '제외한 운동 없이 계획한 강도 상한을 적용했어요.',
+        },
+        {
+          agent_type_code: 'FEASIBILITY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['TIME_LOCATION_EQUIPMENT_MATCHED'],
+          summary: '희망 시간과 장소, 장비 조건을 확인했어요.',
+        },
+        {
+          agent_type_code: 'COORDINATOR',
+          recommendation_code: 'KEEP',
+          reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+          summary: '모든 조건을 종합해 계획한 루틴을 추천했어요.',
+        },
+      ],
+    });
+    const fetchImpl = jest.fn<typeof fetch>(async () =>
+      Promise.resolve({
+        ok: true,
+        status: 201,
+        text: async () => JSON.stringify(serverDecision),
+      } as Response),
+    );
+    const api = createApi(
+      new ApiClient({
+        baseUrl: 'https://api.example.test',
+        getToken: async () => null,
+        fetchImpl,
+      }),
+    );
+    const idempotencyKey = '11111111-1111-4111-8111-111111111111';
+
+    const response = await api.createDecision(
+      {
+        local_date: '2026-09-01',
+        daily_context_id: 'context-1',
+        expected_context_version: 2,
+      },
+      idempotencyKey,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/decisions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Idempotency-Key': idempotencyKey,
+        }),
+      }),
+    );
+    expect(response.public_agent_summaries).toEqual(
+      serverDecision.public_agent_summaries,
+    );
+  });
+
+  it('reuses an explicit key for the same routine recovery intent', async () => {
+    const fetchImpl = jest.fn<typeof fetch>(async () =>
+      Promise.resolve({
+        ok: true,
+        status: 201,
+        text: async () => JSON.stringify({ id: 'routine-1' }),
+      } as Response),
+    );
+    const api = createApi(
+      new ApiClient({
+        baseUrl: 'https://api.example.test',
+        getToken: async () => null,
+        fetchImpl,
+      }),
+    );
+    const idempotencyKey = '22222222-2222-4222-8222-222222222222';
+
+    await api.createRoutine(
+      {
+        effective_from: '2026-09-01',
+        goal_code: 'GENERAL_FITNESS',
+      },
+      idempotencyKey,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/routines',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Idempotency-Key': idempotencyKey,
+        }),
+      }),
+    );
+  });
 });
 
 describe('HomeContainer', () => {
@@ -308,6 +527,11 @@ describe('HomeContainer', () => {
     return stubApi({
       getCurrentRoutine: jest.fn(async () => routine()),
       getDailyContext: jest.fn(notFound),
+      getDailyContextDefaults: jest.fn(async () => ({
+        local_date: '2026-08-17',
+        pains: [],
+        selectable_location_codes: ['HOME', 'GYM'],
+      })),
       getWeek: jest.fn(async () => week()),
       ...overrides,
     } as unknown as Partial<Api>);
@@ -323,7 +547,6 @@ describe('HomeContainer', () => {
       planRevision: null,
       onPlanRevisionChange: jest.fn(),
       onSessionStarted: jest.fn(),
-      onRestChosen: jest.fn(),
       onTab: jest.fn(),
       onOpenCalendar: jest.fn(),
       finalValidationHoldMs: 0,
@@ -341,16 +564,18 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('오늘 상태를 불러오는 중이에요')).toBeTruthy();
+    expect(
+      screen.getByText('헬끼 준비 중이에요 조금만 기다려주세요!'),
+    ).toBeTruthy();
   });
 
   it('offers one check-in entry point before the check-in', async () => {
     renderHome(homeApi());
 
     expect(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '운동 체크인' }),
     ).toBeTruthy();
-    expect(screen.getByText('아직 오늘의 운동이 없어요')).toBeTruthy();
+    expect(screen.getByText('운동을 준비해볼까요?')).toBeTruthy();
   });
 
   it('opens the existing account screen route from the Home profile button', async () => {
@@ -364,34 +589,426 @@ describe('HomeContainer', () => {
   it('offers transient discomfort areas independently of onboarding attention areas', async () => {
     renderHome(homeApi());
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     expect(screen.queryByRole('button', { name: '무릎' })).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     expect(screen.getByRole('button', { name: '무릎' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '어깨' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
     expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
     expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 보기' }));
     expect(screen.getByRole('button', { name: '목' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '가슴' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '복부' })).toBeTruthy();
   });
 
-  it('offers routine creation when none exists yet', async () => {
+  it("pre-fills the check-in from the server's defaults, not the profile", async () => {
+    const getDailyContextDefaults = jest.fn(async () => ({
+      local_date: '2026-08-17',
+      pains: [{ body_area_code: 'SHOULDER', intensity_score: 4 }],
+      selectable_location_codes: ['HOME', 'GYM'],
+      recommended_duration_minutes: 35,
+      duration_recommendation_policy_version: 'daily-duration-v1',
+    }));
+    renderHome(
+      homeApi({ getDailyContextDefaults } as unknown as Partial<Api>),
+      {
+        me: {
+          ...me(),
+          profile: {
+            ...me().profile!,
+            persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 9 }],
+          },
+        },
+      },
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+
+    expect(getDailyContextDefaults).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+    );
+    expect(
+      screen.getByRole('button', { name: '어깨' }).props.accessibilityState
+        .selected,
+    ).toBe(true);
+    expect(
+      screen.getByRole('button', { name: '무릎' }).props.accessibilityState
+        .selected,
+    ).toBe(false);
+    expect(screen.queryByText(/권장 운동 시간/)).toBeNull();
+    expect(screen.getByLabelText('운동 가능 시간 30분')).toBeOnTheScreen();
+  });
+
+  it('keeps the profile defaults when the server defaults are unavailable', async () => {
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
+      me: {
+        ...me(),
+        profile: {
+          ...me().profile!,
+          persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 2 }],
+        },
+      },
+    });
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+
+    expect(
+      screen.getByRole('button', { name: '무릎' }).props.accessibilityState
+        .selected,
+    ).toBe(true);
+  });
+
+  it('uses server locations, hides outdoor, and defaults to the previous check-in', async () => {
+    const getDailyContext = jest
+      .fn<Api['getDailyContext']>()
+      .mockImplementationOnce(notFound)
+      .mockResolvedValueOnce({
+        ...dailyContext(),
+        location_code: 'GYM',
+      });
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'OUTDOOR',
+      available_location_codes: ['OUTDOOR'],
+    };
     renderHome(
       homeApi({
-        getCurrentRoutine: jest.fn(notFound),
+        getDailyContext,
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'OUTDOOR', 'GYM'],
+        })),
+      }),
+      { me: customMe },
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+
+    expect(screen.getByRole('button', { name: '집' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '헬스장' })).toHaveProp(
+      'accessibilityState',
+      { selected: true },
+    );
+    expect(screen.queryByRole('button', { name: '야외' })).toBeNull();
+    expect(getDailyContext).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks check-in when the server location choices are unavailable', async () => {
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'GYM',
+      available_location_codes: ['HOME', 'GYM'],
+    };
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
+      me: customMe,
+    });
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+
+    expect(
+      screen.getByText(
+        '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+      ),
+    ).toHaveProp('accessibilityRole', 'alert');
+    expect(screen.queryByRole('button', { name: '집' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '헬스장' })).toBeNull();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toHaveProp(
+      'accessibilityState',
+      { disabled: true },
+    );
+  });
+
+  it('stores a set and repetition edit in the plan and sends it to the server', async () => {
+    const original = decision();
+    const onDecisionChange = jest.fn();
+    const savedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: plan().items.map((item) =>
+        item.plan_item_id === 'item-1' ? { ...item, sets: 5 } : item,
+      ),
+    };
+    const updateDecisionPlanItem = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: savedPlan,
+    }));
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      } as unknown as Partial<Api>),
+      { decision: original, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    const update = onDecisionChange.mock.calls[0]?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    expect(update(original)?.final_plan?.items).toEqual([
+      expect.objectContaining({ plan_item_id: 'item-1', sets: 5 }),
+      expect.objectContaining({ plan_item_id: 'item-2', sets: 3 }),
+    ]);
+
+    await waitFor(() =>
+      expect(updateDecisionPlanItem).toHaveBeenCalledWith(
+        'decision-1',
+        'item-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          sets: 5,
+          reps: null,
+        },
+        expect.any(String),
+      ),
+    );
+    const serverUpdate = onDecisionChange.mock.calls.at(-1)?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    expect(serverUpdate(original)?.final_plan).toEqual(savedPlan);
+  });
+
+  it('persists the complete movable order instead of keeping a local-only edit', async () => {
+    const original = decision();
+    const onDecisionChange = jest.fn();
+    const reorderedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: [
+        { ...plan().items[1]!, sequence: 1 },
+        { ...plan().items[0]!, sequence: 2 },
+      ],
+    };
+    const updateDecisionPlanOrder = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: reorderedPlan,
+    }));
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanOrder,
+      }),
+      { decision: original, onDecisionChange },
+    );
+
+    fireEvent(
+      await screen.findByTestId('routine-drag-item-1'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+
+    await waitFor(() =>
+      expect(updateDecisionPlanOrder).toHaveBeenCalledWith(
+        'decision-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          ordered_plan_item_ids: ['item-2', 'item-1'],
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it('retries an ambiguous plan edit with the same idempotency key', async () => {
+    const original = decision();
+    const onRecoverDecision = jest.fn();
+    const savedPlan = { ...plan(), plan_revision: 1 };
+    const updateDecisionPlanItem = jest
+      .fn<Api['updateDecisionPlanItem']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce({
+        decision_id: 'decision-1',
+        plan_revision: 1,
+        final_plan: savedPlan,
+      });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      }),
+      { decision: original, onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '수정 저장 다시 시도' }),
+    );
+    await waitFor(() =>
+      expect(updateDecisionPlanItem).toHaveBeenCalledTimes(2),
+    );
+    expect(updateDecisionPlanItem.mock.calls[0]?.[3]).toBe(
+      updateDecisionPlanItem.mock.calls[1]?.[3],
+    );
+    expect(onRecoverDecision).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers a stale plan without offering the same stale mutation again', async () => {
+    const onRecoverDecision = jest.fn();
+    const updateDecisionPlanItem = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'stale',
+        code: 'PLAN_REVISION_STALE',
+        status: 409,
+        message: '운동 계획이 변경되었습니다. 최신 계획으로 다시 시도해주세요.',
+      });
+    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      } as unknown as Partial<Api>),
+      { decision: decision(), onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() => expect(onRecoverDecision).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole('button', { name: '수정 저장 다시 시도' }),
+    ).toBeNull();
+  });
+
+  it('shows the reused loading screen while the saved routine lookup is pending', async () => {
+    const pending = new Promise<RoutineResponse>(() => undefined);
+    renderHome(
+      homeApi({
+        getCurrentRoutine: jest.fn(() => pending),
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('기본 루틴이 아직 없어요')).toBeTruthy();
+    expect(
+      await screen.findByText('헬끼 준비 중이에요 조금만 기다려주세요!'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
+  });
+
+  it('automatically creates a routine after the exact missing-routine response', async () => {
+    const createRoutine = jest.fn(async () => routine());
+    const getCurrentRoutine = jest.fn(notFound);
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(await screen.findByText('운동을 준비해볼까요?')).toBeTruthy();
+    expect(getCurrentRoutine).toHaveBeenCalledTimes(1);
+    expect(createRoutine).toHaveBeenCalledWith(
+      {
+        effective_from: expect.any(String),
+        goal_code: 'GENERAL_FITNESS',
+      },
+      expect.any(String),
+    );
+    expect(screen.getByRole('button', { name: '운동 체크인' })).toBeTruthy();
+  });
+
+  it('creates the replacement routine from the refreshed profile goal', async () => {
+    const createRoutine = jest.fn(async () => ({
+      ...routine(),
+      goal_code: 'MUSCLE_GAIN',
+    }));
+    const refreshedMe = me();
+    refreshedMe.profile = {
+      ...refreshedMe.profile!,
+      primary_goal_code: 'MUSCLE_GAIN',
+      profile_version: refreshedMe.profile!.profile_version + 1,
+    };
+
+    renderHome(
+      homeApi({ createRoutine, getCurrentRoutine: jest.fn(notFound) }),
+      {
+        me: refreshedMe,
+      },
+    );
+
+    await waitFor(() =>
+      expect(createRoutine).toHaveBeenCalledWith(
+        {
+          effective_from: expect.any(String),
+          goal_code: 'MUSCLE_GAIN',
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it('retries an ambiguous routine creation with the same key', async () => {
+    const getCurrentRoutine = jest.fn(notFound);
+    const createRoutine = jest
+      .fn<Api['createRoutine']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce(routine());
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: '다시 준비하기' }));
+
+    expect(await screen.findByText('운동을 준비해볼까요?')).toBeTruthy();
+    expect(createRoutine).toHaveBeenCalledTimes(2);
+    expect(createRoutine.mock.calls[0]?.[1]).toBe(
+      createRoutine.mock.calls[1]?.[1],
+    );
+  });
+
+  it('does not create a routine for a different not-found code', async () => {
+    const createRoutine = jest.fn(async () => routine());
+    const getCurrentRoutine = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'notFound',
+        code: 'CATALOG_NOT_FOUND',
+        status: 404,
+        message: '카탈로그를 찾을 수 없습니다.',
+      });
+    });
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
+    ).toBeTruthy();
+    expect(createRoutine).not.toHaveBeenCalled();
   });
 
   it('renders weekly progress from official workout-session records', async () => {
@@ -444,13 +1061,12 @@ describe('HomeContainer', () => {
 
     fireEvent.press(
       await screen.findByRole('button', {
-        name: /운동 1.*자세 보기/,
+        name: /운동 1.*자세/,
       }),
     );
 
-    expect(
-      await screen.findByText('검수된 운동 설명입니다.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('천천히 움직이기')).toBeOnTheScreen();
+    expect(screen.queryByText('검수된 운동 설명입니다.')).toBeNull();
     expect(getExercise).toHaveBeenCalledWith('exercise-1', expect.anything());
   });
 
@@ -476,11 +1092,22 @@ describe('HomeContainer', () => {
       expect.objectContaining({ plan_item_id: 'item-2', sequence: 1 }),
       expect.objectContaining({ plan_item_id: 'item-1', sequence: 2 }),
     ]);
+    await waitFor(() => expect(onDecisionChange).toHaveBeenCalledTimes(2));
   });
 
   it('writes the check-in and renders the decision the server returned', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
-    const createDecision = jest.fn(async () => decision());
+    const serverDecision = decision({
+      public_agent_summaries: [
+        {
+          agent_type_code: 'COORDINATOR',
+          recommendation_code: 'KEEP',
+          reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+          summary: '서버가 확정한 최종 조정 이유예요.',
+        },
+      ],
+    });
+    const createDecision = jest.fn(async () => serverDecision);
     const onDecisionChange = jest.fn();
 
     renderHome(
@@ -491,25 +1118,348 @@ describe('HomeContainer', () => {
       { onDecisionChange },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         fatigue_level_code: 'MODERATE',
-        discomforts: [],
-        adverse_reaction_codes: [],
+        available_time_minutes: 30,
+        pain_present: false,
+        pains: [],
+        red_flag_present: false,
       }),
       undefined,
     );
     // The decision is owned above this screen, so a tab switch cannot lose it.
-    expect(onDecisionChange).toHaveBeenCalledWith(
-      expect.objectContaining({ decision_id: 'decision-1' }),
+    expect(onDecisionChange).toHaveBeenCalledWith(serverDecision);
+  });
+
+  it('keeps routine generation visible after leaving and returning to Home', async () => {
+    let storedContext: DailyContextResponse | null = null;
+    const createDecision = jest.fn(
+      () => new Promise<DecisionResponse>(() => undefined),
     );
+    const api = stubApi({
+      getCurrentRoutine: jest.fn(async () => routine()),
+      getDailyContext: jest.fn(async (date: string) => {
+        if (storedContext?.local_date === date) {
+          return storedContext;
+        }
+        return notFound();
+      }),
+      getDailyContextDefaults: jest.fn(async (date: string) => ({
+        local_date: date,
+        pains: [],
+        selectable_location_codes: ['HOME', 'GYM'],
+      })),
+      getWeek: jest.fn(async () => week()),
+      replaceDailyContext: jest.fn(async (date: string) => {
+        storedContext = { ...dailyContext(), local_date: date };
+        return storedContext;
+      }),
+      createDecision,
+      listNotifications: jest.fn(async () => ({
+        items: [],
+        unread_count: 0,
+      })),
+    } as unknown as Partial<Api>);
+
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => undefined}
+      />,
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+    await waitFor(() => expect(createDecision).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('tab', { name: '끼끼의 집' }));
+    fireEvent.press(await screen.findByRole('tab', { name: '홈' }));
+
+    expect(
+      await screen.findByTestId('routine-generation-loading'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
+    expect(createDecision).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the server error instead of a shorter routine when 90 minutes cannot be planned', async () => {
+    const replaceDailyContext = jest.fn(async () => ({
+      ...dailyContext(),
+      available_time_minutes: 90,
+    }));
+    const createDecision = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'ROUTINE_DURATION_UNAVAILABLE',
+        status: 422,
+        message: '90분 계획을 구성할 수 없어요.',
+      });
+    });
+    const onDecisionChange = jest.fn();
+
+    renderHome(homeApi({ replaceDailyContext, createDecision }), {
+      onDecisionChange,
+    });
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    for (let count = 0; count < 6; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 없어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(
+      await screen.findByText('90분 계획을 구성할 수 없어요.'),
+    ).toBeOnTheScreen();
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ available_time_minutes: 90 }),
+      undefined,
+    );
+    expect(createDecision).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).toHaveBeenCalledWith(null);
+    expect(onDecisionChange.mock.calls.every(([value]) => value === null)).toBe(
+      true,
+    );
+    expect(screen.queryByText('운동 1')).toBeNull();
+  });
+
+  it('recovers a committed decision when the create response is lost', async () => {
+    const recovered = decision({ decision_id: 'decision-recovered' });
+    const onDecisionChange = jest.fn();
+    let decisionRead = 0;
+    const getDecisionForDate = jest.fn(async () => {
+      decisionRead += 1;
+      if (decisionRead === 1) {
+        throw new ApiError({
+          kind: 'notFound',
+          code: 'DECISION_NOT_FOUND',
+          status: 404,
+          message: '아직 저장된 루틴이 없어요.',
+        });
+      }
+      return recovered;
+    });
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { onDecisionChange },
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('does not accept an old decision when the baseline read is unavailable', async () => {
+    const stale = decision({ decision_id: 'decision-stale' });
+    const recovered = decision({ decision_id: 'decision-new' });
+    const onDecisionChange = jest.fn();
+    const getDecisionForDate = jest
+      .fn<Api['getDecisionForDate']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '기준 결정을 확인하지 못했어요.',
+        }),
+      )
+      .mockResolvedValue(stale);
+    const createDecision = jest
+      .fn<Api['createDecision']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce(recovered);
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision,
+        getDecisionForDate,
+      }),
+      { onDecisionChange },
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+
+    const retry = await screen.findByRole('button', {
+      name: '루틴 생성 다시 시도',
+    });
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).not.toHaveBeenCalledWith(stale);
+
+    fireEvent.press(retry);
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(createDecision.mock.calls[0]?.[1]).toBe(
+      createDecision.mock.calls[1]?.[1],
+    );
+  });
+
+  it('recovers the concurrently committed decision after a 409 conflict', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const recovered = decision({ decision_id: 'decision-concurrent' });
+    const getDecisionForDate = jest.fn(async () => recovered);
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'conflict',
+            code: 'DECISION_CONFLICT',
+            status: 409,
+            message: 'A concurrent decision request completed first.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('retries only decision creation with the same key when recovery finds the old decision', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const recovered = decision({ decision_id: 'decision-new' });
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    let creationAttempt = 0;
+    const createDecision = jest.fn(
+      async (
+        _body: Parameters<Api['createDecision']>[0],
+        _idempotencyKey?: string,
+      ) => {
+        creationAttempt += 1;
+        if (creationAttempt === 1) {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }
+        return recovered;
+      },
+    );
+    const getDecisionForDate = jest.fn(async () => previous);
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision,
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
+
+    const retry = await screen.findByRole('button', {
+      name: '루틴 생성 다시 시도',
+    });
+    expect(replaceDailyContext).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).toHaveBeenCalledWith(null);
+
+    fireEvent.press(retry);
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(replaceDailyContext).toHaveBeenCalledTimes(1);
+    expect(createDecision).toHaveBeenCalledTimes(2);
+    expect(createDecision.mock.calls[0]?.[1]).toBe(
+      createDecision.mock.calls[1]?.[1],
+    );
+  });
+
+  it('does not recover or replay a decision when the server requires changed input', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const getDecisionForDate = jest.fn(async () => decision());
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'validation',
+            code: 'NEEDS_INPUT',
+            status: 422,
+            message: '추가 입력이 필요합니다.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
+
+    expect(
+      await screen.findByText('추가 입력이 필요합니다.'),
+    ).toBeOnTheScreen();
+    expect(getDecisionForDate).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: '루틴 생성 다시 시도' }),
+    ).toBeNull();
   });
 
   it('holds the final validation step after the decision API completes', async () => {
@@ -527,33 +1477,39 @@ describe('HomeContainer', () => {
         replaceDailyContext: jest.fn(async () => dailyContext()),
         createDecision,
       } as unknown as Partial<Api>),
-      { onDecisionChange, finalValidationHoldMs: 50 },
+      { onDecisionChange, finalValidationHoldMs: 250 },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+    ).toBe('끼끼가 오늘의 운동\n재료를 하나씩 모으는 중');
 
     await act(async () => finishDecision(decision()));
     await waitFor(() =>
       expect(
         screen.getByTestId('routine-generation-message').props.children[0],
-      ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중'),
+      ).toBe('조금만 기다려 주세요.\n안전한 루틴인지 마지막으로 확인하는 중'),
     );
     expect(
       screen.getByTestId('routine-generation-progress').props
         .accessibilityValue,
     ).toEqual({ min: 0, max: 100, now: 95 });
-    expect(onDecisionChange).not.toHaveBeenCalled();
+    expect(onDecisionChange).toHaveBeenLastCalledWith(null);
+    expect(onDecisionChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ decision_id: 'decision-1' }),
+    );
 
-    await waitFor(() => expect(onDecisionChange).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(
+        expect.objectContaining({ decision_id: 'decision-1' }),
+      ),
+    );
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
   });
 
@@ -575,10 +1531,8 @@ describe('HomeContainer', () => {
       { onDecisionChange, finalValidationHoldMs: 5_000 },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(onDecisionChange).toHaveBeenCalledWith(stopped));
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
@@ -593,25 +1547,22 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ sleep_minutes: null, available_slots: null }),
+      expect.objectContaining({
+        sleep_minutes: null,
+        sleep_source_code: null,
+      }),
       undefined,
     );
   });
 
-  it('preserves stored optional check-in codes that have no approved UI choices', async () => {
-    const storedContext = {
-      ...dailyContext(),
-      fasting_state_code: 'FASTED',
-      hydration_state_code: 'LOW',
-    };
+  it('preserves the stored daily values when re-checking in', async () => {
+    const storedContext = dailyContext();
     const replaceDailyContext = jest.fn(async () => storedContext);
     renderHome(
       homeApi({
@@ -621,23 +1572,21 @@ describe('HomeContainer', () => {
       }),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        fasting_state_code: 'FASTED',
-        hydration_state_code: 'LOW',
+        available_time_minutes: 30,
+        red_flag_present: false,
       }),
       storedContext.context_version,
     );
   });
 
-  it('sends discomfort severity and adverse reactions as stable API codes', async () => {
+  it('sends NRS pain scores and a combined Red Flag answer', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     renderHome(
       homeApi({
@@ -646,97 +1595,346 @@ describe('HomeContainer', () => {
       }),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '심함' }));
-    fireEvent.press(screen.getByRole('button', { name: '있어요' }));
-    fireEvent.press(screen.getByRole('button', { name: '심한 어지럼' }));
-    fireEvent.changeText(
-      screen.getByLabelText('어젯밤 수면 시간 (시간)'),
-      '6.5',
-    );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    for (let count = 1; count < 7; count += 1) {
+      fireEvent(
+        screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+        'accessibilityAction',
+        { nativeEvent: { actionName: 'increment' } },
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 있어요' }));
+    fireEvent.changeText(screen.getByLabelText('수면 시간 (시간)'), '6.5');
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         sleep_minutes: 390,
-        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+        sleep_source_code: 'MANUAL',
+        pain_present: true,
+        pains: [{ body_area_code: 'KNEE', intensity_score: 7 }],
+        red_flag_present: true,
       }),
       undefined,
     );
   });
 
-  it('sends multiple discomforts and the selected daily location', async () => {
+  it('sends multiple NRS pains and the selected daily location', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     const customMe = me();
     customMe.profile = {
       ...customMe.profile!,
-      available_location_codes: ['HOME', 'GYM'],
       attention_area_codes: ['SHOULDER', 'KNEE'],
     };
     renderHome(
       homeApi({
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'GYM'],
+        })),
         replaceDailyContext,
         createDecision: jest.fn(async () => decision()),
       }),
       { me: customMe },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
-    fireEvent.press(screen.getByRole('button', { name: '보통' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getAllByRole('button', { name: '심함' })[1]!);
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-어깨'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         location_code: 'GYM',
-        discomforts: [
-          { body_area_code: 'SHOULDER', severity_code: 'MODERATE' },
-          { body_area_code: 'KNEE', severity_code: 'SEVERE' },
+        pains: [
+          { body_area_code: 'SHOULDER', intensity_score: 2 },
+          { body_area_code: 'KNEE', intensity_score: 2 },
         ],
       }),
       undefined,
     );
   });
 
-  it('reports a rest selection without creating a session', async () => {
-    const selectOption = jest.fn(async () => ({
-      selection_id: 'sel-1',
-      decision_id: 'decision-1',
-      option_id: 'option-rest',
-      selected_action_code: 'REST' as const,
-      workout_session: null,
-      selected_at: '2026-08-17T02:00:00+09:00',
-      pressure_notifications_allowed: false,
-    }));
-    const onRestChosen = jest.fn();
-    const onSessionStarted = jest.fn();
-
+  it('does not offer REST even when the server returns a selectable option', async () => {
+    const selectOption = jest.fn();
     renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
       decision: decision(),
-      onRestChosen,
-      onSessionStarted,
+    });
+    await screen.findByRole('button', { name: '운동 시작하기' });
+    expect(screen.queryByRole('button', { name: '오늘은 쉬기' })).toBeNull();
+    expect(selectOption).not.toHaveBeenCalled();
+  });
+
+  it('runs the first-check-in loading flow again after the user leaves rest mode', async () => {
+    let finishDecision!: (value: DecisionResponse) => void;
+    const createDecision = jest.fn(
+      () =>
+        new Promise<DecisionResponse>((resolve) => {
+          finishDecision = resolve;
+        }),
+    );
+    const currentContext = dailyContext();
+    const savedContext = { ...currentContext, context_version: 2 };
+    const api = homeApi({
+      getDailyContext: jest.fn(async () => currentContext),
+      replaceDailyContext: jest.fn(async () => savedContext),
+      createDecision,
     });
 
-    fireEvent.press(await screen.findByText('오늘은 쉬기'));
+    function RestRecheckHarness() {
+      const [restToday, setRestToday] = useState(true);
+      const [currentDecision, setCurrentDecision] =
+        useState<DecisionResponse | null>(decision());
 
-    await waitFor(() => expect(onRestChosen).toHaveBeenCalledWith(false));
-    expect(selectOption).toHaveBeenCalledWith('decision-1', 'option-rest');
-    expect(onSessionStarted).not.toHaveBeenCalled();
+      return (
+        <HomeContainer
+          api={api}
+          me={me()}
+          restToday={restToday}
+          decision={currentDecision}
+          onDecisionChange={setCurrentDecision}
+          planRevision={null}
+          onPlanRevisionChange={jest.fn()}
+          onSessionStarted={jest.fn()}
+          onCheckinDecisionSuccess={() => setRestToday(false)}
+          onTab={jest.fn()}
+          onOpenCalendar={jest.fn()}
+          finalValidationHoldMs={0}
+        />
+      );
+    }
+
+    render(<RestRecheckHarness />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    expect(screen.getByText('컨디션 체크')).toBeOnTheScreen();
+    submitRequiredCheckin();
+
+    await waitFor(() => expect(createDecision).toHaveBeenCalled());
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(screen.queryByText('오늘은 휴식하기로 했어요')).toBeNull();
+    expect(screen.queryByTestId('home-routine-state')).toBeNull();
+
+    await act(async () => finishDecision(decision()));
+    expect(await screen.findByTestId('home-routine-state')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('shows only the stale retry state after rest and then returns to loading', async () => {
+    let finishDecision!: (value: DecisionResponse) => void;
+    const createDecision = jest.fn(
+      () =>
+        new Promise<DecisionResponse>((resolve) => {
+          finishDecision = resolve;
+        }),
+    );
+    const currentContext = dailyContext();
+    const latestContext = { ...currentContext, context_version: 2 };
+    const savedContext = { ...currentContext, context_version: 3 };
+    const replaceDailyContext = jest
+      .fn<Api['replaceDailyContext']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'stale',
+          code: 'STALE_CONTEXT',
+          status: 409,
+          message:
+            '체크인 정보가 변경되었습니다. 최신 상태로 다시 시도해주세요.',
+        }),
+      )
+      .mockResolvedValueOnce(savedContext);
+    const api = homeApi({
+      getDailyContext: jest.fn(async () => latestContext),
+      replaceDailyContext,
+      createDecision,
+    } as unknown as Partial<Api>);
+
+    function RestStaleHarness() {
+      const [restToday, setRestToday] = useState(true);
+      const [currentDecision, setCurrentDecision] =
+        useState<DecisionResponse | null>(decision());
+
+      return (
+        <HomeContainer
+          api={api}
+          me={me()}
+          restToday={restToday}
+          decision={currentDecision}
+          onDecisionChange={setCurrentDecision}
+          planRevision={null}
+          onPlanRevisionChange={jest.fn()}
+          onSessionStarted={jest.fn()}
+          onCheckinDecisionSuccess={() => setRestToday(false)}
+          onTab={jest.fn()}
+          onOpenCalendar={jest.fn()}
+          finalValidationHoldMs={0}
+        />
+      );
+    }
+
+    render(<RestStaleHarness />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    submitRequiredCheckin();
+
+    expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
+    expect(screen.getByText('요청을 완료하지 못했어요')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-routine-state')).toBeNull();
+    expect(screen.getByText('오늘은 휴식하기로 했어요')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '최신 상태로 다시 시도' }),
+    );
+
+    await waitFor(() => expect(createDecision).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      latestContext.context_version,
+    );
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+
+    await act(async () => finishDecision(decision()));
+    expect(await screen.findByTestId('home-routine-state')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('keeps a saved check-in version when decision generation fails', async () => {
+    const currentContext = dailyContext();
+    const savedContext = { ...currentContext, context_version: 2 };
+    const nextSavedContext = { ...currentContext, context_version: 3 };
+    const replaceDailyContext = jest
+      .fn<Api['replaceDailyContext']>()
+      .mockResolvedValueOnce(savedContext)
+      .mockResolvedValueOnce(nextSavedContext);
+    const createDecision = jest
+      .fn<Api['createDecision']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'unavailable',
+          code: 'DECISION_FAILED',
+          status: 503,
+          message: '운동 추천을 생성하지 못했습니다.',
+        }),
+      )
+      .mockResolvedValueOnce(decision());
+
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => currentContext),
+        replaceDailyContext,
+        createDecision,
+      } as unknown as Partial<Api>),
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+
+    expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-routine-state')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+
+    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalledTimes(2));
+    expect(replaceDailyContext).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      savedContext.context_version,
+    );
+    await waitFor(() => expect(createDecision).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('reports a successful re-check-in decision so flow-owned rest state can clear', async () => {
+    const onCheckinDecisionSuccess = jest.fn();
+    const savedContext = { ...dailyContext(), context_version: 2 };
+
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        replaceDailyContext: jest.fn(async () => savedContext),
+        createDecision: jest.fn(async () =>
+          decision({ decision_id: 'decision-after-recheck' }),
+        ),
+      }),
+      {
+        restToday: true,
+        decision: decision(),
+        onCheckinDecisionSuccess,
+      },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    submitRequiredCheckin();
+
+    await waitFor(() =>
+      expect(onCheckinDecisionSuccess).toHaveBeenCalledTimes(1),
+    );
+  });
+
+  it('keeps flow-owned rest state when replacement decision creation fails', async () => {
+    const onCheckinDecisionSuccess = jest.fn();
+
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        replaceDailyContext: jest.fn(async () => ({
+          ...dailyContext(),
+          context_version: 2,
+        })),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }),
+      } as unknown as Partial<Api>),
+      {
+        restToday: true,
+        decision: decision(),
+        onCheckinDecisionSuccess,
+      },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    submitRequiredCheckin();
+
+    await screen.findByTestId('home-action-error');
+    expect(onCheckinDecisionSuccess).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: '다시 체크인하기' }),
+    ).toBeOnTheScreen();
   });
 
   it('regenerates the current V3 decision with optimistic concurrency values', async () => {
@@ -751,6 +1949,7 @@ describe('HomeContainer', () => {
     const onDecisionChange = jest.fn();
     renderHome(
       homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
         regenerateDecision,
       }),
       { decision: decision(), onDecisionChange },
@@ -759,6 +1958,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
+    submitRequiredCheckin();
 
     await waitFor(() => {
       expect(regenerateDecision).toHaveBeenCalledWith('decision-1', {
@@ -784,10 +1984,16 @@ describe('HomeContainer', () => {
     }));
     const onSessionStarted = jest.fn();
 
-    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
-      decision: decision(),
-      onSessionStarted,
-    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        selectOption,
+      } as unknown as Partial<Api>),
+      {
+        decision: decision(),
+        onSessionStarted,
+      },
+    );
 
     fireEvent.press(
       await screen.findByRole('button', { name: '운동 시작하기' }),
@@ -797,6 +2003,7 @@ describe('HomeContainer', () => {
       expect(onSessionStarted).toHaveBeenCalledWith(
         'session-1',
         decision().final_plan,
+        'HOME',
       ),
     );
   });
@@ -859,7 +2066,9 @@ describe('HomeContainer', () => {
     renderHome(homeApi(), { restToday: true, decision: decision() });
 
     expect(await screen.findByText('오늘은 휴식하기로 했어요')).toBeTruthy();
-    expect(screen.queryByText('오늘 루틴 체크인')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '다시 체크인하기' }),
+    ).toBeOnTheScreen();
     expect(screen.queryByText('운동 시작하기  ›')).toBeNull();
   });
 
@@ -877,8 +2086,10 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('서버에 연결하지 못했습니다.')).toBeTruthy();
-    expect(screen.getByText('다시 시도')).toBeTruthy();
+    expect(
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
+    ).toBeTruthy();
+    expect(screen.getByText('다시 준비하기')).toBeTruthy();
   });
 
   it('shows a non-retryable permission-denied state', async () => {
@@ -1007,12 +2218,11 @@ describe('SessionScreen', () => {
     const onOutcome = jest.fn();
     const reportSafetyEvent = jest.fn(async () => ({
       event_id: 'event-1',
-      instruction_code: 'STOP_SESSION' as const,
-      resulting_action_code: 'REST' as const,
-      session_status_code: 'STOPPED_FOR_SAFETY' as const,
-      guidance_code: 'SEVERE_OR_ACUTE_STOP',
+      result_code: 'SESSION_STOPPED' as const,
+      execution_state_code: 'STOPPED_SAFETY' as const,
+      completion_code: 'NOT_COMPLETED' as const,
+      is_resumable: false as const,
       guidance: '오늘 운동은 진행하지 않는 것이 좋습니다.',
-      pressure_notifications_allowed: false,
     }));
 
     render(
@@ -1028,30 +2238,17 @@ describe('SessionScreen', () => {
     );
 
     fireEvent.press(await screen.findByText('통증·이상 반응 알리기'));
-    fireEvent.press(screen.getByText('무릎'));
-    fireEvent.press(screen.getByText('알리기'));
+    expect(screen.queryByText('심한 통증이 있는 부위')).toBeNull();
+    fireEvent.press(screen.getByText('안전하게 운동 중단하기'));
 
     await waitFor(() =>
       expect(onOutcome).toHaveBeenCalledWith(
         expect.objectContaining({ kind: 'safetyStop' }),
       ),
     );
-  });
-});
-
-describe('CalendarStatusScreen', () => {
-  it('states the integration is not available and offers no connect action', () => {
-    render(<CalendarStatusScreen onBack={jest.fn()} />);
-
-    expect(screen.getByText('연동 준비 중')).toBeTruthy();
-    expect(screen.getByText('아직 연결할 수 없어요')).toBeTruthy();
-    expect(screen.queryByText('캘린더 연결하기')).toBeNull();
-    expect(screen.queryByRole('button', { name: /연결/ })).toBeNull();
-  });
-
-  it('restates that calendar data cannot change official completion', () => {
-    render(<CalendarStatusScreen onBack={jest.fn()} />);
-    expect(screen.getByText('운동 완료 기준은 그대로예요')).toBeTruthy();
+    expect(reportSafetyEvent).toHaveBeenCalledWith('session-1', {
+      stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
+    });
   });
 });
 
@@ -1142,11 +2339,15 @@ describe('default fetch binding', () => {
 });
 
 describe('OnboardingScreen', () => {
-  it('omits redundant descriptions from the first five steps', () => {
+  it('keeps concise context only where the latest policy needs it', () => {
+    expect(ONBOARDING_STEPS).toHaveLength(8);
+    expect(ONBOARDING_STEPS.map(({ key }) => key)).not.toContain(
+      'coachingStyle',
+    );
     expect(ONBOARDING_STEPS.slice(0, 5).map(({ intro }) => intro)).toEqual([
       '',
       '',
-      '',
+      '체중은 예상 소모 칼로리 계산에만 사용해요.',
       '',
       '',
     ]);
@@ -1155,13 +2356,9 @@ describe('OnboardingScreen', () => {
   function fillRequiredOnboardingSteps({
     attentionArea,
     birthdate = '1997-08-11',
-    selectLocations,
-    selectOptionalPreferences = true,
   }: {
     attentionArea?: string;
     birthdate?: string;
-    selectLocations?: () => void;
-    selectOptionalPreferences?: boolean;
   } = {}) {
     fireEvent.changeText(
       screen.getByPlaceholderText('앱에서 불릴 이름'),
@@ -1172,9 +2369,8 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText(`월 ${month}월`));
     fireEvent.press(screen.getByLabelText(`일 ${day}일`));
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.press(screen.getByText('여성'));
+    fireEvent.press(screen.getByText('아니요'));
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.changeText(screen.getByLabelText('키'), '172.4');
     fireEvent.changeText(screen.getByLabelText('체중'), '68.5');
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('체력 증진'));
@@ -1183,17 +2379,6 @@ describe('OnboardingScreen', () => {
       'accessibilityState',
       expect.objectContaining({ selected: true }),
     );
-    fireEvent.press(screen.getByText('다음'));
-    if (selectOptionalPreferences) {
-      fireEvent.press(screen.getByText('간결하게'));
-    }
-    fireEvent.press(screen.getByText('다음'));
-    if (selectLocations) {
-      selectLocations();
-    } else {
-      fireEvent.press(screen.getByText('집'));
-    }
-    fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     if (attentionArea) {
@@ -1206,6 +2391,12 @@ describe('OnboardingScreen', () => {
   }
 
   function acceptRequiredConsents() {
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '서비스 이용약관 동의' }),
+    );
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '개인정보처리방침 확인' }),
+    );
     fireEvent.press(
       screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
     );
@@ -1239,13 +2430,15 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+    expect(screen.getByText('1 / 8')).toBeOnTheScreen();
     expect(screen.getByText('기본 정보를 알려주세요')).toBeOnTheScreen();
     expect(
-      screen.queryByText('만 14세 이상만 선택할 수 있어요.'),
+      screen.queryByText('만 18세 이상만 선택할 수 있어요.'),
     ).not.toBeOnTheScreen();
     expect(screen.queryByText(/선택 가능한 최근 날짜는/)).not.toBeOnTheScreen();
-    expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('안전한 운동을 위해 확인해주세요'),
+    ).not.toBeOnTheScreen();
 
     fireEvent.changeText(
       screen.getByPlaceholderText('앱에서 불릴 이름'),
@@ -1256,16 +2449,27 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText('일 11일'));
     fireEvent.press(screen.getByText('다음'));
 
-    expect(screen.getByText('2 / 11')).toBeOnTheScreen();
-    expect(screen.getByText('성별을 선택해주세요')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 8')).toBeOnTheScreen();
+    expect(
+      screen.getByText('안전한 운동을 위해 확인해주세요'),
+    ).toBeOnTheScreen();
     expect(
       screen.queryByText('맞춤 운동 추천에 참고해요.'),
     ).not.toBeOnTheScreen();
     expect(
       screen.queryByText('운동 강도와 권장 범위를 조정하는 데 사용해요.'),
     ).not.toBeOnTheScreen();
-    expect(screen.getByText('여성')).toBeOnTheScreen();
-    expect(screen.getByText('남성')).toBeOnTheScreen();
+    expect(screen.getByText('아니요')).toBeOnTheScreen();
+    expect(screen.getByText('예')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByRole('button', { name: '아니요' }).props.style,
+      ).flexBasis,
+    ).toBe(0);
+    expect(
+      StyleSheet.flatten(screen.getByRole('button', { name: '예' }).props.style)
+        .flexBasis,
+    ).toBe(0);
     expect(screen.queryByText('선택 안 함')).not.toBeOnTheScreen();
     expect(screen.queryByText('기본 정보를 알려주세요')).not.toBeOnTheScreen();
   });
@@ -1289,7 +2493,7 @@ describe('OnboardingScreen', () => {
     );
 
     const today = new Date();
-    const latestEligibleYear = today.getFullYear() - 14;
+    const latestEligibleYear = today.getFullYear() - 18;
     const latestEligibleMonth = today.getMonth() + 1;
     const latestEligibleDay = Math.min(
       today.getDate(),
@@ -1343,7 +2547,7 @@ describe('OnboardingScreen', () => {
     expect(screen.queryByLabelText('일 30일')).not.toBeOnTheScreen();
     fireEvent.press(screen.getByLabelText('일 28일'));
     fireEvent.press(screen.getByText('다음'));
-    expect(screen.getByText('2 / 11')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 8')).toBeOnTheScreen();
   });
 
   it('uses the revised onboarding copy without the removed helper text', () => {
@@ -1368,17 +2572,17 @@ describe('OnboardingScreen', () => {
     expect(screen.getByRole('button', { name: '중급' })).toBeOnTheScreen();
     experience.unmount();
 
-    const location = render(
-      <OnboardingScreen {...screenProps} initialStep={7} />,
+    const frequency = render(
+      <OnboardingScreen {...screenProps} initialStep={6} />,
     );
-    expect(screen.getByText('어디에서 운동해요?')).toBeOnTheScreen();
+    expect(screen.getByText('일주일에 몇 번 운동할까요?')).toBeOnTheScreen();
     expect(
-      screen.queryByText('주로 어디에서 운동하나요?'),
-    ).not.toBeOnTheScreen();
-    location.unmount();
+      screen.getByText('선택한 횟수에 맞춰 운동 계획을 만들어드려요.'),
+    ).toBeOnTheScreen();
+    frequency.unmount();
 
     const attention = render(
-      <OnboardingScreen {...screenProps} initialStep={10} />,
+      <OnboardingScreen {...screenProps} initialStep={7} />,
     );
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toBeOnTheScreen();
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toHaveProp(
@@ -1396,7 +2600,7 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
     attention.unmount();
 
-    render(<OnboardingScreen {...screenProps} initialStep={11} />);
+    render(<OnboardingScreen {...screenProps} initialStep={8} />);
     expect(
       screen.queryByText('필수 2개만 동의하면 시작할 수 있어요.'),
     ).not.toBeOnTheScreen();
@@ -1476,6 +2680,32 @@ describe('OnboardingScreen', () => {
     }
   });
 
+  it('realigns the selected date when the wheel item height changes', () => {
+    const onChange = jest.fn();
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+    try {
+      const birthdate = render(
+        <BirthDateField
+          compact={false}
+          onChange={onChange}
+          value="2000-06-15"
+        />,
+      );
+      scrollTo.mockClear();
+
+      birthdate.rerender(
+        <BirthDateField compact onChange={onChange} value="2000-06-15" />,
+      );
+
+      expect(scrollTo).toHaveBeenCalledWith({
+        animated: false,
+        y: 5 * 38,
+      });
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
+
   it('keeps the animated wheel movement when a date item is pressed', () => {
     const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
     try {
@@ -1491,27 +2721,37 @@ describe('OnboardingScreen', () => {
       fireEvent.press(screen.getByLabelText('연도 1997년'));
 
       const scrollRequests = scrollTo.mock.calls
-        .map(([request]) => request)
+        .map(([request], index) => ({
+          context: scrollTo.mock.contexts[index],
+          request,
+        }))
         .filter(
           (
-            request,
-          ): request is {
-            animated?: boolean;
-            x?: number;
-            y?: number;
-          } => typeof request === 'object' && request !== null,
+            entry,
+          ): entry is {
+            context: unknown;
+            request: {
+              animated?: boolean;
+              x?: number;
+              y?: number;
+            };
+          } => typeof entry.request === 'object' && entry.request !== null,
         );
       const animatedSelection = scrollRequests.find(
-        (request) => request.animated === true,
+        ({ request }) => request.animated === true,
       );
-      expect(animatedSelection).toEqual({
+      expect(animatedSelection?.request).toEqual({
         animated: true,
         y: expect.any(Number),
       });
-      expect(scrollRequests).not.toContainEqual({
-        animated: false,
-        y: animatedSelection?.y,
-      });
+      expect(
+        scrollRequests.some(
+          ({ context, request }) =>
+            context === animatedSelection?.context &&
+            request.animated === false &&
+            request.y === animatedSelection?.request.y,
+        ),
+      ).toBe(false);
       expect(screen.getByLabelText('연도 1997년')).toHaveProp(
         'accessibilityState',
         expect.objectContaining({ selected: true }),
@@ -1521,32 +2761,48 @@ describe('OnboardingScreen', () => {
     }
   });
 
-  it('separates four consent checkboxes into required and optional items', () => {
+  it('shows only required consent checkboxes', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    const requiredLabels = ['개인정보 수집 및 이용', '건강 관련 민감정보 처리'];
-    const optionalLabels = ['웨어러블 연동', '마케팅 정보 수신'];
+    const requiredLabels = [
+      '서비스 이용약관 동의',
+      '개인정보처리방침 확인',
+      '개인정보 수집 및 이용',
+      '건강 관련 민감정보 처리',
+    ];
 
     expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+    expect(
+      screen.queryByRole('checkbox', { name: '웨어러블 연동' }),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.queryByRole('checkbox', { name: '마케팅 정보 수신' }),
+    ).not.toBeOnTheScreen();
+    expect(screen.queryByText('선택 동의')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText(
+        '선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.',
+      ),
+    ).not.toBeOnTheScreen();
     expect(
       screen.queryByRole('checkbox', { name: '캘린더 연동' }),
     ).not.toBeOnTheScreen();
     requiredLabels.forEach((label) => {
-      expect(
-        within(screen.getByRole('checkbox', { name: label })).getByText('필수'),
-      ).toBeOnTheScreen();
-    });
-    optionalLabels.forEach((label) => {
-      expect(
-        within(screen.getByRole('checkbox', { name: label })).getByText('선택'),
-      ).toBeOnTheScreen();
+      const badge = within(
+        screen.getByRole('checkbox', { name: label }),
+      ).getByText('필수');
+      expect(badge).toBeOnTheScreen();
+      expect(StyleSheet.flatten(badge.props.style)).toMatchObject({
+        fontSize: 10,
+        lineHeight: 14,
+      });
     });
   });
 
@@ -1554,61 +2810,104 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
     [
-      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
-      '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
-      '워치 데이터를 참고하여 운동을 생성해요',
-      '새 기능과 이벤트 소식을 보내요.',
+      '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
+      '개인정보를 어떤 목적으로 처리하고 보관하는지 확인해요.',
+      '입력한 정보를 운동 계획을 만드는 데 활용해요.',
+      '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
     ].forEach((description) => {
       expect(screen.getByText(description)).toBeOnTheScreen();
     });
   });
 
-  it('names every remaining required consent and enables submission only after both are checked', () => {
+  it('names every required consent and enables submission only after all four are checked', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
     expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
+      screen.getByRole('button', { name: '필수 항목에 동의해주세요' }),
     ).toBeDisabled();
     expect(
-      screen.getByText(
-        '남은 필수 동의: 개인정보 수집 및 이용, 건강 관련 민감정보 처리\n안전한 루틴을 만들려면 이 동의가 필요해요.',
-      ),
+      screen.getByText('필수 동의 항목을 확인해주세요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('운동 계획을 만들기 위해 필수 항목의 동의가 필요해요.'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '개인정보처리방침 확인' }),
+    );
+    expect(
+      screen.getByText('필수 동의 항목이 3개 남았어요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('계속하려면 필수 항목을 확인해주세요.'),
     ).toBeOnTheScreen();
 
     fireEvent.press(
       screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
     );
     expect(
-      screen.getByText(
-        '남은 필수 동의: 건강 관련 민감정보 처리\n안전한 루틴을 만들려면 이 동의가 필요해요.',
-      ),
+      screen.getByText('필수 동의 항목이 2개 남았어요.'),
     ).toBeOnTheScreen();
     expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
+      screen.getByRole('button', { name: '필수 항목에 동의해주세요' }),
     ).toBeDisabled();
 
     fireEvent.press(
       screen.getByRole('checkbox', { name: '건강 관련 민감정보 처리' }),
     );
+    expect(
+      screen.getByText('필수 동의 항목이 1개 남았어요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '필수 항목에 동의해주세요' }),
+    ).toBeDisabled();
+
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '서비스 이용약관 동의' }),
+    );
     expect(screen.getByRole('button', { name: '시작하기' })).toBeEnabled();
-    expect(screen.queryByText(/남은 필수 동의:/)).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('필수 동의 항목이 1개 남았어요.'),
+    ).not.toBeOnTheScreen();
   });
 
-  it('submits optional consents as false when only required consents are checked', async () => {
+  it('shows onboarding progress in the final button while the profile is being created', async () => {
+    const submitOnboarding = jest.fn(() => new Promise<never>(() => undefined));
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByRole('button', { name: '시작하기' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: '온보딩 중...' }),
+      ).toBeDisabled();
+      expect(submitOnboarding).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('submits optional consents as false because they are no longer collected', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
       completedOnboarding(),
     );
@@ -1631,41 +2930,7 @@ describe('OnboardingScreen', () => {
             general_personal_data: true,
             sensitive_data: true,
             wearable_integration: false,
-            calendar_integration: false,
             marketing: false,
-          },
-        }),
-      );
-    });
-  });
-
-  it('submits enabled optional consent values while calendar consent stays disabled', async () => {
-    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
-      completedOnboarding(),
-    );
-    render(
-      <OnboardingScreen
-        api={stubApi({ submitOnboarding })}
-        onCompleted={jest.fn()}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fillRequiredOnboardingSteps();
-    acceptRequiredConsents();
-    fireEvent.press(screen.getByRole('checkbox', { name: '웨어러블 연동' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '마케팅 정보 수신' }));
-    fireEvent.press(screen.getByText('시작하기'));
-
-    await waitFor(() => {
-      expect(submitOnboarding).toHaveBeenCalledWith(
-        expect.objectContaining({
-          consents: {
-            general_personal_data: true,
-            sensitive_data: true,
-            wearable_integration: true,
-            calendar_integration: false,
-            marketing: true,
           },
         }),
       );
@@ -1678,7 +2943,7 @@ describe('OnboardingScreen', () => {
         kind: 'permission',
         code: 'AGE_REQUIREMENT_NOT_MET',
         status: 403,
-        message: '만 14세 미만은 이용할 수 없습니다.',
+        message: '만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다.',
       });
     });
     render(
@@ -1697,15 +2962,38 @@ describe('OnboardingScreen', () => {
       expect(submitOnboarding).toHaveBeenCalledWith(
         expect.objectContaining({ date_of_birth: '1997-08-11' }),
       );
-      expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 8')).toBeOnTheScreen();
       expect(
-        screen.getByText('만 14세 미만은 이용할 수 없습니다.'),
+        screen.getByText(
+          '만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다.',
+        ),
       ).toBeOnTheScreen();
     });
   });
 
-  it('requires explicit location and attention answers without showing an equipment page', () => {
+  it('requires an eligible medical answer while keeping persistent pain optional', () => {
     const { rerender } = render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={2}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByText('예'));
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(/의료진 또는 자격을 갖춘 전문가/),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText('사용할 수 있는 장비가 있나요?')).toBeNull();
+
+    rerender(
       <OnboardingScreen
         api={stubApi()}
         initialStep={7}
@@ -1713,29 +3001,33 @@ describe('OnboardingScreen', () => {
         onSignOut={jest.fn()}
       />,
     );
-
+    expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
+    fireEvent.press(screen.getByText('있어요'));
+    expect(screen.getByText('통증 부위')).toBeOnTheScreen();
     expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
-    ).toBeDisabled();
-    fireEvent.press(screen.getByText('집'));
-    fireEvent.press(screen.getByText('다음'));
-    expect(
-      screen.getByText('한 번에 몇 분 운동하고 싶나요?'),
+      screen.getByText('해당하는 부위를 모두 선택해주세요.'),
     ).toBeOnTheScreen();
-    expect(screen.queryByText('사용할 수 있는 장비가 있나요?')).toBeNull();
-
-    rerender(
-      <OnboardingScreen
-        api={stubApi()}
-        initialStep={10}
-        onCompleted={jest.fn()}
-        onSignOut={jest.fn()}
-      />,
+    expect(
+      screen.queryByTestId('onboarding-pain-scale-info-bubble'),
+    ).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: '통증 정도 기준 안내' }),
     );
     expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
-    ).toBeDisabled();
-    fireEvent.press(screen.getByText('있어요'));
+      screen.getByText(
+        'HELKKI는 통증 정도를 0~10의 숫자로 표현하는 숫자통증등급(NRS)을 사용합니다.',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '본 서비스에서는 통증 정도를 "1–3 경도 / 4–6 중등도 / 7–10 심한 통증"으로 구분합니다.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('출처: 국제통증연구학회 (IASP)')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('onboarding-pain-scale-info-backdrop'));
+    expect(
+      screen.queryByTestId('onboarding-pain-scale-info-bubble'),
+    ).toBeNull();
     expect(
       screen.getByRole('button', { name: '입력이 필요해요' }),
     ).toBeDisabled();
@@ -1766,7 +3058,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -1780,12 +3072,15 @@ describe('OnboardingScreen', () => {
     expect(screen.getByText('손목·손 통증 정도').props.numberOfLines).toBe(1);
     expect(screen.getByText('발목·발 통증 정도').props.numberOfLines).toBe(1);
     expect(
+      screen.getAllByText('1~3: 약함, 4~6: 중간, 7~10: 심함'),
+    ).toHaveLength(2);
+    expect(
       StyleSheet.flatten(
         screen.getByTestId('onboarding-pain-slider-card-손목·손').props.style,
       ),
     ).toMatchObject({
-      backgroundColor: '#FBEAE7',
-      borderColor: '#F1BFAE',
+      backgroundColor: '#FFFDFC',
+      borderColor: '#E8C3B8',
     });
     expect(
       StyleSheet.flatten(
@@ -1797,13 +3092,31 @@ describe('OnboardingScreen', () => {
       color: '#8E3226',
       fontWeight: '400',
     });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-thumb-손목·손').props
+          .style,
+      ),
+    ).toMatchObject({ backgroundColor: '#FFFFFF' });
+    expect(
+      screen.getByTestId('onboarding-pain-intensity-gradient-손목·손'),
+    ).toHaveProp('locations', [0, 1]);
+    expect(
+      screen.getByTestId('onboarding-pain-intensity-value-pointer-손목·손'),
+    ).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-range-labels-손목·손')
+          .props.style,
+      ),
+    ).toMatchObject({ marginBottom: 4, paddingHorizontal: 17 });
   });
 
   it('lets users select every integer pain score from 1 to 10 on the slider', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -1826,13 +3139,33 @@ describe('OnboardingScreen', () => {
       text: '10점 중 7점',
     });
     expect(screen.getByText('7')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-value-callout-무릎').props
+          .style,
+      ).left,
+    ).toBeCloseTo(97.333, 3);
+
+    fireEvent(slider, 'responderGrant', {
+      nativeEvent: { locationX: 180 },
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-value-callout-무릎').props
+          .style,
+      ).left,
+    ).toBe(146);
+    expect(StyleSheet.flatten(slider.props.style)).toMatchObject({
+      height: 54,
+      paddingHorizontal: 17,
+    });
   });
 
   it('hides unsupported and extended attention areas until expanded', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -1845,36 +3178,41 @@ describe('OnboardingScreen', () => {
     expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
     expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    const toggle = screen.getByRole('button', { name: '다른 부위 보기' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-extended-area-toggle').props.style,
+      ),
+    ).toMatchObject({ alignSelf: 'center', minHeight: 36 });
+    expect(
+      screen.getByTestId('onboarding-extended-area-caret').props.style,
+    ).toBeUndefined();
+    fireEvent.press(toggle);
     expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '가슴' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '복부' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '다른 부위 접기' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('onboarding-extended-area-caret').props.style,
+    ).toMatchObject({ transform: [{ rotate: '180deg' }] });
   });
 
-  it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {
-    const view = render(
+  it('adjusts weekly frequency from 1 to 7 without asking for workout duration', () => {
+    render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={6}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    expect(screen.getByText('30분')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText('운동 시간 10분 늘리기'));
-    expect(screen.getByText('40분')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText('운동 시간 10분 줄이기'));
-    expect(screen.getByText('30분')).toBeOnTheScreen();
-
-    view.rerender(
-      <OnboardingScreen
-        api={stubApi()}
-        initialStep={9}
-        onCompleted={jest.fn()}
-        onSignOut={jest.fn()}
-      />,
-    );
+    expect(screen.queryByText('30분')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('한 번에 얼마나 운동할까요?'),
+    ).not.toBeOnTheScreen();
     expect(screen.getByText('주 3회')).toBeOnTheScreen();
     for (let count = 3; count < 7; count += 1) {
       fireEvent.press(screen.getByLabelText('주간 운동 횟수 1회 늘리기'));
@@ -1883,7 +3221,13 @@ describe('OnboardingScreen', () => {
     expect(screen.getByLabelText('주간 운동 횟수 1회 늘리기')).toBeDisabled();
   });
 
-  it('maps Profile gender and body values to the backend onboarding contract', async () => {
+  it('maps the supported profile values to the backend onboarding contract', async () => {
+    const getOnboardingRequirements = jest.fn(async () => ({
+      terms_version: 'terms-server-v2.3.0',
+      consent_policy_version: 'consent-server-v4',
+      required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+      optional_consent_type_codes: [],
+    }));
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -1899,7 +3243,7 @@ describe('OnboardingScreen', () => {
 
     render(
       <OnboardingScreen
-        api={stubApi({ submitOnboarding })}
+        api={stubApi({ getOnboardingRequirements, submitOnboarding })}
         onCompleted={onCompleted}
         onSignOut={jest.fn()}
       />,
@@ -1912,27 +3256,67 @@ describe('OnboardingScreen', () => {
     await waitFor(() => {
       expect(submitOnboarding).toHaveBeenCalledWith(
         expect.objectContaining({
-          sex_code: 'FEMALE',
-          height_cm: 172.4,
+          medical_exercise_restriction: false,
           weight_kg: 68.5,
           primary_goal_code: 'GENERAL_FITNESS',
           experience_level_code: 'BEGINNER',
-          preferred_exercise_type_codes: [],
-          coaching_style_code: 'CONCISE',
-          attention_area_codes: ['KNEE'],
+          weekly_target_sessions: 3,
+          terms_version: 'terms-server-v2.3.0',
+          persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 1 }],
         }),
       );
-      expect(submitOnboarding.mock.calls[0]?.[0]).not.toHaveProperty(
-        'attention_severities',
-      );
-      expect(submitOnboarding.mock.calls[0]?.[0]).not.toHaveProperty(
+      const request = submitOnboarding.mock.calls[0]?.[0];
+      [
+        'sex_code',
+        'height_cm',
+        'preferred_location_code',
+        'available_location_codes',
+        'default_requested_duration_minutes',
+        'preferred_exercise_type_codes',
+        'attention_area_codes',
         'equipment_codes',
-      );
+        'coaching_style_code',
+      ].forEach((field) => expect(request).not.toHaveProperty(field));
+      expect(getOnboardingRequirements).toHaveBeenCalledTimes(1);
+      expect(
+        getOnboardingRequirements.mock.invocationCallOrder[0],
+      ).toBeLessThan(submitOnboarding.mock.invocationCallOrder[0] ?? 0);
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('allows optional preferences to be skipped and uses the backend coaching default', async () => {
+  it('does not submit onboarding when legal requirements are unavailable', async () => {
+    const getOnboardingRequirements = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'server',
+        code: 'LEGAL_POLICY_UNAVAILABLE',
+        status: 503,
+        message: '약관 정보를 불러오지 못했습니다.',
+      });
+    });
+    const submitOnboarding = jest.fn(async () => completedOnboarding());
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ getOnboardingRequirements, submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByText('시작하기'));
+
+    expect(
+      await screen.findByText('약관 정보를 불러오지 못했습니다.'),
+    ).toBeOnTheScreen();
+    expect(getOnboardingRequirements).toHaveBeenCalledTimes(1);
+    expect(submitOnboarding).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '시작하기' })).toBeEnabled();
+  });
+
+  it('allows persistent pain to be skipped without submitting a coaching style', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -1953,7 +3337,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    fillRequiredOnboardingSteps({ selectOptionalPreferences: false });
+    fillRequiredOnboardingSteps();
     acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -1961,49 +3345,37 @@ describe('OnboardingScreen', () => {
       const request = submitOnboarding.mock.calls[0]?.[0];
       expect(request).toEqual(
         expect.objectContaining({
-          preferred_exercise_type_codes: [],
-          attention_area_codes: [],
-          preferred_location_code: 'HOME',
+          persistent_pains: [],
         }),
       );
       expect(request).not.toHaveProperty('coaching_style_code');
-      expect(request).not.toHaveProperty('equipment_codes');
+      expect(request).not.toHaveProperty('preferred_location_code');
+      expect(request).not.toHaveProperty('default_requested_duration_minutes');
     });
   });
 
-  it('only offers home and gym as available workout locations', async () => {
-    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
-      completedOnboarding(),
-    );
+  it('removes location, duration, equipment, sex, and height from onboarding', () => {
     render(
       <OnboardingScreen
-        api={stubApi({ submitOnboarding })}
+        api={stubApi()}
+        initialStep={3}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    fillRequiredOnboardingSteps({
-      selectLocations: () => {
-        expect(screen.queryByText('야외')).not.toBeOnTheScreen();
-        fireEvent.press(screen.getByText('집'));
-        fireEvent.press(screen.getByText('헬스장'));
-        fireEvent.press(
-          screen.getByRole('button', { name: '대표 운동 장소: 헬스장' }),
-        );
-      },
-    });
-    acceptRequiredConsents();
-    fireEvent.press(screen.getByText('시작하기'));
-
-    await waitFor(() => {
-      expect(submitOnboarding).toHaveBeenCalledWith(
-        expect.objectContaining({
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'GYM',
-        }),
-      );
-    });
+    expect(screen.getByText('현재 체중을 입력해주세요')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('키')).not.toBeOnTheScreen();
+    expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('어디에서 운동할 예정인가요?'),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('한 번에 얼마나 운동할까요?'),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('사용할 수 있는 장비가 있나요?'),
+    ).not.toBeOnTheScreen();
   });
 
   it('returns to the field step when the server reports an onboarding field error', async () => {
@@ -2030,7 +3402,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
-      expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 8')).toBeOnTheScreen();
       expect(screen.getByText('닉네임을 다시 확인해주세요.')).toBeOnTheScreen();
     });
   });
@@ -2143,10 +3515,11 @@ describe('MascotStage', () => {
 });
 
 describe('MascotHouseScreen', () => {
-  it('shows the room and its mini-game collection', async () => {
+  it('shows the room and its two bottom tiles', async () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
+        accountId={'test-account'}
         api={stubApi({
           getWeek: jest.fn(async () => ({
             week_id: 'week-1',
@@ -2169,8 +3542,8 @@ describe('MascotHouseScreen', () => {
       />,
     );
 
-    expect(await screen.findByText('끼끼와 놀기')).toBeTruthy();
-    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(await screen.findByText('미니게임')).toBeTruthy();
+    expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByText('주 3회 운동하기')).toBeNull();
     expect(screen.queryByText('0 / 3 회')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();
@@ -2185,6 +3558,7 @@ describe('MascotHouseScreen', () => {
   it('exposes every tab, including the mascot house', async () => {
     render(
       <MascotHouseScreen
+        accountId={'test-account'}
         api={stubApi({
           getWeek: jest.fn(async () => {
             throw new Error('unavailable');

@@ -1,0 +1,26 @@
+{
+  "status": "PASS_WITH_APPROVAL",
+  "catalog_version_code": "exercise-catalog-v2.0.8-final",
+  "bundle_manifest_sha256": "2380df3067f03ea6360b47592db68e3ce531fbda3e300db8188f53714658f401",
+  "catalog_bundle_manifest_sha256": "b1e2bc0da5253722218615d80af7f9fe85b46e0ed08db61dcccb0c5b5f31ecae",
+  "summary": {
+    "catalog_records": 237,
+    "gym_guide_records": 67,
+    "home_guide_records": 34,
+    "fitt_reference_records": 208,
+    "fitt_stable_code_mapping_records": 89,
+    "met_fields_per_catalog_record": 6,
+    "prescription_rows_removed_for_difficulty": 57,
+    "prescription_rows_derived_for_difficulty": 72
+  },
+  "checks": {
+    "regenerated_from_normalized_sources": true,
+    "family_identity_review_applied": true,
+    "cardio_timing_review_applied": true,
+    "initial_fitt_prescription_review_applied": true,
+    "fitt_timing_references_catalog": true,
+    "catalog_and_derived_versions_retargeted": true,
+    "file_inventory_complete": true
+  },
+  "promotion_blocker": null
+}

@@ -1,5 +1,179 @@
 # Data scripts
 
+## v2.0.6 통합 카탈로그 단일 기준 파일
+
+사람이 수정할 v2.0.6 카탈로그 기준 파일은 오직
+`data/normalized/v2_0_6_exercise_catalog.csv`다. 필수 컬럼과 기존 catalog 컬럼을 모두
+가지며, 배열은 `|`로 연결한다. raw JSON, additions JSON, 검수 batch CSV, generated JSON·CSV는
+이 기준 파일을 초기화하거나 출력하는 보조 산출물이며 이후 직접 수정하지 않는다.
+
+최초 1회만 현재 draft를 단일 기준 파일로 초기화한다. 이 단계에서 기존 원천 매핑과
+`v2_0_6_training_body_focus_review.csv`의 신규 `stable_code`·`name_ko` 결과를 보존한다.
+
+```bash
+python3 data/scripts/bootstrap_v2_0_6_normalized_catalog.py
+```
+
+그 다음부터는 정규화 CSV만 수정하고 아래 한 명령으로 JSON·전체 검수 CSV·매핑·빈값·중복
+리포트를 생성한다. 이 최종 생성기는 raw, additions, review CSV를 읽지 않는다.
+
+```bash
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py
+```
+
+생성 결과는 `data/generated/exercise-catalog-v2.0.6-draft/review_catalog/` 아래의
+`exercise_catalog_merged_draft.json`, `exercise_catalog_merged_draft.csv`와
+`exercise_catalog_*_report.json`이며 모두 `DRAFT`·`production_eligible=false`다.
+
+### v2.0.6 MET 매핑
+
+MET 보강은 지정된
+`data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl`만
+신규 MET 원천으로 사용한다. 먼저 직접 대응을 확인하고, 운동 형태·장비·자세·수행 방식이
+충분히 대응하는 activity는 `SIMILAR_ACTIVITY`로 매핑한다. `met_value`는 해당 JSONL activity에
+실제 존재하는 숫자만 그대로 사용하며 계산·평균·보간·운동 간 복사는 하지 않는다. 속도·경사·
+사이클처럼 조건이 충분히 대응하지 않는 행은 빈 MET 값과 `REVIEW_REQUIRED` 상태로 남긴다.
+검수 승인 시에는 `met_review_approval_manifest.json`의 source hash와 승인 범위를 검증한
+뒤 `DOMAIN_APPROVED`로 기록한다. 이 승인은 MET 필드에만 적용되며 카탈로그·Safety·
+대체관계·미디어의 승인을 의미하지 않는다.
+
+```bash
+python3 data/scripts/enrich_v2_0_6_met.py --force
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py
+```
+
+승인된 MET를 재생성할 때:
+
+```bash
+python3 data/scripts/enrich_v2_0_6_met.py --force \
+  --review-status-code DOMAIN_APPROVED \
+  --approval-manifest data/reports/v2_0_6_met/met_review_approval_manifest.json
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py \
+  --met-approval-manifest data/reports/v2_0_6_met/met_review_approval_manifest.json
+```
+
+결과는 기준 CSV의 MET 6개 컬럼과 `data/reports/v2_0_6_met/` 아래의 전체 매핑 근거·DIRECT
+목록·SIMILAR_ACTIVITY 목록·미매핑·provenance·컬럼 출처·rank 미사용 리포트다. 사람 검수 전
+모든 결과는 DRAFT이며 `production_eligible=false`다.
+
+### v2.0.6 backend projection (237행)
+
+DB 적재용 파생 번들은 정규화 CSV 237행과 승인된 미디어 파일명을 exact source identity로
+투영한다. `recovery_eligible` 빈값은 승인된
+`v2_representative_decisions.json`의 training type 정책으로만 보완하고,
+`general_pool_included` 빈값은 `null`로 보존한다. 생활도구 대체·주의사항·대체운동 보조자료는
+장비 설명이나 `alternatives`에 복사하지 않고 입력에서 제외한다. 단, 백엔드 importer가 요구하는
+stretch-strap → bodyweight fallback 1건만 별도 승인 manifest에서 읽는다.
+
+```bash
+UV_CACHE_DIR=/private/tmp/skn30-uv-cache uv run python data/scripts/build_v2_0_6_backend_bundle.py
+UV_CACHE_DIR=/private/tmp/skn30-uv-cache uv run python data/scripts/validate_v2_backend_bundle.py \
+  data/generated/exercise-catalog-v2.0.6-final/backend_bundle
+```
+
+생성 번들은 237개 catalog/media, 1개 fallback 관계를 포함하지만 import 전까지는
+`DRAFT`·`production_eligible=false`다. 운영 적재는 승인 registry와 exact hash/count를
+검증하는 v2.0.6 전용 promotion 스크립트로 수행하고, 활성화 시에만
+`production_eligible=true`로 전환한다.
+
+```bash
+UV_CACHE_DIR=/private/tmp/skn30-uv-cache uv run python -m backend.scripts.catalog_promote_v2_0_6
+UV_CACHE_DIR=/private/tmp/skn30-uv-cache uv run python -m backend.scripts.catalog_promote_v2_0_6 --activate
+```
+
+완료된 training/body focus 검수값을 기준 CSV에 반영하려면 다음을 실행한다. 정확한
+`source_identity`로 조인하며 `body_focus_code`만 변경하고, 기존 허용 taxonomy와 충돌하는
+값은 빈값으로 보류한다.
+
+```bash
+python3 data/scripts/apply_v2_0_6_body_focus_review_to_normalized.py
+python3 data/scripts/apply_v2_0_6_training_type_to_normalized.py
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py
+python3 data/scripts/recommend_v2_0_6_blank_fields.py
+```
+
+빈 컬럼별 권장안은 `data/reports/v2_0_6_catalog_merge/blank_field_recommendations.json`
+및 CSV에서 확인한다. 권장안은 자동 승인이나 자동 추론을 의미하지 않는다.
+
+### 생활도구 보조자료 검수와 적재 제외
+
+생활도구 대체 제안·주의사항·대체운동 후보는 검수 후 각 JSONL의
+`review_status_code=DOMAIN_APPROVED`로 기록하고, 다음 검증기로 구조·stable_code·장비·
+난이도·부위 일치 여부를 다시 확인한다.
+
+```bash
+python3 data/scripts/validate_home_equipment_substitution_guides.py
+```
+
+이 자료들은 v2.0.6 최종 카탈로그의 장비 설명이나 `alternatives`에 복사하지 않는다.
+검수 JSONL, gap report, validation report는 증적으로만 보존하며 DB 적재 입력에서는
+제외한다. v2.0.6의 카탈로그 입력은 `data/normalized/v2_0_6_exercise_catalog.csv`
+하나다.
+
+기존 `merge_v2_0_6_catalog_additions.py`는 원천·기존 draft를 단일 기준 파일로 옮기는
+일회성 bootstrap/이력 재현용으로만 사용한다. 최종 생성에 다시 사용하지 않는다.
+
+```bash
+python3 data/scripts/merge_v2_0_6_catalog_additions.py \
+  --catalog data/generated/exercise-catalog-v2.0.6-draft/backend_bundle/catalog/exercises.jsonl \
+  --additions data/generated/exercise-catalog-v2.0.6-draft/backend_bundle/catalog/exercise_catalog_additions.json \
+  --output data/generated/exercise-catalog-v2.0.6-draft/backend_bundle/catalog/exercise_catalog_merged_draft.json \
+  --report-dir data/generated/exercise-catalog-v2.0.6-draft/backend_bundle/catalog
+```
+
+같은 입력·경로로 다시 실행하면 DRAFT와 audit 산출물의 byte/hash가 동일해야 한다.
+`exercise_catalog_merge_report.json`, `exercise_catalog_duplicate_review.json`,
+`exercise_catalog_unmapped_fields.json`, `exercise_catalog_source_mapping.json`,
+`exercise_catalog_source_gap_report.json`은 병합·충돌·원천 매핑·원천 부재 컬럼을 기록한다.
+원천 초기화 결과의 원천 매핑은 `data/normalized/v2_0_6_catalog_source_mapping.json`에
+보존되며, 이후 생성된 값의 출처는 단일 기준 CSV로 기록된다.
+
+## training/body focus 후보 검수 큐
+
+`build_training_body_focus_candidates.py`는 merged catalog 240건을 입력으로 받아
+`training_body_focus_candidates.jsonl`을 생성한다. additions는 `id`와
+`source_identity`의 정확한 일치로만 연결하고, 기존 Gymvisual 행은 raw 원천의 동일 ID를
+사용한다. 산출물은 검수용 후보·근거·충돌만 담으며 merged catalog나 runtime schema를
+변경하지 않는다. `CARDIO`, `MOBILITY`, 원천 충돌과 애매한 body focus는
+`REVIEW_REQUIRED`로 남긴다.
+
+```bash
+python3 data/scripts/build_training_body_focus_candidates.py
+```
+
+## v2.0.6 training/body focus 검수 CSV
+
+`build_v2_0_6_training_body_focus_review_csv.py`는 merged catalog JSON과
+`training_body_focus_candidates.jsonl`을 exact `source_identity`로 연결해 Excel 검수용
+UTF-8 BOM CSV를 생성한다. 원본 `body_focus_code`가 비어 있는 행에만
+`body_focus_code_candidate`를 채우고, 기존값은 보존한다. 후보와 기존값이 모두 없으면
+빈칸으로 남긴다. 사용자 직접 검수 override는 이 CSV에만 적용하며 원본 JSON과 후보 JSONL은
+변경하지 않는다. 배열은 `|`로 연결하고,
+정렬·행 수·ID 집합을 검증한다. `training_type_review_status`,
+`body_focus_review_status`, `review_note`는 사람 검수 입력란이므로 빈칸으로 출력한다.
+`training_type_code`는 유효한 `body_focus_code`에서 파생한다. `CARDIO`는 `CARDIO`,
+`MOBILITY`는 `MOBILITY`, 그 외 부위 코드는 `STRENGTH`로 채우며 body focus가 없으면 빈칸으로
+남긴다.
+
+```bash
+python3 data/scripts/build_v2_0_6_training_body_focus_review_csv.py
+```
+
+CSV의 유효 body focus로 merged draft JSON의 빈 `training_type_code`를 채울 때는 다음
+스크립트를 사용한다. 기존 값과 파생 결과가 충돌하면 실패하며, body focus가 없는 행은
+추정하지 않는다.
+
+```bash
+python3 data/scripts/apply_v2_0_6_training_type_from_body_focus.py
+```
+
+검수 CSV의 `body_focus_code`를 merged draft JSON에 반영할 때는 다음 스크립트를 사용한다.
+빈 CSV 값은 JSON의 기존값을 유지하며, runtime `exercises.jsonl`은 변경하지 않는다.
+
+```bash
+python3 data/scripts/apply_v2_0_6_training_body_focus_review_to_catalog.py
+```
+
 ## 통합 운동 카탈로그 v1 (단일 작업표)
 
 `data/normalized/catalog_enrichment_v2.csv`는 원천 메타데이터 작업표이고,

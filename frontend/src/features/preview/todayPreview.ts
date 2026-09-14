@@ -3,6 +3,7 @@ import { ApiError } from '../../api/errors';
 import type {
   DailyContextResponse,
   DecisionResponse,
+  HomeStateResponse,
   MeResponse,
   RoutineResponse,
   WeekResponse,
@@ -162,12 +163,13 @@ function dailyContext(localDate: string): DailyContextResponse {
     local_date: localDate,
     context_version: 1,
     fatigue_level_code: 'MODERATE',
-    requested_duration_minutes: 30,
-    duration_adjustment_source_code: 'PROFILE',
+    available_time_minutes: 30,
     location_code: 'HOME',
     sleep_minutes: 420,
-    discomforts: [],
-    adverse_reaction_codes: [],
+    sleep_source_code: 'MANUAL',
+    pain_present: false,
+    red_flag_present: false,
+    pains: [],
     created_at: `${localDate}T08:00:00+09:00`,
     updated_at: `${localDate}T08:00:00+09:00`,
   };
@@ -248,16 +250,32 @@ function previewError(kind: 'network' | 'notFound' | 'permission'): ApiError {
 export function createTodayPreviewApi(state: TodayPreviewState): Api {
   const api: Pick<
     Api,
-    'createRoutine' | 'getCurrentRoutine' | 'getDailyContext' | 'getWeek'
+    'getCurrentRoutine' | 'getDailyContext' | 'getHomeState' | 'getWeek'
   > = {
+    async getHomeState(localDate): Promise<HomeStateResponse> {
+      if (state === 'loading') {
+        return new Promise<HomeStateResponse>(() => undefined);
+      }
+      if (state === 'error') {
+        throw previewError('network');
+      }
+      if (state === 'permission') {
+        throw previewError('permission');
+      }
+      const storedDecision =
+        state === 'checked-in' || state === 'rest' ? DECISION : null;
+      return {
+        local_date: localDate,
+        decision: storedDecision,
+        final_plan: storedDecision?.final_plan ?? null,
+        workout_session: null,
+      };
+    },
     async getWeek() {
       if (state === 'loading') {
         return new Promise<WeekResponse>(() => undefined);
       }
       return WEEK;
-    },
-    async createRoutine(body) {
-      return { ...ROUTINE, effective_from: body.effective_from };
     },
     async getCurrentRoutine() {
       if (state === 'loading') {
@@ -319,11 +337,9 @@ export function previousHomePreviewProps(
     week: WEEK,
     planRevision: null,
     restToday: state === 'rest',
-    defaultDurationMinutes: 30,
     locationCodes: ['HOME', 'GYM'],
     busy: null,
     onRetry: () => undefined,
-    onCreateRoutine: () => undefined,
     onSubmitCheckin: () => undefined,
     onStartWorkout: () => undefined,
     onChooseRest: () => undefined,

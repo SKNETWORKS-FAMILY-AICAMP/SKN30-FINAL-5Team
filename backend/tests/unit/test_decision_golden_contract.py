@@ -21,7 +21,7 @@ _FORBIDDEN_KEYS = {
     "user_id",
 }
 _REQUIRED_CASE_CODES = {
-    "CHRONIC_KNEE_ATTENTION_CAUTION",
+    "PROFILE_ATTENTION_PREFILL_IGNORED",
     "HEALTHY_KEEP",
     "KNEE_MILD_CAUTION_DOWNSHIFT",
     "KNEE_MILD_APPROVED_REPLACEMENT",
@@ -120,7 +120,7 @@ def test_service_golden_matrix_covers_required_wave_4_paths() -> None:
     case_codes = {case.case_code for case in SERVICE_DECISION_GOLDEN_CASES}
 
     assert case_codes == {
-        "CHRONIC_KNEE_ATTENTION_CAUTION",
+        "PROFILE_ATTENTION_PREFILL_IGNORED",
         "HEALTHY_KEEP",
         "KNEE_MILD_CAUTION_DOWNSHIFT",
         "KNEE_MODERATE_APPROVED_ALTERNATIVE",

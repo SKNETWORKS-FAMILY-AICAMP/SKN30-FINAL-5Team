@@ -105,6 +105,25 @@ def test_repeated_authentication_reuses_the_same_user() -> None:
     assert repository.created_count == 1
 
 
+def test_authentication_preserves_previous_activity_for_return_notification_trigger() -> None:
+    previous_activity = datetime(2026, 8, 10, 2, 0, tzinfo=UTC)
+    now = datetime(2026, 8, 13, 2, 0, tzinfo=UTC)
+    repository = FakeIdentityRepository()
+    repository.record = IdentityUserRecord(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+        last_active_at=previous_activity,
+    )
+
+    current_user = CurrentUserService(StaticVerifier(), repository, clock=lambda: now).authenticate(
+        FakeSession(),
+        "id-token",  # type: ignore[arg-type]
+    )
+
+    assert current_user.previous_last_active_at == previous_activity
+    assert repository.touched == [(current_user.user_id, now)]
+
+
 @pytest.mark.parametrize(
     "status_code",
     [

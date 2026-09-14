@@ -31,7 +31,12 @@ import {
   resolveBootDestination,
 } from './bootstrap';
 import { DemoApp } from './DemoApp';
-import { getPreviewMode, type PreviewMode } from './preview';
+import {
+  getPreviewMode,
+  getPreviewViewportMode,
+  type PreviewMode,
+  type PreviewViewportMode,
+} from './preview';
 import { SessionProvider } from './SessionProvider';
 
 export type RootStackParamList = {
@@ -49,6 +54,7 @@ type AppProps = {
   bootResolver?: BootDestinationResolver;
   onNavigationTransition?: (destination: BootDestination) => void;
   previewMode?: PreviewMode;
+  previewViewport?: PreviewViewportMode;
   splashPreview?: boolean;
 };
 
@@ -148,6 +154,7 @@ function AppNavigator({
 
 export function App({
   previewMode,
+  previewViewport,
   splashPreview,
   ...navigatorProps
 }: AppProps) {
@@ -163,15 +170,22 @@ export function App({
           ? 'splash'
           : null
         : getPreviewMode();
+  const activePreviewViewport =
+    previewViewport !== undefined ? previewViewport : getPreviewViewportMode();
 
   const usesPreviewGallery =
     activePreview === 'gallery' ||
     activePreview === 'account' ||
+    activePreview === 'app-status' ||
     activePreview === 'auth' ||
     activePreview === 'background_test' ||
+    activePreview === 'banana-catch' ||
     activePreview === 'exercise-catalog' ||
+    activePreview === 'kikki-merge' ||
+    activePreview === 'kikki-runner' ||
     activePreview === 'loading' ||
     activePreview === 'mascot-house' ||
+    activePreview === 'notifications' ||
     activePreview === 'session' ||
     activePreview === 'session-result' ||
     activePreview === 'today' ||
@@ -195,16 +209,30 @@ export function App({
             <PreviewGallery />
           ) : activePreview === 'account' ? (
             <PreviewGallery initialScreenId="account" />
+          ) : activePreview === 'app-status' ? (
+            <PreviewGallery initialScreenId="app-status" />
           ) : activePreview === 'auth' ? (
             <PreviewGallery initialScreenId="auth" />
           ) : activePreview === 'background_test' ? (
             <PreviewGallery initialScreenId="background_test" />
+          ) : activePreview === 'banana-catch' ? (
+            <PreviewGallery initialScreenId="banana-catch" />
           ) : activePreview === 'exercise-catalog' ? (
             <PreviewGallery initialScreenId="exercise-catalog" />
+          ) : activePreview === 'kikki-merge' ? (
+            <PreviewGallery initialScreenId="kikki-merge" />
+          ) : activePreview === 'kikki-runner' ? (
+            <PreviewGallery initialScreenId="kikki-runner" />
           ) : activePreview === 'loading' ? (
             <PreviewGallery initialScreenId="loading" />
           ) : activePreview === 'mascot-house' ? (
-            <PreviewGallery initialScreenId="mascot-house" />
+            <PreviewGallery
+              deviceViewport={activePreviewViewport === 'device'}
+              initialScreenId="mascot-house"
+            />
+          ) : activePreview === 'notifications' ? (
+            // Preserve the old preview URL as an alias for the consolidated Home preview.
+            <PreviewGallery initialScreenId="home" />
           ) : activePreview === 'session' ? (
             <PreviewGallery initialScreenId="session" />
           ) : activePreview === 'session-result' ? (

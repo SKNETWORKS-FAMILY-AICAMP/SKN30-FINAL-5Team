@@ -38,7 +38,6 @@ import {
 } from './BackgroundTestContent';
 import {
   buyItem,
-  claimDailyGift,
   feedMascot,
   grantWorkoutRewards,
   objectParticle,
@@ -66,6 +65,7 @@ type HouseRemote = {
 };
 
 export function BackgroundTestScreen({
+  accountId,
   api,
   nickname,
   now,
@@ -73,6 +73,8 @@ export function BackgroundTestScreen({
   store,
   timeZone,
 }: {
+  /** Partitions stored house state so a second account starts its own house. */
+  accountId: string;
   api: Api;
   nickname: string;
   /** Injected by tests so the local date is not the wall clock. */
@@ -86,7 +88,10 @@ export function BackgroundTestScreen({
   const localDate = localDateString(referenceNow, timeZone);
   const weekStart = weekStartString(referenceNow, timeZone);
 
-  const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
+  const houseStore = useMemo(
+    () => store ?? createHouseStore(accountId),
+    [accountId, store],
+  );
   const [houseState, setHouseState] = useState<HouseState | null>(null);
   const [feedback, setFeedback] = useState<BackgroundTestFeedback | null>(null);
   const [dismissedWeekFailure, setDismissedWeekFailure] = useState<
@@ -231,22 +236,6 @@ export function BackgroundTestScreen({
         setFeedback({
           tone: 'success',
           message: `${label}${objectParticle(label)} 집에 놓았어요.`,
-        });
-        react('happy');
-      }}
-      onClaimGift={() => {
-        const claimed = claimDailyGift(houseState, localDate);
-        if (claimed === null) {
-          setFeedback({
-            tone: 'warning',
-            message: '오늘의 선물은 이미 받았어요. 내일 또 있어요.',
-          });
-          return;
-        }
-        persist(claimed.state);
-        setFeedback({
-          tone: 'success',
-          message: `오늘의 선물로 바나나 ${claimed.granted}개를 받았어요.`,
         });
         react('happy');
       }}

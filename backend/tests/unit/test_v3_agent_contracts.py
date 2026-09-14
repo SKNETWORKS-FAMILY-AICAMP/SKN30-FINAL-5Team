@@ -7,6 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import (
+    ExerciseFittContext,
+    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
     RetrievalMetadata,
@@ -21,6 +23,7 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentInput,
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
+    TrainingNeedsInputReasonCode,
     V3ProposalStatusCode,
 )
 
@@ -34,9 +37,15 @@ OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
 QUERY_HASH = "b" * 64
 
 
-def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
+def exercise(
+    exercise_id: UUID,
+    phase_codes: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN"),
+    family_code: str | None = None,
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
+        family_code=family_code,
         catalog_version="catalog-v3",
         content_version=f"content-{exercise_id.int}",
         stable_code=f"exercise-{exercise_id.int}",
@@ -48,6 +57,24 @@ def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         default_seconds_per_rep=3,
         default_rest_seconds=30,
         default_transition_seconds=15,
+        fitt_context=ExerciseFittContext(
+            source_code="fitt-test-source-v1",
+            policy_version="fitt-test-policy-v1",
+            review_status_code="DOMAIN_APPROVED",
+            template_id="FITT-COMPOUND-PUSH-V1",
+            frequency_code="PER_SESSION",
+            intensity_code="MODERATE",
+            time_mode_code="REPS",
+            type_code="STRENGTH",
+            volume=ExerciseFittVolumeRange(
+                min_sets=2,
+                max_sets=3,
+                min_reps=8,
+                max_reps=12,
+                default_sets=3,
+                default_reps=8,
+            ),
+        ),
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("BODYWEIGHT",),
@@ -91,8 +118,12 @@ def envelope(
     )
 
 
-def pool(current_envelope: ConstraintEnvelope) -> ExercisePoolSnapshot:
-    records = tuple(exercise(value) for value in (A, B, C, D))
+def pool(
+    current_envelope: ConstraintEnvelope,
+    records: tuple[ExercisePoolExerciseRecord, ...] | None = None,
+) -> ExercisePoolSnapshot:
+    if records is None:
+        records = tuple(exercise(value) for value in (A, B, C, D))
     return ExercisePoolSnapshot.create(
         catalog_version="catalog-v3",
         constraint_envelope_hash=current_envelope.envelope_hash,
@@ -164,7 +195,11 @@ def proposal(
             else (f"{agent_type.value}_CONSTRAINTS_PRESERVED",)
         ),
         hard_constraint_codes=("DURATION_PRESERVED",),
-        reason_codes=("GOAL_PRESERVED",),
+        reason_codes=(
+            (TrainingNeedsInputReasonCode.DETERMINISTIC_PLAN_FEASIBILITY_UNPROVEN.value,)
+            if agent_type is SpecialistAgentTypeCode.TRAINING and not ready
+            else ("GOAL_PRESERVED",)
+        ),
         evidence_reference_codes=("ENVELOPE", "POOL"),
         public_summary_code=(f"{agent_type.value}_READY" if ready else None),
     )
@@ -184,6 +219,22 @@ def agent_input(
     )
 
 
+def test_legacy_training_needs_input_reason_remains_read_compatible() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+
+    legacy = SpecialistAgentProposal.create(
+        agent_type_code=SpecialistAgentTypeCode.TRAINING,
+        proposal_status_code=V3ProposalStatusCode.NEEDS_INPUT,
+        envelope_hash=current_envelope.envelope_hash,
+        pool_hash=current_pool.pool_hash,
+        requested_duration_minutes=current_envelope.requested_duration_minutes,
+        reason_codes=("NO_DURATION_COMPLIANT_VOLUME_COMBINATION",),
+    )
+
+    assert legacy.reason_codes == ("NO_DURATION_COMPLIANT_VOLUME_COMBINATION",)
+
+
 @pytest.mark.parametrize("agent_type", tuple(SpecialistAgentTypeCode))
 def test_three_specialist_inputs_and_proposals_are_valid(
     agent_type: SpecialistAgentTypeCode,
@@ -197,6 +248,27 @@ def test_three_specialist_inputs_and_proposals_are_valid(
 
     assert current_input.schema_version == "specialist-agent-input-v1"
     assert current_proposal.schema_version == "specialist-agent-proposal-v1"
+
+
+def test_training_proposal_is_valid_without_a_reviewed_fitt_range() -> None:
+    """The promoted catalog has no reviewed range, and it still has to be plannable.
+
+    A contract that requires an approved range per REPS exercise rejects every
+    Training proposal while the reviewed reference and the catalog use different
+    identifiers. The Recovery ceiling is the bound that applies either way and is
+    still enforced above.
+    """
+
+    current_envelope = envelope()
+    unmapped_pool = pool(
+        current_envelope,
+        tuple(exercise(value).model_copy(update={"fitt_context": None}) for value in (A, B, C, D)),
+    )
+    current_input = agent_input(SpecialistAgentTypeCode.TRAINING, current_envelope, unmapped_pool)
+
+    current_input.validate_proposal(
+        proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, unmapped_pool)
+    )
 
 
 @pytest.mark.parametrize(
@@ -266,11 +338,11 @@ def test_pool_outside_exercise_id_is_rejected() -> None:
         ).validate_proposal(outside_proposal)
 
 
-def test_duplicate_exercise_id_is_rejected() -> None:
+def test_consecutive_main_repetition_is_rejected() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
 
-    with pytest.raises(ValidationError, match="duplicate exercise IDs"):
+    with pytest.raises(ValidationError, match="must not be consecutive"):
         proposal(
             SpecialistAgentTypeCode.TRAINING,
             current_envelope,
