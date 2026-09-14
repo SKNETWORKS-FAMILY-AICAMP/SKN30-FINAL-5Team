@@ -4,6 +4,10 @@
 
 헬끼는 완벽한 계획이나 연속 기록을 강요하지 않습니다. 완료하지 않은 운동과 휴식도 다음 결정을 개선하는 신호로 받아들이며, 통증이나 이상 반응이 있을 때는 운동 지속보다 안전을 우선합니다. 의료 진단·치료·처방을 제공하지 않습니다.
 
+<p align="center">
+  <img src="assets/screenshots/landing-home.png" width="880" alt="헬끼 소개 페이지: 지금의 나에게 맞는 운동과 당일 컨디션에 따른 맞춤 루틴 안내" />
+</p>
+
 ## Team 콩닥
 
 <table>
@@ -49,6 +53,23 @@
 
 > **기준:** 2026-09-14 확인한 `develop` 구현과 2026-09-12 최종 테스트 보고서. 아래 테스트 수치는 해당 보고서의 실행 결과이며, 모든 후속 커밋을 대상으로 재실행한 결과는 아닙니다.
 
+### 웹 서비스 둘러보기
+
+<table>
+  <tr>
+    <th align="center" width="50%">맞춤 루틴 안내</th>
+    <th align="center" width="50%">서비스 시작</th>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/landing-how-it-works.png" width="420" alt="안전 기준 확인, 역할별 Agent 판단, 최종 조정으로 이어지는 맞춤 루틴 안내 페이지" />
+    </td>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/landing-start.png" width="420" alt="오늘의 운동을 시작하도록 안내하는 웹 페이지와 헬끼 앱 시작 화면" />
+    </td>
+  </tr>
+</table>
+
 ## 서비스가 해결하는 문제
 
 운동 계획을 세운 뒤에도 수면, 피로, 통증, 일정과 장소는 매일 달라집니다. 계획을 그대로 수행하기 어려운 날에는 사용자가 운동 종류와 부담을 다시 판단하거나 대안을 찾아야 합니다. 한 번 건너뛴 뒤 다시 시작하는 과정도 사용자의 몫으로 남습니다.
@@ -81,6 +102,44 @@
 주간 리포트는 별도의 확인 버튼 없이 상세 화면을 정상적으로 연 뒤 자동으로 확인 처리합니다. 응답 유실 시 재시도하며, 확인되지 않은 리포트가 있으면 다음 주 계획 확정을 막습니다.
 
 캐릭터·보상은 보조 동기 기능입니다. 운동을 놓쳤다고 기존 보상을 차감하거나 캐릭터가 실망을 표현하지 않습니다. 일부 주간 퀘스트는 표시와 후속 계약만 마련된 상태이므로 모든 퀘스트의 자동 보상 지급이 완료된 것으로 보지 않습니다.
+
+### 앱 화면으로 보는 이용 흐름
+
+2026-09-13에 촬영한 화면입니다. 로그인부터 루틴 확인·운동 실행까지의 흐름과 캐릭터·미니게임 화면을 소개합니다.
+
+<table>
+  <tr>
+    <th align="center" width="33%">1. 로그인</th>
+    <th align="center" width="33%">2. 오늘의 루틴</th>
+    <th align="center" width="33%">3. 운동 실행</th>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/app-login.png" width="240" alt="이메일과 비밀번호 입력 및 Google·Kakao 로그인 버튼이 있는 헬끼 로그인 화면" />
+    </td>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/app-routine.png" width="240" alt="컨디션에 맞춘 30분 루틴의 워밍업·메인 운동과 자세 확인 버튼" />
+    </td>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/app-workout.png" width="240" alt="현재 운동, 세트·반복 수, 타이머와 블록 격파·휴식 버튼이 있는 운동 진행 화면" />
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <th align="center" width="50%">끼끼의 집</th>
+    <th align="center" width="50%">미니게임 · 끼끼 달리기</th>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/app-kkikki-house.png" width="240" alt="끼끼와 교감하고 집 꾸미기, 미니게임, 퀘스트로 이동하는 끼끼의 집 화면" />
+    </td>
+    <td align="center" valign="top">
+      <img src="assets/screenshots/app-kkikki-run.png" width="240" alt="점프로 바나나를 모으고 장애물을 피하는 끼끼 달리기 미니게임 시작 안내" />
+    </td>
+  </tr>
+</table>
 
 ## 시스템 구성
 
