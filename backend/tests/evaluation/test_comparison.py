@@ -422,9 +422,10 @@ def test_report_adds_round3_diagnostics_without_changing_round2_fields() -> None
     body = report.to_json()
     architecture = body["architectures"][0]
     assert architecture["llm_plan_rate"] == 1.0
-    assert architecture["round3_diagnostics"]["normalized_outcomes"][
-        "delivery_counts"
-    ]["MODEL_PLAN"] == 1
+    assert (
+        architecture["round3_diagnostics"]["normalized_outcomes"]["delivery_counts"]["MODEL_PLAN"]
+        == 1
+    )
     paired = body["paired_model_plan_comparisons"]["SINGLE_AGENT_RAG_vs_MULTI_AGENT"]
     assert paired["status"] == "COMPARABLE"
     assert paired["pairs"] == 1

@@ -66,9 +66,7 @@ def wilson_interval(successes: int, total: int) -> ConfidenceInterval | None:
     centre = (proportion + z_squared / (2 * total)) / denominator
     margin = (
         _Z_95
-        * math.sqrt(
-            proportion * (1 - proportion) / total + z_squared / (4 * total**2)
-        )
+        * math.sqrt(proportion * (1 - proportion) / total + z_squared / (4 * total**2))
         / denominator
     )
     return ConfidenceInterval(round(centre - margin, 4), round(centre + margin, 4))
