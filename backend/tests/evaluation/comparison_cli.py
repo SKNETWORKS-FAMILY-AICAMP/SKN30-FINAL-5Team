@@ -111,6 +111,21 @@ def select_case_ids(
     return selected
 
 
+def select_categories(
+    cases: tuple[EvaluationCase, ...], categories: Sequence[str] | None
+) -> tuple[EvaluationCase, ...]:
+    """Select categories without changing the dataset's canonical case order."""
+
+    if not categories:
+        return cases
+    requested = set(categories)
+    available = {case.category.value for case in cases}
+    missing = sorted(requested - available)
+    if missing:
+        raise ValueError(f"unknown categories: {', '.join(missing)}")
+    return tuple(case for case in cases if case.category.value in requested)
+
+
 _REPORT_NOTES: tuple[str, ...] = (
     "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
     "The baselines get no repair round; the multi-agent path does. Every paid "
@@ -249,11 +264,14 @@ async def _execute(
     judge_enabled: bool,
     dataset: str | None = None,
     case_ids: Sequence[str] | None = None,
+    categories: Sequence[str] | None = None,
 ) -> ComparisonReport:
     _register_baseline_prompts()
     provider = None if offline else build_provider()
     model_label = provider.label if provider is not None else "eval-scripted-model-v1"
-    cases = planning_cases(select_case_ids(dataset_cases(dataset), case_ids))
+    cases = planning_cases(
+        select_categories(select_case_ids(dataset_cases(dataset), case_ids), categories)
+    )
     budget = _Budget(max_calls=max_calls)
 
     judge_model: JudgeModel | None = None
@@ -273,6 +291,7 @@ async def _execute(
         repeats=repeats,
         judge_blind=True,
         notes=_REPORT_NOTES,
+        case_ids=tuple(case.case_id for case in cases),
     )
     for architecture_code in architectures:
         print(f"\n{architecture_code}")
@@ -370,9 +389,11 @@ def _write_pairwise_payloads(report: ComparisonReport, output_dir: Path) -> None
     )
 
 
-def _forecast(architectures: Sequence[str], case_count: int, repeats: int) -> str:
+def _forecast(
+    architectures: Sequence[str], case_count: int, repeats: int, *, judge_enabled: bool = True
+) -> str:
     graph_calls = sum(CALLS_PER_RUN[code] * case_count * repeats for code in architectures)
-    judge_calls = len(architectures) * case_count
+    judge_calls = len(architectures) * case_count if judge_enabled else 0
     return (
         f"{case_count} cases x {repeats} repeat(s) over {len(architectures)} "
         f"architectures = {graph_calls} graph LLM calls, plus up to "
@@ -409,16 +430,32 @@ def main() -> int:
         default=None,
         help="run only these case IDs from the selected dataset",
     )
+    parser.add_argument(
+        "--categories",
+        nargs="+",
+        default=None,
+        help="run only these categories from the selected dataset, preserving case order",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     arguments = parser.parse_args()
 
     try:
         cases = planning_cases(
-            select_case_ids(dataset_cases(arguments.dataset), arguments.case_ids)
+            select_categories(
+                select_case_ids(dataset_cases(arguments.dataset), arguments.case_ids),
+                arguments.categories,
+            )
         )
     except ValueError as error:
         parser.error(str(error))
-    print(_forecast(arguments.architectures, len(cases), arguments.repeats))
+    print(
+        _forecast(
+            arguments.architectures,
+            len(cases),
+            arguments.repeats,
+            judge_enabled=not arguments.no_judge,
+        )
+    )
     print(f"hard stop at --max-calls {arguments.max_calls}")
     print(
         "LangSmith: "
@@ -439,6 +476,7 @@ def main() -> int:
                 judge_enabled=not arguments.no_judge,
                 dataset=arguments.dataset,
                 case_ids=arguments.case_ids,
+                categories=arguments.categories,
             )
         )
     except ProviderUnavailableError as error:
