@@ -19,6 +19,24 @@ updated to include the existing privacy-projected envelope. Equipment ownership 
 absent from that projection and is not a review condition. A rerun after that correction is
 required before judging critic usefulness.
 
+## Envelope-corrected rerun
+
+`summary-v2-envelope.json` is the corrected three-case rerun. B and E again delivered direct
+plans in 3/3 cases and E preserved the exact shared draft in every case. Two cases completed
+with `NO_CHANGE`; one Feasibility critic exhausted schema retries and the original remained
+deliverable. There were no accepted patches, so this sample still provides no evidence of a
+quality improvement.
+
+The rerun also showed that a Coordinator call is wasteful when both critics return an empty
+patch list. E now short-circuits that path and finalizes the original draft without invoking
+the Coordinator. A Coordinator is used only when at least one critic submits a patch.
+
+The first corrected attempt stopped locally on the third case because the privacy guard did
+not recognize a renamed catalog path and treated catalog `body_focus_code` as user health
+data. The path now uses the established `exercise_pool` name, and a regression test verifies
+that catalog body-focus codes remain allowed while user body-area values remain protected.
+No result artifact was written for the interrupted attempt.
+
 ## Usage
 
 The artifact records 13 provider attempts, 36,361 input tokens, and 5,180 output tokens.
@@ -28,3 +46,5 @@ lower bound rather than an invoice-equivalent total.
 
 No direct identifiers, raw wearable records, or provider secrets are stored in the result.
 
+The corrected artifact records 13 provider attempts and a `$0.176152` recorded-usage lower
+bound under the same approved pricing reference. Retry telemetry limitations still apply.

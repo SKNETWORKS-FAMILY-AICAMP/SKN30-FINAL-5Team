@@ -155,82 +155,99 @@ class SingleDraftReviewRunner:
                 public_summary_code=plan.public_summary_code,
             )
             adapter = SingleDraftReviewProviderAdapter(invoker=self._review_invoker())
-            review_results = await adapter.review_both(
-                draft=draft,
-                envelope=scenario.constraint_envelope,
-                pool=scenario.exercise_pool,
-            )
-            for role, result in zip(("RECOVERY", "FEASIBILITY"), review_results, strict=True):
-                audits.append(_audit(result, role_code=role, phase_code="DRAFT_REVIEW"))
-            if all(result.output is not None for result in review_results):
+            try:
+                review_results = await adapter.review_both(
+                    draft=draft,
+                    envelope=scenario.constraint_envelope,
+                    pool=scenario.exercise_pool,
+                )
+            except Exception:  # noqa: BLE001 - valid original remains deliverable
+                review_results = None
+                original_preserved = True
+                preservation_codes.append("CRITIC_BOUNDARY_FAILED_KEEP_DRAFT")
+            if review_results is not None:
+                for role, result in zip(("RECOVERY", "FEASIBILITY"), review_results, strict=True):
+                    audits.append(_audit(result, role_code=role, phase_code="DRAFT_REVIEW"))
+            if review_results is not None and all(
+                result.output is not None for result in review_results
+            ):
                 reviews = cast(
                     tuple[DraftReview, DraftReview],
                     tuple(result.output for result in review_results),
                 )
-                selected = await adapter.select(draft=draft, reviews=reviews)
-                audits.append(
-                    _audit(
-                        selected,
-                        role_code=LlmAgentRoleCode.COORDINATOR.value,
-                        phase_code="PATCH_SELECTION",
-                    )
-                )
-                decision = selected.output
-                if decision is not None:
+                submitted_count = sum(len(review.adjustments) for review in reviews)
+                if submitted_count == 0:
                     review_completed = True
-                    proposals = synthesize_proposals(
-                        envelope=scenario.constraint_envelope,
-                        pool=scenario.exercise_pool,
-                        prescriptions=draft.exercise_prescriptions,
-                    )
-                    coordinator_input = CoordinatorInput(
-                        constraint_envelope=scenario.constraint_envelope,
-                        exercise_pool=scenario.exercise_pool,
-                        proposals=proposals,
-                        repair_attempt=0,
-                        repair_violation_codes=(),
-                    )
-                    try:
-                        outcome = materialize_reviewed_draft(
-                            draft=draft,
-                            reviews=reviews,
-                            decision=decision,
-                            coordinator_input=coordinator_input,
-                        )
-                    except Exception:  # noqa: BLE001 - preserve the valid draft
-                        original_preserved = True
-                        preservation_codes.append("PATCH_MATERIALIZATION_REJECTED")
-                    else:
-                        if not outcome.changed:
-                            preservation_codes.append("NO_CHANGE_KEEP_DRAFT")
-                        else:
-                            reviewed = outcome.plan_spec
-                            final_input = StructuredAgentResult.success(
-                                SingleAgentPlanDraft.create(
-                                    envelope_hash=reviewed.envelope_hash,
-                                    pool_hash=reviewed.pool_hash,
-                                    action_code=reviewed.action_code,
-                                    requested_duration_minutes=reviewed.requested_duration_minutes,
-                                    estimated_duration_seconds=reviewed.estimated_duration_seconds,
-                                    exercise_prescriptions=reviewed.exercise_prescriptions,
-                                    decision_codes=reviewed.decision_codes,
-                                    public_summary_code=reviewed.public_summary_code,
-                                )
-                            )
-                            gated = training._finalize(  # noqa: SLF001
-                                final_input,
-                                envelope=scenario.constraint_envelope,
-                                pool=scenario.exercise_pool,
-                            )
-                            if gated.used_fallback or gated.compiled_plan is None:
-                                original_preserved = True
-                                preservation_codes.append("PATCH_FAILED_FINAL_GATE")
-                            else:
-                                chosen_graph = gated
+                    preservation_codes.append("NO_CHANGE_KEEP_DRAFT")
                 else:
-                    original_preserved = True
-                    preservation_codes.append("COORDINATOR_FAILED_KEEP_DRAFT")
-            else:
+                    selected = await adapter.select(draft=draft, reviews=reviews)
+                    audits.append(
+                        _audit(
+                            selected,
+                            role_code=LlmAgentRoleCode.COORDINATOR.value,
+                            phase_code="PATCH_SELECTION",
+                        )
+                    )
+                    decision = selected.output
+                    if decision is not None:
+                        review_completed = True
+                        proposals = synthesize_proposals(
+                            envelope=scenario.constraint_envelope,
+                            pool=scenario.exercise_pool,
+                            prescriptions=draft.exercise_prescriptions,
+                        )
+                        coordinator_input = CoordinatorInput(
+                            constraint_envelope=scenario.constraint_envelope,
+                            exercise_pool=scenario.exercise_pool,
+                            proposals=proposals,
+                            repair_attempt=0,
+                            repair_violation_codes=(),
+                        )
+                        try:
+                            outcome = materialize_reviewed_draft(
+                                draft=draft,
+                                reviews=reviews,
+                                decision=decision,
+                                coordinator_input=coordinator_input,
+                            )
+                        except Exception:  # noqa: BLE001 - preserve the valid draft
+                            original_preserved = True
+                            preservation_codes.append("PATCH_MATERIALIZATION_REJECTED")
+                        else:
+                            if not outcome.changed:
+                                preservation_codes.append("NO_CHANGE_KEEP_DRAFT")
+                            else:
+                                reviewed = outcome.plan_spec
+                                final_input = StructuredAgentResult.success(
+                                    SingleAgentPlanDraft.create(
+                                        envelope_hash=reviewed.envelope_hash,
+                                        pool_hash=reviewed.pool_hash,
+                                        action_code=reviewed.action_code,
+                                        requested_duration_minutes=(
+                                            reviewed.requested_duration_minutes
+                                        ),
+                                        estimated_duration_seconds=(
+                                            reviewed.estimated_duration_seconds
+                                        ),
+                                        exercise_prescriptions=reviewed.exercise_prescriptions,
+                                        decision_codes=reviewed.decision_codes,
+                                        public_summary_code=reviewed.public_summary_code,
+                                    )
+                                )
+                                gated = training._finalize(  # noqa: SLF001
+                                    final_input,
+                                    envelope=scenario.constraint_envelope,
+                                    pool=scenario.exercise_pool,
+                                )
+                                if gated.used_fallback or gated.compiled_plan is None:
+                                    original_preserved = True
+                                    preservation_codes.append("PATCH_FAILED_FINAL_GATE")
+                                else:
+                                    chosen_graph = gated
+                    else:
+                        original_preserved = True
+                        preservation_codes.append("COORDINATOR_FAILED_KEEP_DRAFT")
+            elif review_results is not None:
                 original_preserved = True
                 preservation_codes.append("CRITIC_FAILED_KEEP_DRAFT")
 

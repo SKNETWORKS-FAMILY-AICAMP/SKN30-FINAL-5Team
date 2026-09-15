@@ -158,7 +158,9 @@ class SingleDraftReviewProviderAdapter:
             "constraint_envelope": project_contract(
                 envelope, field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS
             ),
-            "prescribed_exercise_catalog": _selected_pool_payload(draft, pool),
+            # Keep the established key path so the privacy guard can distinguish
+            # catalog body_focus_code from user-reported health body-area data.
+            "exercise_pool": _selected_pool_payload(draft, pool),
         }
 
         def canonical(values: dict[str, object]) -> DraftReview:

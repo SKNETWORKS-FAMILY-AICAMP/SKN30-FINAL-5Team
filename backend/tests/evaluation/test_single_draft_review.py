@@ -10,6 +10,7 @@ from typing import Any, Literal, cast
 from langchain_core.messages import AIMessage, BaseMessage
 
 from backend.app.integrations.llm_agents.models import LlmAgentRoleCode
+from backend.tests.evaluation.dataset import EvaluationCase, load_dataset
 from backend.tests.evaluation.harness import GRAPH_CASES
 from backend.tests.evaluation.runners.fake_chat import (
     Script,
@@ -36,6 +37,7 @@ ReviewMode = Literal[
     "INVALID_FINAL_PATCH",
     "RECOVERY_FAILURE",
     "INVENTED_DECISION",
+    "BOUNDARY_FAILURE",
 ]
 
 
@@ -46,6 +48,8 @@ class _ReviewChatModel:
 
     def with_structured_output(self, schema: object, **_: object) -> _Runnable:
         del schema
+        if self.mode == "BOUNDARY_FAILURE":
+            raise RuntimeError("scripted critic boundary failure")
         return _Runnable(self)
 
     def answer(self, messages: list[BaseMessage]) -> dict[str, object]:
@@ -61,12 +65,12 @@ class _ReviewChatModel:
             if self.mode == "RECOVERY_FAILURE" and prompt_version == RECOVERY_PROMPT_VERSION:
                 parsed: dict[str, object] | None = None
                 parsing_error = "scripted parse failure"
-            elif self.mode in {"VALID_PATCH", "INVALID_FINAL_PATCH"} and (
+            elif self.mode in {"VALID_PATCH", "INVALID_FINAL_PATCH", "INVENTED_DECISION"} and (
                 prompt_version == RECOVERY_PROMPT_VERSION
             ):
                 prescriptions = payload["draft"]["exercise_prescriptions"]
                 first = next(item for item in prescriptions if item["sets"] > 1)
-                increase = 1 if self.mode == "VALID_PATCH" else 100000
+                increase = 100000 if self.mode == "INVALID_FINAL_PATCH" else 1
                 parsed = {
                     "adjustments": [
                         {
@@ -107,8 +111,10 @@ class _Runnable:
         return self.model.answer(messages)
 
 
-def _runner(mode: ReviewMode = "NO_CHANGE") -> tuple[SingleDraftReviewRunner, _ReviewChatModel]:
-    scenario = build_scenario(GRAPH_CASES[0])
+def _runner(
+    mode: ReviewMode = "NO_CHANGE", case: EvaluationCase = GRAPH_CASES[0]
+) -> tuple[SingleDraftReviewRunner, _ReviewChatModel]:
+    scenario = build_scenario(case)
     register_prompt_role(SINGLE_AGENT_RAG_PROMPT_VERSION, LlmAgentRoleCode.COORDINATOR)
     training = ScriptedChatModel(
         script=Script(),
@@ -136,11 +142,8 @@ def test_no_change_reviews_preserve_valid_direct_draft() -> None:
     assert result.review_completed is True
     assert result.changed is False
     assert result.base_run.plan_spec == result.original_run.plan_spec
-    assert model.calls == [
-        RECOVERY_PROMPT_VERSION,
-        FEASIBILITY_PROMPT_VERSION,
-        "eval-single-draft-patch-selector-v1",
-    ]
+    assert result.preservation_codes == ("NO_CHANGE_KEEP_DRAFT",)
+    assert model.calls == [RECOVERY_PROMPT_VERSION, FEASIBILITY_PROMPT_VERSION]
 
 
 def test_valid_review_patch_passes_final_gate() -> None:
@@ -205,3 +208,26 @@ def test_shared_baseline_draft_is_not_generated_twice() -> None:
 
     assert len(training_model.calls) == 1
     assert result.original_run is original
+
+
+def test_local_critic_boundary_failure_keeps_original() -> None:
+    runner, _ = _runner("BOUNDARY_FAILURE")
+    scenario = build_scenario(GRAPH_CASES[0])
+
+    result = asyncio.run(runner.run_scenario(scenario))
+
+    assert result.original_preserved is True
+    assert result.preservation_codes == ("CRITIC_FAILED_KEEP_DRAFT",)
+    assert result.base_run.plan_spec == result.original_run.plan_spec
+
+
+def test_catalog_body_focus_codes_pass_privacy_guard() -> None:
+    case = next(
+        item for item in load_dataset("heldout_cases_v2").cases if item.case_id == "SQ-HELD-001"
+    )
+    runner, _ = _runner(case=case)
+
+    result = asyncio.run(runner.run_scenario(build_scenario(case)))
+
+    assert result.base_run.has_plan is True
+    assert result.review_completed is True

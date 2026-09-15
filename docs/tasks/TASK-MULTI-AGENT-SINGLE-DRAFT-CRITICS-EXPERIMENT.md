@@ -47,3 +47,11 @@ Inspection found that the critic payload lacked the normalized constraint envelo
 adapter now includes the existing privacy projection so critics can see goal, duration,
 location, recovery ceiling, and safety exclusions. Equipment ownership remains deliberately
 excluded. See `results/single-draft-review-pilot/README.md`.
+
+The envelope-corrected rerun again retained 3/3 direct plans but produced no accepted patch:
+two `NO_CHANGE` reviews and one critic schema failure. The runner now skips Coordinator when
+both critics submit no patches, and preserves the original on local critic-boundary errors as
+well as provider failures. A catalog body-focus privacy-path regression was corrected by
+using the established `exercise_pool` payload key. The next measurement is intervention
+rate on a broader held-out sample; blind quality judging is meaningful only for cases where
+E actually changes the shared B draft.
