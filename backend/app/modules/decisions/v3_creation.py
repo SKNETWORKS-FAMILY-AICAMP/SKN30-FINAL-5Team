@@ -12,9 +12,11 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date
+from functools import partial
 from typing import Protocol, Self
 from uuid import UUID
 
+from anyio import to_thread
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
@@ -212,7 +214,19 @@ class V3InitialCreationService:
         request_hash = _request_hash(request)
         with self._unit_of_work_factory(session) as work:
             repository = work.decisions
-            repository.acquire_lock(user_id=user_id, idempotency_key=idempotency_key)
+            # The advisory lock waits on whichever transaction holds it, and this
+            # coroutine runs on the event loop. Waiting inline would stop the loop
+            # for every other request, including the in-flight creation that owns
+            # the lock -- which then can never reach its commit and release it.
+            # The worker thread keeps the wait off the loop; the session is still
+            # used by one thread at a time, so its transaction is unaffected.
+            await to_thread.run_sync(
+                partial(
+                    repository.acquire_lock,
+                    user_id=user_id,
+                    idempotency_key=idempotency_key,
+                )
+            )
             prior = repository.get_idempotency(user_id=user_id, idempotency_key=idempotency_key)
             if prior is not None:
                 if prior.request_hash != request_hash:

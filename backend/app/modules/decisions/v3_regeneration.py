@@ -12,9 +12,11 @@ import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from enum import StrEnum
+from functools import partial
 from typing import Literal, Protocol, Self, cast
 from uuid import UUID
 
+from anyio import to_thread
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from backend.app.domain.agents.v3_compiler import CompiledPlan
@@ -306,9 +308,18 @@ class V3RegenerationService:
             raise V3EngineDisabledError()
         request_hash = _command_hash(command)
         with self._unit_of_work as work:
+            repository = work.decisions
             try:
-                source = work.decisions.lock_regeneration_source(
-                    user_id=command.user_id, decision_id=command.decision_id
+                # Row-locking the source waits on any concurrent regeneration of
+                # the same decision. This coroutine runs on the event loop, so an
+                # inline wait would freeze every other request; the worker thread
+                # keeps the loop free while the session stays single-threaded.
+                source = await to_thread.run_sync(
+                    partial(
+                        repository.lock_regeneration_source,
+                        user_id=command.user_id,
+                        decision_id=command.decision_id,
+                    )
                 )
             except V3PersistenceError:
                 # The decision exists but was written under an earlier bundle
@@ -319,7 +330,7 @@ class V3RegenerationService:
             if source is None:
                 # Ownership failures intentionally use the same not-found code.
                 raise V3DecisionNotFoundError()
-            prior = work.decisions.get_idempotency_result(
+            prior = repository.get_idempotency_result(
                 user_id=command.user_id, idempotency_key=command.idempotency_key
             )
             if prior is not None:
