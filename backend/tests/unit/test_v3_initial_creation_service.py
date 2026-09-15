@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from copy import copy
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
@@ -54,9 +56,15 @@ class Repository:
         self.finals = []
         self.terminals = []
         self.fail_persist = False
+        self.lock_thread_ident = None
+        self.lock_block_seconds = 0.0
 
     def acquire_lock(self, **kwargs):
         del kwargs
+        self.lock_thread_ident = threading.get_ident()
+        if self.lock_block_seconds:
+            # Stand in for `pg_advisory_xact_lock` waiting on another holder.
+            time.sleep(self.lock_block_seconds)
 
     def get_idempotency(self, *, user_id, idempotency_key):
         return self.idempotency.get((user_id, idempotency_key))
@@ -259,3 +267,44 @@ def test_creation_source_rejects_identifiers_and_raw_health_fields() -> None:
                 context_version=1,
                 normalized_values={field: "not-allowed"},
             )
+
+
+def test_advisory_lock_is_not_acquired_on_the_event_loop() -> None:
+    service, repository, _, _, _ = build()
+
+    async def run() -> tuple[int, int | None]:
+        loop_thread = threading.get_ident()
+        await service.create(object(), uuid4(), command_request(), uuid4())
+        return loop_thread, repository.lock_thread_ident
+
+    loop_thread, lock_thread = asyncio.run(run())
+    assert lock_thread is not None
+    assert lock_thread != loop_thread
+
+
+def test_a_blocking_lock_wait_leaves_the_event_loop_responsive() -> None:
+    """A lock held elsewhere must not freeze unrelated requests.
+
+    Acquiring the lock inline deadlocked the whole process: the waiter stopped
+    the loop, so the creation holding the lock could never reach its commit to
+    release it.
+    """
+
+    service, repository, _, _, _ = build()
+    repository.lock_block_seconds = 0.3
+
+    async def run() -> int:
+        ticks = 0
+
+        async def heartbeat() -> None:
+            nonlocal ticks
+            while True:
+                await asyncio.sleep(0.01)
+                ticks += 1
+
+        beat = asyncio.create_task(heartbeat())
+        await service.create(object(), uuid4(), command_request(), uuid4())
+        beat.cancel()
+        return ticks
+
+    assert asyncio.run(run()) > 5

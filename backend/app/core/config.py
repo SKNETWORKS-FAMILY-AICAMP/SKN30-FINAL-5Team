@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     database_url: SecretStr = SecretStr(
         "postgresql+psycopg://exercise_app:local_dev_only@localhost:5432/exercise_app"
     )
+    # Every lock wait is bounded so one stuck transaction cannot pin a request
+    # forever. The ceiling sits well above a full decision run, which holds an
+    # advisory lock while its agents execute: it is a safety net against a
+    # wedged holder, not a concurrency policy. 0 restores PostgreSQL's
+    # unbounded default and must only be used deliberately.
+    db_lock_timeout_ms: int = 120_000
     catalog_manifest_paths: tuple[Path, ...] = ()
     firebase_project_id: str | None = None
     # Firebase mints ID tokens against Google's clock. A server whose clock runs
