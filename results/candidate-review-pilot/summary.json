@@ -1,0 +1,291 @@
+{
+  "case_count": 3,
+  "dataset": "heldout_cases_v2",
+  "experiment": "ADR-0025-candidate-review-pilot",
+  "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+  "provider_calls": 6,
+  "rows": [
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-001",
+        "category": "simple",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 5869,
+        "llm_call_count": 1,
+        "output_tokens": 2224,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 30078
+      },
+      "candidate_review": {
+        "architecture_code": "MULTI_AGENT_CANDIDATE_REVIEW",
+        "case_id": "SQ-HELD-001",
+        "category": "simple",
+        "decline_reason_codes": [],
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_UNAVAILABLE"
+        ],
+        "findings": [
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "foam_roller_outer_thigh_stretch_2205 requires ['FOAM_ROLLER'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+            "defect_class": "UNDETERMINED",
+            "expected": "a successful run reports no failure codes",
+            "observed": "failure codes: ['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "MINOR"
+          },
+          {
+            "check_code": "DETERMINISTIC_FALLBACK_USED",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "the deterministic path answers when the provider does not",
+            "observed": "fallback produced a plan; failures=['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 0,
+        "llm_call_count": 1,
+        "output_tokens": 0,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true,
+        "violation_codes": [],
+        "wall_clock_ms": 812
+      },
+      "case_id": "SQ-HELD-001",
+      "category": "simple",
+      "deliberation": {
+        "applied_adjustment_count": 0,
+        "selected_candidate_code": null,
+        "selection_changed": false,
+        "specialist_disagreement": false
+      }
+    },
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-013",
+        "category": "complex",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 5869,
+        "llm_call_count": 1,
+        "output_tokens": 1921,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 22328
+      },
+      "candidate_review": {
+        "architecture_code": "MULTI_AGENT_CANDIDATE_REVIEW",
+        "case_id": "SQ-HELD-013",
+        "category": "complex",
+        "decline_reason_codes": [],
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_UNAVAILABLE"
+        ],
+        "findings": [
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "foam_roller_outer_thigh_stretch_2205 requires ['FOAM_ROLLER'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+            "defect_class": "UNDETERMINED",
+            "expected": "a successful run reports no failure codes",
+            "observed": "failure codes: ['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "MINOR"
+          },
+          {
+            "check_code": "DETERMINISTIC_FALLBACK_USED",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "the deterministic path answers when the provider does not",
+            "observed": "fallback produced a plan; failures=['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 0,
+        "llm_call_count": 1,
+        "output_tokens": 0,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true,
+        "violation_codes": [],
+        "wall_clock_ms": 813
+      },
+      "case_id": "SQ-HELD-013",
+      "category": "complex",
+      "deliberation": {
+        "applied_adjustment_count": 0,
+        "selected_candidate_code": null,
+        "selection_changed": false,
+        "specialist_disagreement": false
+      }
+    },
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-022",
+        "category": "conflict",
+        "decline_reason_codes": [],
+        "failure_codes": [
+          "LLM_AGENT_DOMAIN_INVALID"
+        ],
+        "findings": [
+          {
+            "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+            "defect_class": "UNDETERMINED",
+            "expected": "a successful run reports no failure codes",
+            "observed": "failure codes: ['LLM_AGENT_DOMAIN_INVALID']",
+            "severity": "MINOR"
+          },
+          {
+            "check_code": "DETERMINISTIC_FALLBACK_USED",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "the deterministic path answers when the provider does not",
+            "observed": "fallback produced a plan; failures=['LLM_AGENT_DOMAIN_INVALID']",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 10077,
+        "llm_call_count": 1,
+        "output_tokens": 1472,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true,
+        "violation_codes": [],
+        "wall_clock_ms": 38766
+      },
+      "candidate_review": {
+        "architecture_code": "MULTI_AGENT_CANDIDATE_REVIEW",
+        "case_id": "SQ-HELD-022",
+        "category": "conflict",
+        "decline_reason_codes": [],
+        "failure_codes": [
+          "LLM_AGENT_PROVIDER_UNAVAILABLE"
+        ],
+        "findings": [
+          {
+            "check_code": "SUCCESS_CARRIES_FAILURE_CODES",
+            "defect_class": "UNDETERMINED",
+            "expected": "a successful run reports no failure codes",
+            "observed": "failure codes: ['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "MINOR"
+          },
+          {
+            "check_code": "DETERMINISTIC_FALLBACK_USED",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "the deterministic path answers when the provider does not",
+            "observed": "fallback produced a plan; failures=['LLM_AGENT_PROVIDER_UNAVAILABLE']",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 0,
+        "llm_call_count": 1,
+        "output_tokens": 0,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": true,
+        "violation_codes": [],
+        "wall_clock_ms": 859
+      },
+      "case_id": "SQ-HELD-022",
+      "category": "conflict",
+      "deliberation": {
+        "applied_adjustment_count": 0,
+        "selected_candidate_code": null,
+        "selection_changed": false,
+        "specialist_disagreement": false
+      }
+    }
+  ]
+}

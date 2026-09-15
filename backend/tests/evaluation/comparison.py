@@ -25,6 +25,7 @@ import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
+from itertools import combinations
 from typing import Final
 
 from backend.tests.evaluation.architectures import ARCHITECTURE_LABELS
@@ -33,6 +34,11 @@ from backend.tests.evaluation.evaluators.findings import CaseEvaluation, Severit
 from backend.tests.evaluation.judge.judge import JudgeResult, JudgeVerdict
 from backend.tests.evaluation.judge.rubric import JudgeCriterion
 from backend.tests.evaluation.outcomes import OutcomeBreakdown, breakdown, classify
+from backend.tests.evaluation.round3_metrics import (
+    paired_model_plan_comparison,
+    summarize_invocations,
+    summarize_outcomes,
+)
 from backend.tests.evaluation.runners.run_multi_agent import CaseRunResult
 
 _RATE_QUANTUM: Final = Decimal("0.0001")
@@ -273,6 +279,7 @@ class ArchitectureResult:
 
     def to_json(self) -> dict[str, object]:
         input_tokens, output_tokens = self.token_totals
+        audits = [run.graph_result.invocation_audits for run in self.runs]
         return {
             "architecture_code": self.architecture_code,
             "label": self.label,
@@ -310,6 +317,12 @@ class ArchitectureResult:
                 ),
             },
             "by_category": {item.category: item.to_json() for item in self.categories()},
+            "round3_diagnostics": {
+                "normalized_outcomes": summarize_outcomes(self.runs, audits),
+                "invocation_latency_by_role_phase": summarize_invocations(
+                    audit for run_audits in audits for audit in run_audits
+                ),
+            },
         }
 
 
@@ -322,6 +335,7 @@ class ComparisonReport:
     repeats: int = 1
     judge_blind: bool = True
     notes: tuple[str, ...] = ()
+    case_ids: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, object]:
         return {
@@ -330,8 +344,25 @@ class ComparisonReport:
             "judge_blind": self.judge_blind,
             "fairness_conditions": FAIRNESS_CONDITIONS,
             "notes": list(self.notes),
+            "case_ids": list(self.case_ids),
             "architectures": [item.to_json() for item in self.results],
+            "paired_model_plan_comparisons": self._paired_comparisons(),
         }
+
+    def _paired_comparisons(self) -> dict[str, object]:
+        comparisons: dict[str, object] = {}
+        for left, right in combinations(self.results, 2):
+            key = f"{left.architecture_code}_vs_{right.architecture_code}"
+            try:
+                comparison = paired_model_plan_comparison(left.runs, right.runs)
+            except ValueError as error:
+                comparisons[key] = {
+                    "status": "NOT_COMPARABLE",
+                    "reason": str(error),
+                }
+            else:
+                comparisons[key] = {"status": "COMPARABLE", **comparison.to_json()}
+        return comparisons
 
     def dumps(self) -> str:
         return json.dumps(self.to_json(), ensure_ascii=False, indent=2, sort_keys=True)

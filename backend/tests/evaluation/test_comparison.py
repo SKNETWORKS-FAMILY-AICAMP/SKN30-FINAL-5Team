@@ -30,7 +30,12 @@ from backend.tests.evaluation.architectures import (
     COMPARED_ARCHITECTURES,
 )
 from backend.tests.evaluation.comparison import ArchitectureResult, ComparisonReport
-from backend.tests.evaluation.comparison_cli import _execute, select_case_ids
+from backend.tests.evaluation.comparison_cli import (
+    _execute,
+    _forecast,
+    select_case_ids,
+    select_categories,
+)
 from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.evaluators import evaluate_case
 from backend.tests.evaluation.evaluators.agent_metrics import build_report as build_agent_report
@@ -67,6 +72,31 @@ def test_paid_subset_selection_preserves_dataset_order_and_rejects_unknown_ids()
         select_case_ids(cases, ("UNKNOWN-CASE",))
 
 
+def test_category_selection_preserves_dataset_order_and_rejects_unknown_values() -> None:
+    cases = tuple(GRAPH_CASES)
+    selected = select_categories(cases, ("conflict", "complex"))
+
+    assert selected
+    assert all(case.category.value in {"conflict", "complex"} for case in selected)
+    assert [case.case_id for case in selected] == [
+        case.case_id for case in cases if case.category.value in {"conflict", "complex"}
+    ]
+    with pytest.raises(ValueError, match="unknown categories"):
+        select_categories(cases, ("not-a-category",))
+
+
+def test_no_judge_forecast_does_not_reserve_unrequested_calls() -> None:
+    forecast = _forecast(
+        (ARCHITECTURE_SINGLE_AGENT_RAG, ARCHITECTURE_MULTI_AGENT),
+        case_count=5,
+        repeats=3,
+        judge_enabled=False,
+    )
+
+    assert "75 graph LLM calls" in forecast
+    assert "0 judge calls" in forecast
+
+
 def test_report_records_the_selected_dataset() -> None:
     report = asyncio.run(
         _execute(
@@ -81,6 +111,7 @@ def test_report_records_the_selected_dataset() -> None:
 
     assert report.dataset_name == "expanded_heldout_cases"
     assert report.to_json()["dataset"] == "expanded_heldout_cases"
+    assert report.case_ids
 
 
 # Fields `PlanSpec` carries that describe an orchestration a baseline does not
@@ -366,3 +397,35 @@ def test_report_records_the_fairness_conditions_and_its_own_caveats() -> None:
     assert conditions["output_schema"]
     assert body["judge_blind"] is True
     assert body["notes"] == ["blind judge"]
+
+
+def test_report_adds_round3_diagnostics_without_changing_round2_fields() -> None:
+    left_run = _run(ARCHITECTURE_SINGLE_AGENT_RAG, GRAPH_CASES[0], Script())
+    right_run = _run(ARCHITECTURE_MULTI_AGENT, GRAPH_CASES[0], Script())
+    report = ComparisonReport(
+        results=[
+            ArchitectureResult(
+                architecture_code=ARCHITECTURE_SINGLE_AGENT_RAG,
+                model_label="scripted",
+                runs=[left_run],
+                evaluations=[evaluate_case(left_run)],
+            ),
+            ArchitectureResult(
+                architecture_code=ARCHITECTURE_MULTI_AGENT,
+                model_label="scripted",
+                runs=[right_run],
+                evaluations=[evaluate_case(right_run)],
+            ),
+        ]
+    )
+
+    body = report.to_json()
+    architecture = body["architectures"][0]
+    assert architecture["llm_plan_rate"] == 1.0
+    assert (
+        architecture["round3_diagnostics"]["normalized_outcomes"]["delivery_counts"]["MODEL_PLAN"]
+        == 1
+    )
+    paired = body["paired_model_plan_comparisons"]["SINGLE_AGENT_RAG_vs_MULTI_AGENT"]
+    assert paired["status"] == "COMPARABLE"
+    assert paired["pairs"] == 1

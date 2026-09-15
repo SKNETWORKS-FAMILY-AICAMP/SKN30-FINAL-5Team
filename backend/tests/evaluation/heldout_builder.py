@@ -34,10 +34,10 @@ from backend.tests.evaluation.catalog_source import (
 from backend.tests.evaluation.dataset import DATASET_SCHEMA_VERSION, DATASETS_DIR
 from backend.tests.evaluation.production_catalog import PRODUCTION_BUNDLE_ROOT
 
-HELDOUT_DATASET_NAME: Final = "heldout_cases"
-HELDOUT_DATASET_ID: Final = "service-quality-heldout-v2"
-EXPANDED_HELDOUT_DATASET_NAME: Final = "expanded_heldout_cases"
-EXPANDED_HELDOUT_DATASET_ID: Final = "service-quality-heldout-v3-expanded"
+HELDOUT_DATASET_NAME: Final = "heldout_cases_v2"
+HELDOUT_DATASET_ID: Final = "service-quality-heldout-v4-equipment-ungated"
+EXPANDED_HELDOUT_DATASET_NAME: Final = "expanded_heldout_cases_v2"
+EXPANDED_HELDOUT_DATASET_ID: Final = "service-quality-heldout-v4-expanded-equipment-ungated"
 
 SAFETY_RULES_PATH: Final = PRODUCTION_BUNDLE_ROOT / "safety" / "safety_rules.jsonl"
 
@@ -287,14 +287,13 @@ def build_cases() -> list[dict[str, Any]]:
             allowed_intensity_codes=intensity,
         )
 
-    # -- equipment and location ---------------------------------------------
-    for duration, equipment in ((20, "BARBELL"), (30, "MACHINE"), (20, "CABLE_MACHINE")):
+    # -- location without user-equipment gating ------------------------------
+    for duration in (20, 30, 40):
         builder.add(
             category="complex",
-            description=f"HOME 전용 요청에서 {equipment} 사용 금지",
+            description=f"장비 보유 정보 없는 HOME {duration}분 요청",
             duration_minutes=duration,
             location_code="HOME",
-            prohibited_equipment_codes=(equipment,),
         )
     builder.add(
         category="complex",
@@ -447,18 +446,13 @@ def build_expanded_cases() -> list[dict[str, Any]]:
             allowed_intensity_codes=("LOW",),
         )
 
-    # -- more equipment/location and reviewed discomfort exclusions ----------
-    for duration, equipment in (
-        (25, "DUMBBELL"),
-        (35, "BARBELL"),
-        (45, "MACHINE"),
-    ):
+    # -- more location-only and reviewed discomfort exclusions ---------------
+    for duration in (25, 35, 45):
         builder.add(
             category="complex",
-            description=f"확대 표본: HOME {duration}분 요청에서 {equipment} 사용 금지",
+            description=f"확대 표본: 장비 보유 정보 없는 HOME {duration}분 요청",
             duration_minutes=duration,
             location_code="HOME",
-            prohibited_equipment_codes=(equipment,),
         )
     for area, severity, location, duration in (
         ("HIP", "MILD", "GYM", 25),
