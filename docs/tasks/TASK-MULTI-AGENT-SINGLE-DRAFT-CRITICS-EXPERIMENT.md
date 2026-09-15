@@ -55,3 +55,11 @@ well as provider failures. A catalog body-focus privacy-path regression was corr
 using the established `exercise_pool` payload key. The next measurement is intervention
 rate on a broader held-out sample; blind quality judging is meaningful only for cases where
 E actually changes the shared B draft.
+
+An eight-case intervention-rate run then covered simple, moderate, complex, and conflict
+inputs. B and E delivered direct plans in 8/8 cases, but E accepted no patch. Four cases were
+clean `NO_CHANGE`; four preserved the original after one critic produced schema-invalid
+output. No blind judge was run because B and E were identical in every case. Architecture E
+therefore demonstrates safe no-regression and cheaper no-change short-circuiting, but not a
+quality advantage. A further paid expansion is not recommended without changing the
+experimental hypothesis or critic task.

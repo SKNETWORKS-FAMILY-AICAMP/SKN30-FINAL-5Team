@@ -48,3 +48,21 @@ No direct identifiers, raw wearable records, or provider secrets are stored in t
 
 The corrected artifact records 13 provider attempts and a `$0.176152` recorded-usage lower
 bound under the same approved pricing reference. Retry telemetry limitations still apply.
+
+## Expanded intervention-rate run
+
+`summary-expanded-8.json` covers eight shared-draft cases: one simple, two moderate, two
+complex, and three conflict cases. B and E retained a direct plan in all eight. E changed
+zero plans. Four critic pairs completed and both returned no patches; the other four had one
+schema-invalid critic and preserved the original. The no-change fast path correctly skipped
+Coordinator, so every case recorded three roles rather than four.
+
+Because E produced no changed plan, a B-vs-E blind quality judge would compare identical
+plans and cannot measure critic value. No judge call was made. This run supports E's
+no-regression property but provides no evidence that the critics improve final routine
+quality under the current prompt and input contract.
+
+The expanded artifact records 32 attempts, 104,695 input tokens, and 16,504 output tokens,
+for a `$0.407438` recorded-usage lower bound. Across the three stored E artifacts the recorded
+lower bound is `$0.718472`. One interrupted envelope run wrote no artifact, so neither that
+sum nor retry telemetry should be represented as the provider invoice total.
