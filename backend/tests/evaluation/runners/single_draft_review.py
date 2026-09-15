@@ -155,7 +155,11 @@ class SingleDraftReviewRunner:
                 public_summary_code=plan.public_summary_code,
             )
             adapter = SingleDraftReviewProviderAdapter(invoker=self._review_invoker())
-            review_results = await adapter.review_both(draft=draft, pool=scenario.exercise_pool)
+            review_results = await adapter.review_both(
+                draft=draft,
+                envelope=scenario.constraint_envelope,
+                pool=scenario.exercise_pool,
+            )
             for role, result in zip(("RECOVERY", "FEASIBILITY"), review_results, strict=True):
                 audits.append(_audit(result, role_code=role, phase_code="DRAFT_REVIEW"))
             if all(result.output is not None for result in review_results):

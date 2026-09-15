@@ -1,0 +1,336 @@
+{
+  "case_count": 3,
+  "dataset": "heldout_cases_v2",
+  "experiment": "ADR-0026-single-draft-parallel-critics",
+  "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+  "provider_attempts": 13,
+  "rows": [
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-001",
+        "category": "simple",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 5869,
+        "llm_call_count": 1,
+        "output_tokens": 1971,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 28359
+      },
+      "case_id": "SQ-HELD-001",
+      "category": "simple",
+      "invocations": [
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 5869,
+          "latency_ms": 28312,
+          "output_token_count": 1971,
+          "phase_code": "DRAFT_GENERATION",
+          "provider_usage_present": true,
+          "role_code": "TRAINING",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 2,
+          "decline_reason_codes": [],
+          "failure_code": "LLM_AGENT_SCHEMA_INVALID",
+          "input_token_count": null,
+          "latency_ms": 5406,
+          "output_token_count": null,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": false,
+          "role_code": "RECOVERY",
+          "status_code": "INVALID_OUTPUT"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 2154,
+          "latency_ms": 1515,
+          "output_token_count": 20,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": true,
+          "role_code": "FEASIBILITY",
+          "status_code": "SUCCEEDED"
+        }
+      ],
+      "review": {
+        "applied_adjustment_count": 0,
+        "changed": false,
+        "completed": false,
+        "original_preserved": true,
+        "preservation_codes": [
+          "CRITIC_FAILED_KEEP_DRAFT"
+        ],
+        "specialist_disagreement": false
+      },
+      "reviewed": {
+        "architecture_code": "SINGLE_DRAFT_PARALLEL_CRITICS",
+        "case_id": "SQ-HELD-001",
+        "category": "simple",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 8023,
+        "llm_call_count": 3,
+        "output_tokens": 1991,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 5406
+      },
+      "shared_draft": true
+    },
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-013",
+        "category": "complex",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 5869,
+        "llm_call_count": 1,
+        "output_tokens": 1925,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 24672
+      },
+      "case_id": "SQ-HELD-013",
+      "category": "complex",
+      "invocations": [
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 5869,
+          "latency_ms": 24625,
+          "output_token_count": 1925,
+          "phase_code": "DRAFT_GENERATION",
+          "provider_usage_present": true,
+          "role_code": "TRAINING",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 3278,
+          "latency_ms": 1234,
+          "output_token_count": 20,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": true,
+          "role_code": "RECOVERY",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 3289,
+          "latency_ms": 2828,
+          "output_token_count": 20,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": true,
+          "role_code": "FEASIBILITY",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 447,
+          "latency_ms": 1172,
+          "output_token_count": 29,
+          "phase_code": "PATCH_SELECTION",
+          "provider_usage_present": true,
+          "role_code": "COORDINATOR",
+          "status_code": "SUCCEEDED"
+        }
+      ],
+      "review": {
+        "applied_adjustment_count": 0,
+        "changed": false,
+        "completed": true,
+        "original_preserved": false,
+        "preservation_codes": [
+          "NO_CHANGE_KEEP_DRAFT"
+        ],
+        "specialist_disagreement": false
+      },
+      "reviewed": {
+        "architecture_code": "SINGLE_DRAFT_PARALLEL_CRITICS",
+        "case_id": "SQ-HELD-013",
+        "category": "complex",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band requires ['RESISTANCE_BAND'] with an empty envelope allowlist",
+            "severity": "INFO"
+          },
+          {
+            "check_code": "EQUIPMENT_UNCONSTRAINED_BY_ENVELOPE",
+            "defect_class": "NOT_A_DEFECT",
+            "expected": "equipment is settled upstream during pool composition",
+            "observed": "dumbbell_rear_lateral_raise_support_head requires ['DUMBBELL'] with an empty envelope allowlist",
+            "severity": "INFO"
+          }
+        ],
+        "has_plan": true,
+        "input_tokens": 12883,
+        "llm_call_count": 4,
+        "output_tokens": 1994,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 4016
+      },
+      "shared_draft": true
+    },
+    {
+      "baseline": {
+        "architecture_code": "SINGLE_AGENT_RAG",
+        "case_id": "SQ-HELD-022",
+        "category": "conflict",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 10077,
+        "llm_call_count": 1,
+        "output_tokens": 1126,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 13359
+      },
+      "case_id": "SQ-HELD-022",
+      "category": "conflict",
+      "invocations": [
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 10077,
+          "latency_ms": 13344,
+          "output_token_count": 1126,
+          "phase_code": "DRAFT_GENERATION",
+          "provider_usage_present": true,
+          "role_code": "TRAINING",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 2,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 2460,
+          "latency_ms": 2781,
+          "output_token_count": 20,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": true,
+          "role_code": "RECOVERY",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 2471,
+          "latency_ms": 1016,
+          "output_token_count": 20,
+          "phase_code": "DRAFT_REVIEW",
+          "provider_usage_present": true,
+          "role_code": "FEASIBILITY",
+          "status_code": "SUCCEEDED"
+        },
+        {
+          "attempt_count": 1,
+          "decline_reason_codes": [],
+          "failure_code": null,
+          "input_token_count": 447,
+          "latency_ms": 1360,
+          "output_token_count": 29,
+          "phase_code": "PATCH_SELECTION",
+          "provider_usage_present": true,
+          "role_code": "COORDINATOR",
+          "status_code": "SUCCEEDED"
+        }
+      ],
+      "review": {
+        "applied_adjustment_count": 0,
+        "changed": false,
+        "completed": true,
+        "original_preserved": false,
+        "preservation_codes": [
+          "NO_CHANGE_KEEP_DRAFT"
+        ],
+        "specialist_disagreement": false
+      },
+      "reviewed": {
+        "architecture_code": "SINGLE_DRAFT_PARALLEL_CRITICS",
+        "case_id": "SQ-HELD-022",
+        "category": "conflict",
+        "decline_reason_codes": [],
+        "failure_codes": [],
+        "findings": [],
+        "has_plan": true,
+        "input_tokens": 15455,
+        "llm_call_count": 4,
+        "output_tokens": 1195,
+        "passed": true,
+        "repair_attempts": 0,
+        "script_summary": "T=COMPLIANT,R=COMPLIANT,F=COMPLIANT,C=COMPLIANT",
+        "status_code": "SUCCEEDED",
+        "used_fallback": false,
+        "violation_codes": [],
+        "wall_clock_ms": 4141
+      },
+      "shared_draft": true
+    }
+  ]
+}

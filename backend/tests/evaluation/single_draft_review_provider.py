@@ -10,9 +10,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
+from backend.app.domain.agents.v3_contracts import ConstraintEnvelope
 from backend.app.integrations.llm_agents.models import LlmAgentRoleCode, StructuredAgentResult
 from backend.app.integrations.llm_agents.payload import (
+    _CONSTRAINT_ENVELOPE_FIELDS,
     assert_private_machine_payload,
+    project_contract,
     project_exercise_pool,
 )
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
@@ -143,6 +146,7 @@ class SingleDraftReviewProviderAdapter:
         *,
         role_code: Literal["RECOVERY", "FEASIBILITY"],
         draft: SingleAgentPlanDraft,
+        envelope: ConstraintEnvelope,
         pool: ExercisePoolSnapshot,
     ) -> StructuredAgentResult[DraftReview]:
         prompt_version = (
@@ -151,6 +155,9 @@ class SingleDraftReviewProviderAdapter:
         instruction = _RECOVERY_INSTRUCTION if role_code == "RECOVERY" else _FEASIBILITY_INSTRUCTION
         payload: dict[str, object] = {
             "draft": draft.model_dump(mode="json"),
+            "constraint_envelope": project_contract(
+                envelope, field_allowlist=_CONSTRAINT_ENVELOPE_FIELDS
+            ),
             "prescribed_exercise_catalog": _selected_pool_payload(draft, pool),
         }
 
@@ -187,11 +194,15 @@ class SingleDraftReviewProviderAdapter:
         )
 
     async def review_both(
-        self, *, draft: SingleAgentPlanDraft, pool: ExercisePoolSnapshot
+        self,
+        *,
+        draft: SingleAgentPlanDraft,
+        envelope: ConstraintEnvelope,
+        pool: ExercisePoolSnapshot,
     ) -> tuple[StructuredAgentResult[DraftReview], StructuredAgentResult[DraftReview]]:
         return await asyncio.gather(
-            self.review(role_code="RECOVERY", draft=draft, pool=pool),
-            self.review(role_code="FEASIBILITY", draft=draft, pool=pool),
+            self.review(role_code="RECOVERY", draft=draft, envelope=envelope, pool=pool),
+            self.review(role_code="FEASIBILITY", draft=draft, envelope=envelope, pool=pool),
         )
 
     async def select(

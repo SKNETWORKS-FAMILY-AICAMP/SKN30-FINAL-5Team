@@ -34,3 +34,16 @@ Coordinator.
    failure, and downstream safety/duration rejection.
 5. Add zero-cost dry-run/offline comparison before any paid pilot.
 
+## Progress (2026-09-15)
+
+The contracts, provider adapter, shared-draft runner, and cost-gated CLI are implemented.
+Focused checks cover no-change, valid patch, critic failure, invented Coordinator patch,
+post-patch duration failure, and one-time shared draft generation. Ruff, mypy, strict OpenAI
+schema binding, and the full evaluation suite passed before the first paid run.
+
+The first three-case paid run preserved B's 3/3 direct-plan rate but made no accepted changes.
+Two cases completed with `NO_CHANGE`; one critic failed and the valid original was retained.
+Inspection found that the critic payload lacked the normalized constraint envelope. The
+adapter now includes the existing privacy projection so critics can see goal, duration,
+location, recovery ceiling, and safety exclusions. Equipment ownership remains deliberately
+excluded. See `results/single-draft-review-pilot/README.md`.
