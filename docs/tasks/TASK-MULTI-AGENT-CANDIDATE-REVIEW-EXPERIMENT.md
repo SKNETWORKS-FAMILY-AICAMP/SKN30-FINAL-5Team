@@ -46,3 +46,27 @@ compiler와 downstream integrity validator를 통과했다. 중복 후보, 리�
 이 결과는 구조와 안전 경계의 실행 가능성을 검증한 것이며 실제 모델의 후보 다양성·리뷰 품질 또는
 Single-Agent+RAG 대비 우위를 입증하지 않는다. 다음 증분은 실제 provider adapter, 후보 차이 지표,
 Specialist 개입·채택 지표와 blinded paired pilot이다.
+
+## Provider-capable pilot increment (2026-09-15)
+
+The experiment now has a provider adapter and an executable B-vs-D pilot runner. The
+four D-path calls are Training candidate generation, parallel Recovery and Feasibility
+cross-review, and Coordinator selection. The Coordinator output contains no exercise
+prescriptions; the server materializes the selected candidate and review-originated
+bounded adjustments before invoking the existing compiler, integrity validator, and
+deterministic fallback.
+
+The pilot records selection changes, specialist disagreement, accepted adjustment count,
+latency, token usage, fallback use, and the common evaluator findings. The CLI defaults to
+a zero-cost forecast, requires `--confirm-spend`, and rejects a run whose five-calls-per-case
+forecast exceeds `--max-calls`.
+
+Free verification completed before any paid attempt:
+
+- Ruff format/check: passed
+- mypy for the new provider, runner, CLI, and tests: passed
+- candidate-review contract and provider tests: 12 passed
+- three-case dry run: 15-call ceiling, zero provider calls
+
+The first paid attempt was stopped before provider construction by the environment's
+external-data approval gate. No paid call was made by that attempt.
