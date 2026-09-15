@@ -6,6 +6,7 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any, cast
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage
 
@@ -34,6 +35,7 @@ from backend.tests.evaluation.scenario import Scenario, build_scenario
 @dataclass
 class _ExperimentalChatModel:
     training_payload: dict[str, object]
+    training_payloads: list[dict[str, object]] | None = None
     calls: list[str] = field(default_factory=list)
 
     def with_structured_output(self, schema: object, **_: object) -> _Runnable:
@@ -48,7 +50,10 @@ class _ExperimentalChatModel:
         request = body["input"]
         self.calls.append(schema_version)
         if schema_version == CANDIDATE_GENERATION_SCHEMA_VERSION:
-            parsed = self.training_payload
+            if self.training_payloads:
+                parsed = self.training_payloads.pop(0)
+            else:
+                parsed = self.training_payload
         elif schema_version == CANDIDATE_REVIEW_SCHEMA_VERSION:
             codes = [item["candidate_code"] for item in request["candidate_set"]["candidates"]]
             parsed = {
@@ -209,3 +214,49 @@ def test_candidate_review_runner_records_intervention_and_uses_common_gate() -> 
         "SELECTION",
     ]
     assert len(model.calls) == 4
+
+
+def test_runner_retries_only_training_when_first_candidate_fails_common_gate() -> None:
+    valid, scenario = _training_payload()
+    invalid = json.loads(json.dumps(valid))
+    invalid["candidates"][0]["exercise_prescriptions"][0]["exercise_id"] = str(uuid4())
+    model = _ExperimentalChatModel(
+        training_payload=valid,
+        training_payloads=[invalid, valid],
+    )
+
+    result = asyncio.run(
+        CandidateReviewRunner(chat_model=model, max_attempts=2).run_scenario(scenario)
+    )
+
+    assert result.base_run.used_fallback is False
+    assert model.calls == [
+        CANDIDATE_GENERATION_SCHEMA_VERSION,
+        CANDIDATE_GENERATION_SCHEMA_VERSION,
+        CANDIDATE_REVIEW_SCHEMA_VERSION,
+        CANDIDATE_REVIEW_SCHEMA_VERSION,
+        CANDIDATE_SELECTION_SCHEMA_VERSION,
+    ]
+    assert result.base_run.graph_result.invocation_audits[0].attempt_count == 2
+
+
+def test_runner_stops_before_reviews_when_both_training_attempts_are_invalid() -> None:
+    valid, scenario = _training_payload()
+    invalid = json.loads(json.dumps(valid))
+    invalid["candidates"][0]["exercise_prescriptions"][0]["exercise_id"] = str(uuid4())
+    model = _ExperimentalChatModel(
+        training_payload=invalid,
+        training_payloads=[invalid, invalid],
+    )
+
+    result = asyncio.run(
+        CandidateReviewRunner(chat_model=model, max_attempts=2).run_scenario(scenario)
+    )
+
+    assert result.base_run.used_fallback is True
+    assert model.calls == [
+        CANDIDATE_GENERATION_SCHEMA_VERSION,
+        CANDIDATE_GENERATION_SCHEMA_VERSION,
+    ]
+    assert len(result.base_run.graph_result.invocation_audits) == 1
+    assert result.base_run.graph_result.invocation_audits[0].attempt_count == 2

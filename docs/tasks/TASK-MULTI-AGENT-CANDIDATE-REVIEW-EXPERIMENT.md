@@ -80,6 +80,27 @@ specialist disagreement and accepted two bounded adjustments, but the compiled r
 The result therefore does not establish D superiority. See
 `results/candidate-review-pilot/README.md` and `summary-v2.json`.
 
-The next pre-registered correction is to validate both candidates independently through the
-common compiler and integrity validator before cross-review. Do not spend on a larger run
-until that gate and a sanitized per-stage failure audit are verified offline.
+The pre-registered correction was implemented next. Both candidates now independently pass
+through the common compiler and integrity validator inside Training's domain validator. If
+either candidate fails, the structured invoker retries Training once; Recovery and
+Feasibility receive nothing until a complete two-candidate set passes. A second failure
+terminates the LLM path before review and uses deterministic fallback. The pilot report now
+retains sanitized per-stage invocation audits, and its call forecast reserves six attempts
+per case (B once; Training up to twice; two reviews; one selection).
+
+Offline acceptance checks cover an out-of-pool exercise on the first attempt followed by a
+valid retry, and two consecutive invalid attempts. The former makes exactly five D provider
+attempts and reaches selection; the latter makes only two Training attempts and never calls
+the reviewers.
+
+The same three-case paid rerun then recorded 11 provider attempts. D produced one direct
+plan: on the simple case the specialists disagreed and the Coordinator changed the selection
+to the recovery candidate, which passed the final gate with no evaluator findings. On the
+complex and conflict cases Training exhausted both attempts, so the pre-gate prevented any
+review or selection spend and deterministic fallback supplied the plan. B remained 3/3.
+This demonstrates a real, bounded multi-agent intervention but not an aggregate advantage.
+
+Retry usage is a known measurement limitation: shared invocation telemetry records the last
+attempt rather than accumulating every attempt's tokens. The V3 artifact therefore reports
+11 attempts but its calculated `$0.281414` cost is a lower bound. Do not claim it as the
+provider invoice total.

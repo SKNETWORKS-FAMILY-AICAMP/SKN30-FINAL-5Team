@@ -2,7 +2,8 @@
 
 The default is a zero-cost forecast. Provider calls require both
 ``--confirm-spend`` and ``OPENAI_API_KEY``. Each complete case costs at most
-five graph calls: one Single-Agent+RAG baseline and four candidate-review calls.
+six graph calls: one Single-Agent+RAG baseline, up to two Training attempts,
+two candidate reviews, and one Coordinator selection.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from backend.tests.evaluation.runners.openai_provider import (
 from backend.tests.evaluation.runners.single_agent import SingleAgentRunner
 
 DEFAULT_OUTPUT = Path("results/candidate-review-pilot/summary.json")
-CALLS_PER_CASE = 5
+CALLS_PER_CASE = 6
 
 
 def _cases(
@@ -69,7 +70,11 @@ async def _execute(
         experimental = await candidate.run(case)
         baseline_eval = evaluate_case(baseline_run)
         candidate_eval = evaluate_case(experimental.base_run)
-        provider_calls += baseline_run.llm_call_count + experimental.base_run.llm_call_count
+        provider_calls += sum(
+            audit.attempt_count for audit in baseline_run.graph_result.invocation_audits
+        ) + sum(
+            audit.attempt_count for audit in experimental.base_run.graph_result.invocation_audits
+        )
         critical = (*baseline_eval.critical_failures, *candidate_eval.critical_failures)
         if critical:
             codes = ",".join(item.check_code for item in critical)

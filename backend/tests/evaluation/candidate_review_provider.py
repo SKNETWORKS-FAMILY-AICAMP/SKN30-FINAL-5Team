@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from typing import Literal, Self
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -147,8 +148,14 @@ def _shared_payload(envelope: ConstraintEnvelope, pool: ExercisePoolSnapshot) ->
 
 
 class CandidateReviewProviderAdapter:
-    def __init__(self, *, invoker: StructuredChatInvoker) -> None:
+    def __init__(
+        self,
+        *,
+        invoker: StructuredChatInvoker,
+        candidate_set_validator: Callable[[CandidateSet], None] | None = None,
+    ) -> None:
         self._invoker = invoker
+        self._candidate_set_validator = candidate_set_validator
 
     async def generate_candidates(
         self, *, envelope: ConstraintEnvelope, pool: ExercisePoolSnapshot
@@ -174,7 +181,9 @@ class CandidateReviewProviderAdapter:
             )
 
         def validate(output: TrainingCandidatesOutput) -> TrainingCandidatesOutput:
-            canonical(output.model_dump())
+            candidate_set = canonical(output.model_dump())
+            if self._candidate_set_validator is not None:
+                self._candidate_set_validator(candidate_set)
             return output
 
         result = await self._invoker.ainvoke(

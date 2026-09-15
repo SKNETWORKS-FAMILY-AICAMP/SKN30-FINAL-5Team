@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
-from backend.app.domain.agents.v3_contracts import CoordinatorInput
+from backend.app.domain.agents.v3_contracts import CoordinatorInput, PlanActionCode
 from backend.app.integrations.langgraph.state import InvocationAudit
 from backend.app.integrations.llm_agents.models import (
     LlmAgentFailureCode,
@@ -88,6 +88,7 @@ class CandidateReviewRunner:
     provider: ProviderContext | None = None
     chat_model: object | None = None
     model_code: str = EVAL_MODEL_CODE
+    max_attempts: int = 1
 
     def _invoker(self) -> StructuredChatInvoker:
         if self.provider is not None:
@@ -103,16 +104,46 @@ class CandidateReviewRunner:
         return StructuredChatInvoker(
             chat_model=cast(Any, self.chat_model),
             model_code=self.model_code,
-            max_attempts=1,
+            max_attempts=self.max_attempts,
             use_native_json_schema=False,
         )
+
+    def _validate_candidate_set(self, candidate_set: CandidateSet, *, scenario: Scenario) -> None:
+        """Require both drafts to pass the same downstream gate before review."""
+
+        finalizer = SingleAgentRunner()
+        for candidate in candidate_set.candidates:
+            draft = SingleAgentPlanDraft.create(
+                envelope_hash=candidate_set.envelope_hash,
+                pool_hash=candidate_set.pool_hash,
+                action_code=PlanActionCode.KEEP,
+                requested_duration_minutes=candidate_set.requested_duration_minutes,
+                estimated_duration_seconds=candidate_set.requested_duration_minutes * 60,
+                exercise_prescriptions=candidate.exercise_prescriptions,
+                decision_codes=(f"VALIDATE_{candidate.candidate_code}",),
+            )
+            validated = finalizer._finalize(  # noqa: SLF001 - common evaluation gate
+                StructuredAgentResult.success(draft),
+                envelope=scenario.constraint_envelope,
+                pool=scenario.exercise_pool,
+            )
+            if validated.used_fallback or validated.compiled_plan is None:
+                codes = ",".join(validated.failure_codes) or "UNKNOWN"
+                raise ValueError(
+                    f"candidate {candidate.candidate_code} failed the common gate: {codes}"
+                )
 
     async def run(self, case: EvaluationCase) -> CandidateReviewRunResult:
         return await self.run_scenario(build_scenario(case))
 
     async def run_scenario(self, scenario: Scenario) -> CandidateReviewRunResult:
         started_ns = time.monotonic_ns()
-        adapter = CandidateReviewProviderAdapter(invoker=self._invoker())
+        adapter = CandidateReviewProviderAdapter(
+            invoker=self._invoker(),
+            candidate_set_validator=lambda candidates: self._validate_candidate_set(
+                candidates, scenario=scenario
+            ),
+        )
         audits: list[InvocationAudit] = []
         candidate_set: CandidateSet | None = None
         reviews: tuple[CandidateReview, ...] = ()
