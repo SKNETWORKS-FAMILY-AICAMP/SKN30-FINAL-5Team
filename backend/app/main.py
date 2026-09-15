@@ -115,7 +115,10 @@ def create_app(
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
-    database_manager = DatabaseManager(resolved_settings.database_url.get_secret_value())
+    database_manager = DatabaseManager(
+        resolved_settings.database_url.get_secret_value(),
+        lock_timeout_ms=resolved_settings.db_lock_timeout_ms,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
