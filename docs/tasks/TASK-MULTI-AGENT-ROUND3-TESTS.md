@@ -71,3 +71,11 @@ python -m backend.tests.evaluation.comparison_cli --dry-run `
   이 작업에서 임의 구현하지 않는다.
 - 과거 산출물은 새 진단 필드를 갖지 않으므로 재생성 없이 소급 계산할 수 있는 범위만 분석한다.
 - 실제 provider 반복 실행은 비용을 발생시키므로 이 작업의 자동 검증에 포함하지 않는다.
+
+## 실행 결과
+
+2026-09-15 오너 승인으로 conflict/complex 28건을 B/C 각각 3회, Judge 제외로 실행했다. 실제
+provider 호출은 417회, 공식 가격 기준 비용은 $9.5333이었다. Safety·Plan Delivery·Workflow는
+두 architecture 모두 1.000이고 critical failure는 0이었다. Multi-Agent P95는 40.734초,
+모델 직접 계획률은 B 0.9643 대 C 0.8690이었다. 공통 fallback에서 금지 장비 위반 MAJOR 결함을
+발견했으며 상세 판정과 후속 조치는 `docs/test/ROUND3_RESULTS.md`를 따른다.

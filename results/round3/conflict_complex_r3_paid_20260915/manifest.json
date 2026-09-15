@@ -1,0 +1,24 @@
+{
+  "manifest_schema_version": "round3-evaluation-manifest-v1",
+  "executed_at": "2026-09-15",
+  "dataset": "expanded_heldout_cases",
+  "categories": ["conflict", "complex"],
+  "architectures": ["SINGLE_AGENT_RAG", "MULTI_AGENT"],
+  "repeats": 3,
+  "judge_enabled": false,
+  "model_label": "OPENAI:gpt-5.6-terra:reasoning-low",
+  "max_calls": 480,
+  "actual_calls": 417,
+  "files": {
+    "agent_metrics_multi_agent.json": "2f48d73e7490d7c51afe6c97a449a51227075c8d37c4659a56d0b915add66ebe",
+    "agent_metrics_single_agent_rag.json": "4b2cbffb9cb69748e3cbcb5b629a9157cf6df00fca1d1175352c6059aa16f8e4",
+    "cases_multi_agent.json": "fa38e124c65d60e3ba4052958265f7ebad8bd8f23bda43738a9772aee2412e76",
+    "cases_single_agent_rag.json": "1349bc1754b4516ec3f42a64a7a8f06335ff80e130821a9f5d7c8068baa64e60",
+    "comparison.json": "858119332c043d2428d01b41544c2800b199ef5bd2db0c3834ae05b17df1796c",
+    "comparison.md": "947023c5d097638a1f1aa07f079b1f2053a61fe75ec54110aaeb14b3fd8c6b8b",
+    "judge_multi_agent.json": "b9fe7604592b497e52bd6ebe9e5be3a8b61e93f9f4168758da96f77027842b2b",
+    "judge_single_agent_rag.json": "b9fe7604592b497e52bd6ebe9e5be3a8b61e93f9f4168758da96f77027842b2b",
+    "pairwise_payloads.json": "bbc2fc35ea3591c59e5d8469c3d964d563ce3cc38de8123d930b09172ebaa5cb",
+    "pricing_reference.json": "737d062802d869f61aa39b6e5c52cdde3bc159879881e943f7d278a9eea0013c"
+  }
+}
