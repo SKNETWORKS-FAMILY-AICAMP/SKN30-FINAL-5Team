@@ -145,7 +145,9 @@ def test_the_strata_the_plan_names_are_actually_exercised() -> None:
         and case.expected_constraints.requested_duration_minutes <= 15
         for case in HELDOUT
     ), "no limited-time case"
-    assert any(case.prohibited_actions.equipment_codes for case in HELDOUT), "no equipment case"
+    assert all(not case.prohibited_actions.equipment_codes for case in EXPANDED_HELDOUT), (
+        "user equipment must not gate routine generation"
+    )
     assert any(case.expected_constraints.excluded_exercise_codes for case in HELDOUT)
     # Supporting users without a wearable is a product invariant, so the default
     # must be the unconnected one rather than an afterthought.

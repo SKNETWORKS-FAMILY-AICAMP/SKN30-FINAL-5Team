@@ -26,7 +26,7 @@ compiler, integrity validator와 fallback을 사용했다. AWS Secrets Manager�
 | 계획 전달 | 84/84 (1.000) | 84/84 (1.000) |
 | Safety Compliance | 1.000 | 1.000 |
 | Workflow Success | 1.000 | 1.000 |
-| Constraint Satisfaction | 0.9881 | 0.9762 |
+| Constraint Satisfaction (현행 정책 정정) | 1.000 | 1.000 |
 | Critical failure | 0 | 0 |
 | P50 latency | 19.532초 | 24.421초 |
 | P95 latency | 38.563초 | 40.734초 |
@@ -76,16 +76,17 @@ Multi-Agent 역할별 provider 지연은 다음과 같다.
 Feasibility는 병렬이므로, 후속 지연 개선은 Training 출력 안정화·payload와 Coordinator 호출 경로를
 우선 검토해야 한다. 조건부 advisory 호출은 ADR-0015 구조 변경이므로 별도 승인 없이 구현하지 않는다.
 
-## 발견된 서비스 결함
+## 평가 데이터 정정
 
-`SQ-HELD-044`에서 `prohibited_equipment_codes=[DUMBBELL]`인데 fallback 계획에 덤벨 운동이 포함됐다.
-이 때문에 B 1/3 run, C 2/3 run이 `PROHIBITED_EQUIPMENT_REQUIRED` MAJOR finding으로 constraint
-평가에 실패했다. 모든 run은 계획을 전달했고 pain exclusion 기반 Safety Compliance는 1.000이었지만,
-장비 제약 위반 계획을 사용자에게 전달했으므로 정상 통과로 취급하지 않는다.
+`SQ-HELD-044`의 `prohibited_equipment_codes=[DUMBBELL]` 조건은 2026-08-27 승인된 장비 비게이트
+정책과 충돌하는 오래된 평가 조건이었다. 덤벨 운동 포함은 서비스 결함이 아니며
+`PROHIBITED_EQUIPMENT_REQUIRED` finding은 판정에서 제외한다. 같은 원천에서 생성된 장비 금지
+시나리오는 후속 `heldout_cases_v2`·`expanded_heldout_cases_v2`에서 장비 보유 정보 없는
+장소·시간 시나리오로 교체했다. 과거 실행의 원본 dataset과 manifest는 재현성을 위해 보존한다.
 
-후속 수정은 운영 pool/fallback이 prohibited equipment를 제외하는 경계를 추적하고, 동일 case에
-대해 B/C 공통 fallback 회귀를 추가해야 한다. 안전·도메인 규칙 변경 가능성이 있으므로 AI/data lead와
-domain review 아래 별도 작업으로 처리한다.
+정책에 맞게 해석하면 B와 C의 Constraint Satisfaction은 모두 1.000이다. 이 정정은 이미 저장된
+모델 출력, 직접 계획/fallback 분류, 지연, 호출 수와 토큰을 바꾸지 않으므로 아키텍처 우월성 판정에는
+영향이 없다.
 
 ## 비용
 
@@ -100,9 +101,9 @@ domain review 아래 별도 작업으로 처리한다.
 - 지연: 두 architecture 모두 30초 P95 기준 미달이며 Multi가 2.171초 느렸다.
 - 직접 계획: B가 전체·complex·conflict 모두 C 이상이었다.
 - 비용: Multi는 B 대비 호출 3.96배, 평균 token/run 2.52배였다.
-- 서비스 결함: 공통 fallback의 금지 장비 위반이 발견돼 별도 수정 전 완전 통과로 판정할 수 없다.
+- 평가 정정: 금지 장비 finding은 현행 정책과 충돌해 제외했으며 정책 기준 Constraint는 양쪽 1.000이다.
 
 따라서 Round 3도 Multi-Agent의 Single-Agent+RAG 대비 우월성을 지지하지 않는다. 현 증거에서는
 Single-Agent+RAG가 비용·지연·직접 계획 안정성에서 우세하고, Multi-Agent는 안전 또는 전달률의 추가
-이점을 보이지 않았다. Multi-Agent 승격은 보류하며, 금지 장비 fallback 결함 수정과 지연 개선 후에만
-재평가한다.
+이점을 보이지 않았다. 현 구조 승격은 보류하고 ADR-0025의 후보 생성·교차 검토·제한 조정 실험으로
+별도 재평가한다.

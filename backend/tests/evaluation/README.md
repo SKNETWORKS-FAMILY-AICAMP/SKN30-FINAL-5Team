@@ -31,6 +31,8 @@ EvaluationCase (JSON)
 | `catalog.py` | 고정 UUID 합성 운동 카탈로그 (18종). 모든 값이 `eval-` 접두사 |
 | `dataset.py` | case 스키마·로더·개인정보 스캔 |
 | `datasets/smoke_cases.json` | 20개 smoke case, 9개 category 전부 |
+| `datasets/heldout_cases_v2.json` | 사용자 장비 비게이트 정책을 반영한 33개 held-out case |
+| `datasets/expanded_heldout_cases_v2.json` | 후보 검토 실험용 60개 확대 held-out case |
 | `scenario.py` | case → envelope + pool. 입력 거부도 여기서 판정 |
 | `planner.py` | 스크립트 모델이 쓰는 결정적 plan 구성기 |
 | `runners/fake_chat.py` | 스크립트 provider (`ScriptCode` 12종) |
@@ -43,6 +45,7 @@ EvaluationCase (JSON)
 | `judge/pairwise.py` | PHASE 7 맞대결 판정, position bias 측정, 블라인딩 검증 |
 | `pairwise_cli.py` | collect(그래프) / judge(맞대결) 분리 실행 |
 | `performance_failure*.py` | PHASE 9 실-provider 지표 재집계 + 실패 주입 |
+| `candidate_review.py` | ADR-0025 평가 전용 후보·교차검토·제한조정 계약 |
 | `human_calibration*.py` | PHASE 10 블라인드 사람 평가 양식 + 비공개 Judge 참조표 생성 |
 | `phase11_outputs*.py` | PHASE 11 최종 산출물 통합 + 필수 파일/해시 검증 |
 | `production_catalog.py` | 배포 카탈로그 번들 → pool record (D-2 재확인용) |
