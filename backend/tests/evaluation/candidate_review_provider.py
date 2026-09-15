@@ -24,6 +24,7 @@ from backend.app.integrations.llm_agents.payload import (
 )
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
 from backend.tests.evaluation.candidate_review import (
+    BoundedAdjustment,
     CandidateDraft,
     CandidateReview,
     CandidateSelection,
@@ -45,13 +46,13 @@ class CandidateOptionOutput(BaseModel):
 
     candidate_code: Literal["GOAL_FOCUSED", "RECOVERY_FOCUSED"]
     objective_code: Literal["GOAL_PRESERVATION", "RECOVERY_LOAD"]
-    exercise_prescriptions: tuple[ExercisePrescription, ...] = Field(min_length=1)
+    exercise_prescriptions: list[ExercisePrescription] = Field(min_length=1)
 
 
 class TrainingCandidatesOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    candidates: tuple[CandidateOptionOutput, CandidateOptionOutput]
+    candidates: list[CandidateOptionOutput] = Field(min_length=2, max_length=2)
 
     @model_validator(mode="after")
     def validate_roles(self) -> Self:
@@ -63,6 +64,26 @@ class TrainingCandidatesOutput(BaseModel):
         if actual != expected:
             raise ValueError("Training must return the two fixed candidate objectives")
         return self
+
+
+class CandidateReviewOutput(BaseModel):
+    """Provider-owned review fields; hashes and role identity stay server-owned."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    ranked_candidate_codes: list[str] = Field(min_length=2, max_length=2)
+    adjustments: list[BoundedAdjustment]
+    review_codes: list[str] = Field(min_length=1)
+
+
+class CandidateSelectionOutput(BaseModel):
+    """Provider-owned selection fields; prescriptions cannot appear here."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    selected_candidate_code: str
+    accepted_adjustment_ids: list[str]
+    decision_codes: list[str] = Field(min_length=1)
 
 
 def _messages(
@@ -140,7 +161,7 @@ class CandidateReviewProviderAdapter:
                 CandidateDraft.create(
                     candidate_code=item.candidate_code,
                     objective_code=item.objective_code,
-                    exercise_prescriptions=item.exercise_prescriptions,
+                    exercise_prescriptions=tuple(item.exercise_prescriptions),
                 )
                 for item in parsed.candidates
             )
@@ -204,26 +225,45 @@ class CandidateReviewProviderAdapter:
         }
 
         def canonical(values: dict[str, object]) -> CandidateReview:
+            parsed = CandidateReviewOutput.model_validate(values)
             return CandidateReview.create(
                 role_code=role_code,
                 candidate_set_hash=candidate_set.candidate_set_hash,
-                **values,
+                ranked_candidate_codes=tuple(parsed.ranked_candidate_codes),
+                adjustments=tuple(parsed.adjustments),
+                review_codes=tuple(sorted(set(parsed.review_codes))),
             )
 
-        return await self._invoker.ainvoke(
+        def validate(output: CandidateReviewOutput) -> CandidateReviewOutput:
+            canonical(output.model_dump())
+            return output
+
+        result = await self._invoker.ainvoke(
             role_code=LlmAgentRoleCode(role_code),
             prompt_version=prompt_version,
             output_schema_version=CANDIDATE_REVIEW_SCHEMA_VERSION,
-            output_schema=CandidateReview,
+            output_schema=CandidateReviewOutput,
             messages=_messages(
                 prompt_version=prompt_version,
                 instruction=instruction,
                 schema_version=CANDIDATE_REVIEW_SCHEMA_VERSION,
                 payload=payload,
             ),
-            domain_validator=lambda output: output,
-            canonical_factory=canonical,
-            server_owned_fields=("role_code", "candidate_set_hash", "review_hash"),
+            domain_validator=validate,
+        )
+        if result.output is not None:
+            return StructuredAgentResult.success(
+                canonical(result.output.model_dump()), telemetry=result.telemetry
+            )
+        assert result.failure is not None
+        return StructuredAgentResult.failed(
+            code=result.failure.code,
+            role_code=result.failure.role_code,
+            prompt_version=result.failure.prompt_version,
+            output_schema_version=result.failure.output_schema_version,
+            model_code=result.failure.model_code,
+            attempt_count=result.failure.attempt_count,
+            telemetry=result.telemetry,
         )
 
     async def review_both(
@@ -258,24 +298,44 @@ class CandidateReviewProviderAdapter:
         }
 
         def canonical(values: dict[str, object]) -> CandidateSelection:
+            parsed = CandidateSelectionOutput.model_validate(values)
             return CandidateSelection.create(
-                candidate_set_hash=candidate_set.candidate_set_hash, **values
+                candidate_set_hash=candidate_set.candidate_set_hash,
+                selected_candidate_code=parsed.selected_candidate_code,
+                accepted_adjustment_ids=tuple(sorted(set(parsed.accepted_adjustment_ids))),
+                decision_codes=tuple(sorted(set(parsed.decision_codes))),
             )
 
-        return await self._invoker.ainvoke(
+        def validate(output: CandidateSelectionOutput) -> CandidateSelectionOutput:
+            canonical(output.model_dump())
+            return output
+
+        result = await self._invoker.ainvoke(
             role_code=LlmAgentRoleCode.COORDINATOR,
             prompt_version=CANDIDATE_SELECTION_PROMPT_VERSION,
             output_schema_version=CANDIDATE_SELECTION_SCHEMA_VERSION,
-            output_schema=CandidateSelection,
+            output_schema=CandidateSelectionOutput,
             messages=_messages(
                 prompt_version=CANDIDATE_SELECTION_PROMPT_VERSION,
                 instruction=_SELECTION_INSTRUCTION,
                 schema_version=CANDIDATE_SELECTION_SCHEMA_VERSION,
                 payload=payload,
             ),
-            domain_validator=lambda output: output,
-            canonical_factory=canonical,
-            server_owned_fields=("candidate_set_hash", "selection_hash"),
+            domain_validator=validate,
+        )
+        if result.output is not None:
+            return StructuredAgentResult.success(
+                canonical(result.output.model_dump()), telemetry=result.telemetry
+            )
+        assert result.failure is not None
+        return StructuredAgentResult.failed(
+            code=result.failure.code,
+            role_code=result.failure.role_code,
+            prompt_version=result.failure.prompt_version,
+            output_schema_version=result.failure.output_schema_version,
+            model_code=result.failure.model_code,
+            attempt_count=result.failure.attempt_count,
+            telemetry=result.telemetry,
         )
 
 
@@ -289,5 +349,7 @@ __all__ = [
     "TRAINING_CANDIDATE_PROMPT_VERSION",
     "CandidateOptionOutput",
     "CandidateReviewProviderAdapter",
+    "CandidateReviewOutput",
+    "CandidateSelectionOutput",
     "TrainingCandidatesOutput",
 ]

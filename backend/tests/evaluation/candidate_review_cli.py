@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import json
 from collections.abc import Sequence
+from dataclasses import asdict
 from pathlib import Path
 
 from backend.tests.evaluation.architectures import ARCHITECTURE_SINGLE_AGENT_RAG
@@ -79,6 +80,9 @@ async def _execute(
                 "category": case.category.value,
                 "baseline": baseline_eval.to_json(),
                 "candidate_review": candidate_eval.to_json(),
+                "candidate_review_invocations": [
+                    asdict(audit) for audit in experimental.base_run.graph_result.invocation_audits
+                ],
                 "deliberation": {
                     "selection_changed": experimental.selection_changed,
                     "specialist_disagreement": experimental.specialist_disagreement,

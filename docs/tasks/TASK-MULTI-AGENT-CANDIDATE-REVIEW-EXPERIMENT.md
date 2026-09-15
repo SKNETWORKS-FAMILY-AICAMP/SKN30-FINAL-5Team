@@ -70,3 +70,16 @@ Free verification completed before any paid attempt:
 
 The first paid attempt was stopped before provider construction by the environment's
 external-data approval gate. No paid call was made by that attempt.
+
+After explicit approval, a three-case paid pilot was run. The initial D schema was rejected
+locally by OpenAI native structured-output binding; provider-specific list DTOs replaced the
+fixed Pydantic tuples and passed local strict-schema binding before the rerun. In the rerun B
+produced 3/3 direct plans. D used fallback in 3/3: one selected recovery candidate showed
+specialist disagreement and accepted two bounded adjustments, but the compiled result failed
+`PLAN_EXERCISE_VARIETY_EXCEEDED`; the other paths stopped on domain/provider-stage failures.
+The result therefore does not establish D superiority. See
+`results/candidate-review-pilot/README.md` and `summary-v2.json`.
+
+The next pre-registered correction is to validate both candidates independently through the
+common compiler and integrity validator before cross-review. Do not spend on a larger run
+until that gate and a sanitized per-stage failure audit are verified offline.

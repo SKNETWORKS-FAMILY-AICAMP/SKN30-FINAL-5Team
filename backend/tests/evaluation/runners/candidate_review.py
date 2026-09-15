@@ -131,6 +131,8 @@ class CandidateReviewRunner:
             )
         )
         candidate_set = generated.output
+        if generated.failure is not None:
+            failure_code = generated.failure.code
         if candidate_set is not None:
             review_results = await adapter.review_both(
                 envelope=scenario.constraint_envelope,
@@ -139,6 +141,11 @@ class CandidateReviewRunner:
             )
             for role, result in zip(("RECOVERY", "FEASIBILITY"), review_results, strict=True):
                 audits.append(_audit(result, role_code=role, phase_code="CROSS_REVIEW"))
+            failed_review = next(
+                (result.failure for result in review_results if result.failure is not None), None
+            )
+            if failed_review is not None:
+                failure_code = failed_review.code
             if all(result.output is not None for result in review_results):
                 reviews = cast(
                     tuple[CandidateReview, CandidateReview],
@@ -155,6 +162,8 @@ class CandidateReviewRunner:
                     )
                 )
                 selection = selected.output
+                if selected.failure is not None:
+                    failure_code = selected.failure.code
                 if selection is not None:
                     try:
                         baseline = candidate_set.candidates[0].exercise_prescriptions
